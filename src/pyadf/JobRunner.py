@@ -1,8 +1,8 @@
 # This file is part of 
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2012 by Christoph R. Jacob, S. Maya Beyhan,
-# Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Karin Kiewisch,
-# Jetze Sikkema, and Lucas Visscher 
+# Copyright (C) 2006-2014 by Christoph R. Jacob, S. Maya Beyhan,
+# Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Michal Handzlik,
+# Karin Kiewisch, Moritz Klammler, Jetze Sikkema, and Lucas Visscher 
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -121,10 +121,11 @@ class SerialJobRunner (JobRunner):
                         shutil.copy(f, cwd)
             finally:
                 os.chdir(cwd)
-            os.system('rm -rf jobtempdir')
 
             r = job.create_results_instance()
             self._files.add_results(r)
+
+            os.system('rm -rf jobtempdir')
 
         else :
             print "Job was found in results archive - not running it again"

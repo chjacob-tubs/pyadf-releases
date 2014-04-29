@@ -1,16 +1,13 @@
 
 m = molecule (os.path.join(pyadfenv.outdir, 'Ce_H2O.pdb'), inputformat='pdb')
 
-lan = m.get_residues(restype='MET')[0]
+lan = molecule (os.path.join(pyadfenv.outdir, 'Ce.xyz')) 
 lan.set_charge(3)
 
 print "Lanthanide"
 print lan.print_coordinates()
 
-sol = m.get_residues(restype='HOH')
-solvent = molecule()
-for wat in sol:
-  solvent += wat
+solvent = molecule (os.path.join(pyadfenv.outdir, 'H2O.xyz'))
 
 print "Solvent"
 print "New fragment"

@@ -1,22 +1,21 @@
 
-filename = os.path.join(pyadfenv.outdir, 'an.pdb')
-
-m = molecule (filename, inputformat='pdb')
-
-an = m.get_residues(restype='LIG')[0]
+an = molecule(os.path.join(pyadfenv.outdir, 'an.xyz'))
 an.set_symmetry('NOSYM')
 
 print "Acetonitrile"
 print an.print_coordinates()
 
-solvent = m.get_residues(restype='TIP')
+solvent = []
+for i in range(12) :
+    m = molecule(os.path.join(pyadfenv.outdir, 'solvent%i.xyz' % i))
+    solvent.append(m)
 
 print "Solvent"
 for f in solvent :
     print "New fragment"
     print f.print_coordinates()
 
-m_h2o = solvent[0]
+m_h2o = molecule(os.path.join(pyadfenv.outdir, 'h2o.xyz'))
 m_h2o.set_symmetry('NOSYM')
 
 # Prepare isolated water density

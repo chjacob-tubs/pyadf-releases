@@ -1,19 +1,19 @@
 def check_results (fun, testobj, dipole_vect, dipole_magn):
     if fun == 'LDA':
-       magn = 1.68498037 
-       vect = [0.0, 0.0, -1.68498037]
+       magn = 1.68496462
+       vect = [0.0, 0.0, -1.6849646]
     if fun == 'PW91':
-       magn = 1.61555689
-       vect = [0.0, 0.0, -1.61555689]
+       magn = 1.61554179
+       vect = [0.0, 0.0, -1.61554179]
     if fun == 'PBE0':
-       magn = 1.65754074
-       vect = [0.0, 0.0, -1.65754074]
+       magn = 1.65752523
+       vect = [0.0, 0.0, -1.65752523]
     if fun == 'M06L':
-       magn = 1.66846818
-       vect = [0.0, 0.0, -1.66846818]
+       magn = 1.66845259
+       vect = [0.0, 0.0, -1.66845259]
     if fun == 'M06-2X':
-       magn = 1.68265741
-       vect = [0.0, 0.0, -1.68265741]
+       magn = 1.68264166 
+       vect = [0.0, 0.0, -1.68264166] 
 
     testobj.assertAlmostEqual(dipole_magn,     magn, 6) 
     testobj.assertAlmostEqualVectors(dipole_vect, vect, 6)

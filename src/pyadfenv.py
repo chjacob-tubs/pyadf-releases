@@ -1,8 +1,8 @@
 # This file is part of 
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2012 by Christoph R. Jacob, S. Maya Beyhan,
-# Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Karin Kiewisch,
-# Jetze Sikkema, and Lucas Visscher 
+# Copyright (C) 2006-2014 by Christoph R. Jacob, S. Maya Beyhan,
+# Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Michal Handzlik,
+# Karin Kiewisch, Moritz Klammler, Jetze Sikkema, and Lucas Visscher 
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -56,6 +56,8 @@ def setup_pyadfenv () :
               dest="restartdir", help="restart using results in directory DIR")
     parser.add_option("--profile", "-p", action="store_true", default=False, 
               dest="profile", help="run using the python profiler")
+    parser.add_option("--openbabel", "-o", action="store_true", default=False, 
+              dest="openbabel", help="use OpenBabel molecule class")
 
     (options, args) = parser.parse_args()
 
@@ -68,6 +70,9 @@ def setup_pyadfenv () :
 
     if options.profile :
         opts['profile'] = True
+
+    if options.openbabel :
+        opts['openbabel'] = True
 
     if not (options.restartdir == None) :
         opts['restartdir'] = os.path.abspath(options.restartdir)
@@ -100,14 +105,17 @@ def setup_pyadfenv () :
     return pyadfenv
 
 
-def setup_test_pyadfenv (pyadfinput) :
+def setup_test_pyadfenv (pyadfinput, force_openbabel=False) :
 
     # run locally
     cwd = os.getcwd()
 
     os.mkdir('pyadftempdir')
     os.chdir('pyadftempdir')
-
-    pyadfenv = env (cwd, cwd, str(os.getpid()), pyadfinput, {'unittesting': True})
+    
+    options = {'unittesting':True}
+    if force_openbabel :
+        options['openbabel'] = True
+    pyadfenv = env (cwd, cwd, str(os.getpid()), pyadfinput, options)
 
     return pyadfenv

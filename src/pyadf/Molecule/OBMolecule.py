@@ -1,8 +1,8 @@
 # This file is part of 
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2012 by Christoph R. Jacob, S. Maya Beyhan,
-# Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Karin Kiewisch,
-# Jetze Sikkema, and Lucas Visscher 
+# Copyright (C) 2006-2014 by Christoph R. Jacob, S. Maya Beyhan,
+# Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Michal Handzlik,
+# Karin Kiewisch, Moritz Klammler, Jetze Sikkema, and Lucas Visscher 
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -17,11 +17,13 @@
 #    You should have received a copy of the GNU General Public License
 #    along with PyADF.  If not, see <http://www.gnu.org/licenses/>.
 """
- Defines the L{molecule} class.
+ Defines the L{OBMolecule} class.
 
  This module defines the class molecule, which
  is used by PyADF to represent molecules
  (i.e., atomic coordinates, charge, ...)
+
+ This version heavily relies on OpenBabel
 
  @author:       Christoph Jacob and others
  @organization: Karlsruhe Institute of Technology (KIT)
@@ -31,8 +33,8 @@
 
 import openbabel
 
-from Errors import PyAdfError
-from Utils  import pse, Bohr_in_Angstrom
+from ..Errors import PyAdfError
+from ..Utils  import pse, Bohr_in_Angstrom
 
 import copy, math
 
@@ -188,7 +190,7 @@ class BaseMolecule (object):
         """
         pass
 
-class molecule (BaseMolecule):
+class OBMolecule (BaseMolecule):
     """
     Class for representing a molecule.
 
@@ -201,7 +203,7 @@ class molecule (BaseMolecule):
     any file format openbabel can handle, the default is xyz
     (see L{__init__}).
     
-    >>> mol = molecule('h2o.xyz')
+    >>> mol = OBMolecule('h2o.xyz')
     
     They can be read and written in any format openbabel can handle
     using L{read} and L{write}, respectively.    
@@ -336,7 +338,7 @@ class molecule (BaseMolecule):
 
         @exampleuse:
 
-            >>> mol = molecule('h2o.xyz')
+            >>> mol = OBMolecule('h2o.xyz')
             >>> print mol
             Cartesian coordinates: 
             1)     H       -0.21489        3.43542        2.17104
@@ -362,13 +364,13 @@ class molecule (BaseMolecule):
 
         @exampleuse:
 
-        >>> h2o = molecule('h2o.xyz')
+        >>> h2o = OBMolecule('h2o.xyz')
         >>> print h2o
         Cartesian coordinates: 
         1)     H       -0.21489        3.43542        2.17104    
         2)     O       -0.89430        3.96159        2.68087    
         3)     H       -0.43479        4.75018        3.07278    
-        >>> an = molecule('an.xyz')
+        >>> an = OBMolecule('an.xyz')
         >>> print an
         Cartesian coordinates: 
         1)     C        2.40366        0.63303       -0.29209    
@@ -414,8 +416,8 @@ class molecule (BaseMolecule):
 
         @exampleuse:
         
-        >>> an = molecule('an.xyz')
-        >>> h2o = molecule('h2o.xyz')
+        >>> an = OBMolecule('an.xyz')
+        >>> h2o = OBMolecule('h2o.xyz')
         >>> mol = an.add_as_ghosts(h2o)
         >>> print mol
         Cartesian coordinates: 
@@ -467,7 +469,7 @@ class molecule (BaseMolecule):
 
         @exampleuse:
         
-        >>> h2o = molecule('h2o.xyz')
+        >>> h2o = OBMolecule('h2o.xyz')
         >>> mol = h2o.displace_atom(atom=1, coordinate='x', atomicunits=False)
         >>> print h2o
         Cartesian coordinates: 
@@ -483,9 +485,9 @@ class molecule (BaseMolecule):
         """
 
         if atom == None:
-            raise PyAdfError("atom number missing in Molecule.molecule.displace_atom")
+            raise PyAdfError("atom number missing in OBMolecule.displace_atom")
         elif coordinate == None:
-            raise PyAdfError("coordinate missing in Molecule.molecule.displace_atom")
+            raise PyAdfError("coordinate missing in OBMolecule.displace_atom")
         coordinate = coordinate.lower()
 
         if atomicunits:
@@ -706,7 +708,7 @@ class molecule (BaseMolecule):
 
         @exampleuse:
         
-            >>> mol = molecule()
+            >>> mol = OBMolecule()
             >>> atoms = ['H', 'H', 'O']
             >>> coords = [[-0.21489, 3.43542, 2.17104],
             ...           [-0.89430, 3.96159, 2.68087],
@@ -760,7 +762,7 @@ class molecule (BaseMolecule):
 
         @exampleuse:
         
-            >>> mol = molecule('h2o.xyz')
+            >>> mol = OBMolecule('h2o.xyz')
             >>> mol.get_coordinates()
             [[-0.21489, 3.43542, 2.17104],
              [-0.89430, 3.96159, 2.68087],
@@ -826,14 +828,14 @@ class molecule (BaseMolecule):
         @exampleuse:
             Obtaining a list of all atomic symbols.
 
-            >>> mol = molecule('an.xyz')
+            >>> mol = OBMolecule('an.xyz')
             >>> mol.get_atom_symbols()
             ['C', 'C', 'N', 'H', 'H', 'H']
 
         @exampleuse:
             Restricting the list to certain atoms.
 
-            >>> mol = molecule('an.xyz')
+            >>> mol = OBMolecule('an.xyz')
             >>> mol.get_atom_symbols(atoms=[1,3,5])
             ['C', 'N', 'H']
 
@@ -972,7 +974,7 @@ class molecule (BaseMolecule):
 
         @exampleuse:
         
-            >>> an = molecule('an.xyz')
+            >>> an = OBMolecule('an.xyz')
             >>> print an.print_coordinates()
             1)     C        2.40366        0.63303       -0.29209    
             2)     C        1.77188        1.66625        0.53174    
@@ -987,7 +989,7 @@ class molecule (BaseMolecule):
             3)     H        3.47247        0.85113       -0.42037    
 
         """
-        m = molecule ()
+        m = OBMolecule ()
         m.add_atoms (self.get_atom_symbols (atoms, ghosts), 
                      self.get_coordinates(atoms, ghosts))
         return m
@@ -1045,7 +1047,7 @@ class molecule (BaseMolecule):
         
         for res in residues :
 
-            m = molecule()
+            m = OBMolecule()
 
             for at in openbabel.OBResidueAtomIter(res[0]):
                 m.mol.AddAtom(at)
@@ -1327,7 +1329,7 @@ class molecule (BaseMolecule):
         mols = []
         obmols = self.mol.Separate()
         for m in obmols :
-            mols.append(molecule().set_OBMol(m))
+            mols.append(OBMolecule().set_OBMol(m))
             
         return mols
 
@@ -1483,7 +1485,7 @@ class molecule (BaseMolecule):
         @exampleuse:
             Simple printing of the coordinates:
             
-            >>> mol = molecule('h2o.xyz')
+            >>> mol = OBMolecule('h2o.xyz')
             >>> print mol.print_coordinates()
             1)     H       -0.21489        3.43542        2.17104
             2)     O       -0.89430        3.96159        2.68087
@@ -1492,14 +1494,14 @@ class molecule (BaseMolecule):
         @exampleuse:
             Printing of selected atoms:
             
-            >>> mol = molecule('h2o.xyz')
+            >>> mol = OBMolecule('h2o.xyz')
             >>> print mol.print_coordinates(atoms=[2])
             2)     O       -0.89430        3.96159        2.68087
 
         @exampleuse:
             Printing without atom numbering:
             
-            >>> mol = molecule('h2o.xyz')
+            >>> mol = OBMolecule('h2o.xyz')
             >>> print mol.print_coordinates(index=False)
             H       -0.21489        3.43542        2.17104
             O       -0.89430        3.96159        2.68087
@@ -1508,7 +1510,7 @@ class molecule (BaseMolecule):
         @exampleuse:
             Printing with a suffix:
             
-            >>> mol = molecule('h2o.xyz')
+            >>> mol = OBMolecule('h2o.xyz')
             >>> print mol.print_coordinates(index=False, suffix='f=frag1')
             H       -0.21489        3.43542        2.17104    f=frag1
             O       -0.89430        3.96159        2.68087    f=frag1
@@ -1560,7 +1562,7 @@ class molecule (BaseMolecule):
         @exampleuse:
             Printing of the atoms using geovars:
             
-            >>> mol = molecule('h2o.xyz')
+            >>> mol = OBMolecule('h2o.xyz')
             >>> print mol.get_geovar_atoms_block([1,3])
             H         atom1x         atom1y         atom1z 
             O    -0.89430000     3.96159000     2.68087000 
@@ -1595,7 +1597,7 @@ class molecule (BaseMolecule):
         @exampleuse:
             Printing of the atoms using geovars:
             
-            >>> mol = molecule('h2o.xyz')
+            >>> mol = OBMolecule('h2o.xyz')
             >>> print mol.get_geovar_block([1,3])
             GEOVAR
               atom1x         -0.21489000 
@@ -1626,7 +1628,7 @@ class molecule (BaseMolecule):
         @exampleuse:
             Printing of the Dalton molecule file:
             
-            >>> mol = molecule('h2o.xyz')
+            >>> mol = OBMolecule('h2o.xyz')
             >>> print mol.get_dalton_molfile('STO-3G')
             BASIS
             STO-3G
@@ -1739,6 +1741,64 @@ class molecule (BaseMolecule):
         """ 
         return self.mol.HasSpinMultiplicityAssigned()
                 
+    def get_checksum(self, representation='xyz'):
+        
+        """
+        Get a hexadecimal 128-bit md5 hash of the molecule.
+        
+        This method writes a coordinate file, digests it and returns the md5
+        checksum of that file. If you think that the representation of the 
+        molecule matters, you can specify it explicitly via the C{representation} 
+        flag. Needless to say that you have to use the same representation 
+        to compare two molecules.
+        
+        @param representation: Molecule file format understood by I{Open Babel}.
+        @returns:              Hexadicimal hash
+        @rtype:                L{str}
+        @author:               Moritz Klammler
+        @date:                 Aug. 2011
+        
+        """
+        
+        import os
+        import tempfile
+        import hashlib
+        
+        # First write the  coordinates to a file. The  format obviously doesn't
+        # matter as long as it it unambigous and we always use the same. We use
+        # Python's  `tempfile' module to  write the  coordinates. This  has the
+        # advantage that the method will also succeed if we do not have writing
+        # access to the CWD and we don't risk acidently overwriting an existing
+        # file. The temporary file will be  unlinked from the OS at the time of
+        # disposal of the `tempfile.NamedTemporaryFile' object.
+        
+        # We  detect  one source  of  errors by  comparing  the  hash with  the
+        # empty-string hash. If it matches, something must have went wrong with
+        # writing and re-reading the file.
+        
+        m = hashlib.md5()
+        emptyhash = m.hexdigest()
+        
+        tmp = tempfile.NamedTemporaryFile()
+        tmp.file.close()
+        
+        # The file is empty now. Note  that we only call the `file' attribute's
+        # `close()' method.  Saying `tmp.close()' would  immediately unlink the
+        # pysical file which is not what we want.
+        
+        self.write(tmp.name, outputformat=representation)
+        
+        with open(tmp.name, 'r') as infile:
+            for line in infile:
+                m.update(line)
+        
+        molhash = m.hexdigest()
+        if molhash == emptyhash:
+            raise PyAdfError("""Error while trying to compute the md5 hash of
+            the molecule. Hash equals empty-string hash.""")
+        
+        return molhash
+
 
 def _setUp_doctest (test):
     #pylint: disable-msg=W0613
@@ -1749,14 +1809,14 @@ def _setUp_doctest (test):
 
     os.mkdir('molecule_doctests')
 
-    h2o = molecule()
+    h2o = OBMolecule()
     h2o.add_atoms(['H', 'O', 'H'], 
           [[-0.21489, 3.43542, 2.17104], 
            [-0.89430, 3.96159, 2.68087], 
            [-0.43479, 4.75018, 3.07278]])
     h2o.write('h2o.xyz')
 
-    an = molecule()
+    an = OBMolecule()
     an.add_atoms(['C', 'C', 'N', 'H', 'H', 'H'], 
          [[2.40366, 0.63303, -0.29209], 
           [1.77188, 1.66625, 0.53174], 

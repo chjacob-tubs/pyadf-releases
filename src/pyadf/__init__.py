@@ -1,8 +1,8 @@
 # This file is part of 
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2012 by Christoph R. Jacob, S. Maya Beyhan,
-# Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Karin Kiewisch,
-# Jetze Sikkema, and Lucas Visscher 
+# Copyright (C) 2006-2014 by Christoph R. Jacob, S. Maya Beyhan,
+# Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Michal Handzlik,
+# Karin Kiewisch, Moritz Klammler, Jetze Sikkema, and Lucas Visscher 
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -178,6 +178,10 @@
     Dirac
  @group NWChem Calculations:
     NWChem
+ @group Turbomole and Friends:
+    Turbomole
+    SNF
+    TurboDefinition
  @group Plotting:
     PlotGrids
     Plot
@@ -197,7 +201,8 @@ import kf
 
 from Utils import pse, Bohr_in_Angstrom, au_in_eV, au_in_Debye, conversion
 
-from Molecule  import molecule
+from Molecule  import molecule, MoleculeFactory
+
 from Files     import adf_filemanager
 from JobRunner import DefaultJobRunner, SerialJobRunner
 from BaseJob   import job, results 
@@ -223,10 +228,21 @@ from Dirac             import diracsettings, diracjob, diracsinglepointjob
 from NWChem            import nwchemsettings, nwchemjob, nwchemsinglepointjob
 from NWChemCC2         import nwchemCC2job
 
+from Turbomole         import TurbomoleSinglePointSettings, TurbomoleGeometryOptimizationSettings, \
+                              TurbomoleGradientSettings, TurbomoleForceFieldSettings, \
+                              TurbomoleSinglePointJob, \
+                              TurbomoleGeometryOptimizationJob, TurbomoleGradientJob, \
+                              TurbomoleForceFieldJob
+
+#from SNF               import SNFJob
+
 from ADF_FDE           import adffdejob, adffderesults, adffdesettings
 
-from ADF_3FDE          import cappedfragment, cappedfragmentlist, capmolecule, \
-                              adfmfccjob, mfccresults, adf3fdejob
+try:
+     from ADF_3FDE          import cappedfragment, cappedfragmentlist, capmolecule, \
+                                  adfmfccjob, mfccresults, adf3fdejob
+except ImportError :
+     pass
 
 from ADF_FDE_AccurateEmbedding import adfaccurateembeddingjob
 

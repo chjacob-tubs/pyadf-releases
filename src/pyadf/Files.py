@@ -1,8 +1,8 @@
 # This file is part of 
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2012 by Christoph R. Jacob, S. Maya Beyhan,
-# Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Karin Kiewisch,
-# Jetze Sikkema, and Lucas Visscher 
+# Copyright (C) 2006-2014 by Christoph R. Jacob, S. Maya Beyhan,
+# Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Michal Handzlik,
+# Karin Kiewisch, Moritz Klammler, Jetze Sikkema, and Lucas Visscher 
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -391,6 +391,50 @@ class adf_filemanager (filemanager) :
                 self.rename_file('TAPE'+tapenr, fn)
                 self._resultfiles[results.fileid].append(fn)
 
+    def add_turbomole_results (self, results) :
+        
+        """
+        Add the result files (yes, plural!) of a I{Turbomole} job.
+        
+        Adds a C{tar} archive to the result files containing all files from the
+        I{Turbomole} working directory. The archive is compressed with the
+        format specified by the results object's C{compression} attribute which
+        must be a proper string. See the U{C{tarfile} module's
+        API<http://docs.python.org/library/tarfile.html#module-tarfile>} for a
+        list of these.
+        
+        @param results: Results object from the I{Turbole} job.
+        @type  results: L{TurbomoleResults}
+        @author:        Moritz Klammer
+        @date:          Aug. 2011
+        
+        """
+        
+        import tarfile
+        
+        self.add_outputfiles(results)
+        self._resultfiles.append([])        
+        self._ispacked.append(True)
+        
+        # Make  a `archive.tar'  from `jobtempdir'.  The files  will be  in the
+        # arcive directly  with no containing directory. They  can therefore be
+        # extracted  via,  say,   `tar.extractfile'energy')'  (if  `tar'  is  a
+        # `TarFile'  object  opened in  reading  mode  with properly  specified
+        # compressin.
+        
+        jobdirname  = 'jobtempdir'
+        archivename = 'archive.tar'
+        
+        tar = tarfile.open(name=archivename, mode='w:' + results.compression)
+        for filename in os.listdir(jobdirname):
+            tar.add(jobdirname + os.sep + filename, arcname=filename)
+        tar.close()
+
+        self.add_file(archivename)
+        fn = 'resultfiles/t21.results.%04i' % results.fileid
+        self.rename_file(archivename, fn)
+        self._resultfiles[results.fileid].append(fn)
+
     def add_adf_results (self, results) :
         """
         Add the result files of an ADF job.
@@ -437,7 +481,8 @@ class adf_filemanager (filemanager) :
         from DaltonSinglePoint import daltonresults
         from Dirac import diracresults
         from NWChem import nwchemresults
-        
+        from Turbomole import TurbomoleResults
+         
         if isinstance(results, adfsinglepointresults) :
             self.add_adf_results (results)
         elif isinstance(results, densfresults) :
@@ -452,6 +497,8 @@ class adf_filemanager (filemanager) :
             self.add_dirac_results (results)
         elif isinstance(results, nwchemresults) :
             self.add_nwchem_results (results)
+        elif isinstance(results, TurbomoleResults):
+            self.add_turbomole_results(results)
         elif isinstance(results, adfresults) :
             pass
         else:

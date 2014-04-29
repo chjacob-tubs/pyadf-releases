@@ -1,8 +1,8 @@
 # This file is part of 
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2012 by Christoph R. Jacob, S. Maya Beyhan,
-# Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Karin Kiewisch,
-# Jetze Sikkema, and Lucas Visscher 
+# Copyright (C) 2006-2014 by Christoph R. Jacob, S. Maya Beyhan,
+# Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Michal Handzlik,
+# Karin Kiewisch, Moritz Klammler, Jetze Sikkema, and Lucas Visscher 
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -1037,7 +1037,7 @@ class adffragmentsjob (adfsinglepointjob) :
 
     def get_charge_block (self):
         block = ""
-        if self._fragments.get_nonfrozen_molecule().mol.HasSpinMultiplicityAssigned():
+        if self._fragments.get_nonfrozen_molecule().has_spin_assigned():
             block += " CHARGE %2i %2i \n\n" % (self._fragments.get_nonfrozen_molecule().get_charge(),
                         self._fragments.get_nonfrozen_molecule().get_spin())
         else:

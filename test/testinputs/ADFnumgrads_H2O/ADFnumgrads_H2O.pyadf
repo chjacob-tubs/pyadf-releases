@@ -21,7 +21,7 @@ o_scf=[]
 
 s_scf = adfscfsettings(basis=basis, core=core, settings=s_adf, options=o_scf)
 
-job = adfnumgradsjob( molecule=m_h2o, settings=None, scfsettings=s_scf)
+job = adfnumgradsjob( mol=m_h2o, settings=None, scfsettings=s_scf)
 results = job.run()
 numgrad = results.get_gradients()
 

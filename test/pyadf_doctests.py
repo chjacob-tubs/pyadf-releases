@@ -50,23 +50,26 @@ class AlmostEqualChecker (doctest.OutputChecker) :
                                                         self.normalize(got), 
                                                         optionflags)
 
-
 def make_doctest_suite() : 
 
-    import pyadf.Molecule
+    try :
+        import pyadf.Molecule.OBMolecule
 
-    molecule_doctests = \
-        doctest.DocTestSuite(pyadf.Molecule, 
-                             setUp       = pyadf.Molecule._setUp_doctest, 
-                             tearDown    = pyadf.Molecule._tearDown_doctest, 
-                             optionflags = doctest.NORMALIZE_WHITESPACE, 
-                             checker     = AlmostEqualChecker())
+        molecule_doctests = \
+            doctest.DocTestSuite(pyadf.Molecule.OBMolecule, 
+                                 setUp       = pyadf.Molecule.OBMolecule._setUp_doctest, 
+                                 tearDown    = pyadf.Molecule.OBMolecule._tearDown_doctest, 
+                                 optionflags = doctest.NORMALIZE_WHITESPACE, 
+                                 checker     = AlmostEqualChecker())
+    except ImportError:
+        molecule_doctests = None
 
     return molecule_doctests
 
 def test () :
     suite = make_doctest_suite()
-    unittest.TextTestRunner(verbosity=2).run(suite)
+    if suite is not None :
+        unittest.TextTestRunner(verbosity=2).run(suite)
 
 
 if __name__ == '__main__':

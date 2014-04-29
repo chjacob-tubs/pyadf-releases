@@ -39,9 +39,11 @@ def calc_dipole (dens, m):
     for w, c, d in zip(dens.grid.weightiter(), dens.grid.coorditer(), dens.valueiter()) :
         dipole -= w * d * (c / Bohr_in_Angstrom) 
 
-    for i in range(1, m.mol.NumAtoms()+1) :
-        at = m.mol.GetAtom(i)
-        dipole += at.GetAtomicNum() * numpy.array( [at.GetX(), at.GetY(), at.GetZ()] ) / Bohr_in_Angstrom
+    atnums = m.get_atomic_numbers()
+    coords = m.get_coordinates()
+
+    for n, c in zip(atnums, coords) :
+        dipole += n * numpy.array(c) / Bohr_in_Angstrom
     
     return dipole
 

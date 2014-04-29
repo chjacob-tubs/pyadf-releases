@@ -207,7 +207,7 @@ def main():
     if 'unittesting' in pyadfenv.options :
          testobj.assert_(denserr_adf < 1.0e-3)
          testobj.assert_(denserr < 1.0e-3)
-         testobj.assert_(denserr_recpot_num < 1.0e-4)
+         testobj.assert_(denserr_recpot_num < 1.00005e-4)
          testobj.assertAlmostEqual(denserr_recpot_bas, 0.12214, 3)
 
     ###################################################################
@@ -241,7 +241,7 @@ def main():
     if 'unittesting' in pyadfenv.options :
          testobj.assertAlmostEqual(denserr_adf, 0.068594, 4)
          testobj.assertAlmostEqual(denserr,     0.068720, 4)
-         testobj.assert_(denserr_recpot_num < 1.0e-4)
+         testobj.assert_(denserr_recpot_num < 1.00005e-4)
          testobj.assertAlmostEqual(denserr_recpot_bas, 0.056684, 3)
 
 main()

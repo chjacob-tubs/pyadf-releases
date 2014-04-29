@@ -27,12 +27,13 @@ import os, shutil, glob
 
 class PyADFInputTestCase (unittest.TestCase) :
 
-    def __init__ (self, methodName='runTest', testname='bla', keep=False, prof=False) :
+    def __init__ (self, methodName='runTest', testname='bla', keep=False, prof=False, forceopenbabel=False) :
         
         unittest.TestCase.__init__ (self, methodName)
         self._testname = testname
         self._keep     = keep
         self._profile  = prof
+        self._forceopenbabel = forceopenbabel
         self._cwd      = os.getcwd()
 
     def shortDescription (self) :
@@ -138,7 +139,8 @@ class PyADFInputTestCase (unittest.TestCase) :
 
     def runTest (self) :
         
-        globs = {'pyadfinput':self._testname+".pyadf", 'testobj':self}
+        globs = {'pyadfinput':self._testname+".pyadf", 'testobj':self, 
+                 'testing_force_openbabel':self._forceopenbabel}
 
         if not self._profile :
             execfile (os.path.join(self._pyadfpath, 'pyadf'), globs, {})
@@ -149,7 +151,8 @@ class PyADFInputTestCase (unittest.TestCase) :
         del globs
         
 
-def make_testinputs_suite(tests="all", testnames=None, dalton=True, dirac=True, nwchem=True, keep=False, prof=False) : 
+def make_testinputs_suite(tests="all", testnames=None, dalton=True, dirac=True, nwchem=True, turbomole=True,
+                          openbabel=True, keep=False, prof=False, forceopenbabel=False) : 
 
     testsetorder = ['short', 'medium', 'long', 'all']
 
@@ -184,6 +187,10 @@ def make_testinputs_suite(tests="all", testnames=None, dalton=True, dirac=True, 
                 use_test = ('dirac' in testname.lower())
             elif tests == 'nwchem' :
                 use_test = ('nwchem' in testname.lower())
+            elif tests == 'turbomole' :
+                use_test = ('turbomole' in testname.lower())
+            elif tests == 'openbabel' :
+                use_test = (('openbabel' in testname.lower()) or ('3fde' in testname.lower()))
             elif testsetorder.index(tests) >= testsetorder.index(testset) :
                 use_test = True
                 if ('dalton' in testname.lower()) and not dalton :
@@ -192,8 +199,12 @@ def make_testinputs_suite(tests="all", testnames=None, dalton=True, dirac=True, 
                     use_test = False
                 if ('nwchem' in testname.lower()) and not nwchem :
                     use_test = False
+                if ('turbomole' in testname.lower()) and not turbomole :
+                    use_test = False
+                if (('openbabel' in testname.lower()) or ('3fde' in testname.lower())) and not openbabel :
+                    use_test = False
                   
             if use_test :
-                suite.addTest(PyADFInputTestCase(testname=testname, keep=keep, prof=prof))
+                suite.addTest(PyADFInputTestCase(testname=testname, keep=keep, prof=prof, forceopenbabel=forceopenbabel))
 
     return suite

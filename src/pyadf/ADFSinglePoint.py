@@ -1,8 +1,8 @@
 # This file is part of 
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2012 by Christoph R. Jacob, S. Maya Beyhan,
-# Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Karin Kiewisch,
-# Jetze Sikkema, and Lucas Visscher 
+# Copyright (C) 2006-2014 by Christoph R. Jacob, S. Maya Beyhan,
+# Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Michal Handzlik,
+# Karin Kiewisch, Moritz Klammler, Jetze Sikkema, and Lucas Visscher 
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -62,7 +62,8 @@ class adfsettings (object):
 
     def __init__ (self, functional='LDA', accint=4.0, converge=1e-6, ncycles=100, 
               dep=False, ZORA=False, SpinOrbit=False, mix=0.2, unrestricted=False, 
-              occupations=None, cosmo=None, lmo=False, basispath=None, printing=False) :
+              occupations=None, cosmo=None, lmo=False, basispath=None, zlmfit=False, 
+              printing=False) :
         """
         Constructor for adfsettings.
         
@@ -126,7 +127,8 @@ class adfsettings (object):
         self.save_tapes = None
         self.tapelist = None
         self.dispersion = None
- 
+        self.zlmfit = zlmfit 
+
         # and now initialize them using setter methods
         self.set_functional  (functional)
         self.set_integration (accint)
@@ -586,6 +588,9 @@ class adfsettings (object):
         if self.dependency == True :
             sblock += " DEPENDENCY bas=%.1e fit=%.1e \n\n" % \
                   (self.dependency_bas, self.dependency_fit)
+
+        if not self.zlmfit:
+            sblock += 'STOFIT\n\n'
 
         # save TAPEs
         sblock += " " + self.save_tapes + "\n\n"

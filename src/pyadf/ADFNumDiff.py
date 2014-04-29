@@ -1,8 +1,8 @@
 # This file is part of 
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2012 by Christoph R. Jacob, S. Maya Beyhan,
-# Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Karin Kiewisch,
-# Jetze Sikkema, and Lucas Visscher 
+# Copyright (C) 2006-2014 by Christoph R. Jacob, S. Maya Beyhan,
+# Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Michal Handzlik,
+# Karin Kiewisch, Moritz Klammler, Jetze Sikkema, and Lucas Visscher 
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -263,25 +263,25 @@ class numdiffjob(metajob):
     
     """
 
-    def __init__(self, molecule, settings):
+    def __init__(self, mol, settings):
         """
         Initialize a numerical differences job
         
-        @param molecule:
+        @param mol:
             The molecule on which to perform the numerical differences calculation
-        @type molecule: Pyadf.Molecule.molecule
+        @type mol: Pyadf.Molecule.molecule
 
         @param settings:
            Settings for the numerical differentiation
            Can be overriden by child classes
         @type settings: numdiffsettings
         """
-        import Molecule
+        from Molecule import OBMolecule, OBFreeMolecule
         metajob.__init__(self)
         
-        if not isinstance(molecule, Molecule.molecule):
+        if not (isinstance(mol, OBFreeMolecule.Molecule) or isinstance(mol, OBMolecule.OBMolecule)):
             raise PyAdfError("Molecule missing in numdiffjob")
-        self.molecule = molecule
+        self.molecule = mol
 
         if settings == None:
             self.settings = numdiffsettings()
@@ -305,13 +305,13 @@ class numgradjob(numdiffjob):
     
     """
 
-    def __init__(self, molecule, atom, coordinate, settings):
+    def __init__(self, mol, atom, coordinate, settings):
         """
         Initialize a numerical gradient job
         
-        @param molecule:
+        @param mol:
             The molecule on which to perform the numerical gradient calculation
-        @type molecule: Pyadf.Molecule.molecule
+        @type mol: Pyadf.Molecule.molecule
 
         @parameter atom:
             Atom number for which to compute the gradient
@@ -326,7 +326,7 @@ class numgradjob(numdiffjob):
         @type settings: numgradsettings
         
         """
-        numdiffjob.__init__ (self, molecule, settings)
+        numdiffjob.__init__ (self, mol, settings)
         
         if not isinstance(atom, int):
             raise PyAdfError("non-integer atom number provided in numgradjob")
@@ -403,13 +403,13 @@ class adfnumgradjob(numgradjob):
     >>> s_scf = adfscfsettings(basis, core, s_adf, o_adf)
     >>> # default numerical gradient run, atom 1, coordinate 'x'
     >>> # (no numgradsettings object required)
-    >>> job = adfnumgradjob( molecule, 1, 'x', None, s_scf)
+    >>> job = adfnumgradjob( mol, 1, 'x', None, s_scf)
     >>> res = job.run()
     >>> grad = res.get_gradient()
     >>> # now do partial derivatives
     >>> # define numgradsettings object, run the job and ...
     >>> s_numgrad = numgradsettings(partial=True)
-    >>> job = adfnumgradjob( molecule, 1, 'x', s_numgrad, s_scf)
+    >>> job = adfnumgradjob( mol, 1, 'x', s_numgrad, s_scf)
     >>> res = job.run()
     >>> # ... now obtain the 'Electrostatic Interaction' energy contribution to the gradient
     >>> # ('Electrostatic Interaction' has to be on TAPE21)
@@ -417,7 +417,7 @@ class adfnumgradjob(numgradjob):
 
     """
 
-    def __init__(self, molecule,  atom, coordinate, settings, scfsettings):
+    def __init__(self, mol,  atom, coordinate, settings, scfsettings):
         """
         Initialize a numerical gradient job
         
@@ -431,7 +431,7 @@ class adfnumgradjob(numgradjob):
         import ADFSinglePoint
         import copy
         
-        numgradjob.__init__ (self, molecule, atom, coordinate, settings)
+        numgradjob.__init__ (self, mol, atom, coordinate, settings)
         
         if not isinstance(scfsettings, ADFSinglePoint.adfscfsettings):
             raise PyAdfError("scfsettings missing in numgradjob")
@@ -531,13 +531,13 @@ class adfnumgradsjob(metajob):
     
     """
 
-    def __init__(self, molecule, settings, scfsettings, atoms='all', coordinates=('x', 'y', 'z')):
+    def __init__(self, mol, settings, scfsettings, atoms='all', coordinates=('x', 'y', 'z')):
         """
         Initialize a numerical gradient job
         
-        @param molecule:
+        @param mol:
             The molecule on which to perform the numerical gradient calculation
-        @type molecule: Pyadf.Molecule.molecule
+        @type mol: Pyadf.Molecule.molecule
 
         @param settings:
             settings for the numerical gradients run
@@ -556,14 +556,14 @@ class adfnumgradsjob(metajob):
         @type coordinates: str or list of str
 
         """
-        import Molecule
+        from Molecule import OBMolecule, OBFreeMolecule
         import ADFSinglePoint
         
         metajob.__init__(self)
         
-        if not isinstance(molecule, Molecule.molecule):
+        if not (isinstance(mol, OBFreeMolecule.Molecule) or isinstance(mol, OBMolecule.OBMolecule)):
             raise PyAdfError("Molecule missing in adfnumgradsjob")
-        self.molecule = molecule
+        self.molecule = mol
 
         if settings == None:
             self.settings = numgradsettings()
@@ -640,7 +640,7 @@ class adfnumgradsjob(metajob):
 
         for at in atomlist:
             for coord in self.coordinates:
-                job = adfnumgradjob(molecule=self.molecule, atom=at, coordinate=coord,
+                job = adfnumgradjob(mol=self.molecule, atom=at, coordinate=coord,
                                     settings=self.settings, scfsettings=self.scfsettings)
                 results = job.run()
                 self.gradients[at-1, mapping[coord]] = results.get_gradient(self.settings.energyterm)

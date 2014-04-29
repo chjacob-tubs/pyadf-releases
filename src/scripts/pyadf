@@ -2,9 +2,9 @@
 
 # This file is part of 
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2012 by Christoph R. Jacob, S. Maya Beyhan,
-# Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Karin Kiewisch,
-# Jetze Sikkema, and Lucas Visscher 
+# Copyright (C) 2006-2014 by Christoph R. Jacob, S. Maya Beyhan,
+# Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Michal Handzlik,
+# Karin Kiewisch, Moritz Klammler, Jetze Sikkema, and Lucas Visscher 
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -33,7 +33,7 @@ from pyadfenv import setup_pyadfenv, setup_test_pyadfenv
 if (os.path.basename(sys.argv[0]) == 'pyadf') :
     pyadfenv = setup_pyadfenv ()
 else :
-    pyadfenv = setup_test_pyadfenv (pyadfinput)
+    pyadfenv = setup_test_pyadfenv (pyadfinput, testing_force_openbabel)
 
 DefaultJobRunner.instance = None
 
@@ -51,9 +51,9 @@ print " *                                          "
 print " *  PyADF v0.9                              "
 print " *                                          "
 print " *  PyADF - A Scripting Framework for Multiscale Quantum Chemistry. "
-print " *  Copyright (C) 2006-2012 by Christoph R. Jacob, S. Maya Beyhan,  "
-print " *  Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Karin Kiewisch, "
-print " *  Jetze Sikkema, and Lucas Visscher "
+print " *  Copyright (C) 2006-2014 by Christoph R. Jacob, S. Maya Beyhan,  "
+print " *  Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Michal Handzlik, "
+print " *  Karin Kiewisch, Moritz Klammler, Jetze Sikkema, and Lucas Visscher "
 print " * "
 print " *     PyADF is free software: you can redistribute it and/or modify         "
 print " *     it under the terms of the GNU General Public License as published by  "
@@ -103,6 +103,12 @@ f.close()
 # initialize file manager
 myfiles = adf_filemanager (pyadfenv.outdir, pyadfenv.jobid)
 myfiles.set_outputfilename ("alloutput")
+
+# initialize MoleculeFactory
+if 'openbabel' in pyadfenv.options :
+    MoleculeFactory().use_openbabel(True)
+else :
+    MoleculeFactory().use_openbabel(False)
 
 if "restartdir" in pyadfenv.options :
     print " Using restart directory: ", pyadfenv.options["restartdir"]
