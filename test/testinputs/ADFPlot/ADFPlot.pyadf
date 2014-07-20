@@ -35,17 +35,11 @@ results = adfsinglepointjob( h2o, 'SZ', settings=settings).run()
 
 def calc_dipole (dens, m):
     import numpy
-    dipole = numpy.zeros(3)
-    for w, c, d in zip(dens.grid.weightiter(), dens.grid.coorditer(), dens.valueiter()) :
-        dipole -= w * d * (c / Bohr_in_Angstrom) 
 
-    atnums = m.get_atomic_numbers()
-    coords = m.get_coordinates()
+    dipole_e = dens.get_electronic_dipole_moment_grid()
+    dipole_n = m.get_nuclear_dipole_moment()
 
-    for n, c in zip(atnums, coords) :
-        dipole += n * numpy.array(c) / Bohr_in_Angstrom
-    
-    return dipole
+    return numpy.array(dipole_e) + numpy.array(dipole_n)
 
 ###############################################################
 # First, we use a "cube gird" (evenly spaced Carthesian grid)
@@ -54,7 +48,7 @@ def calc_dipole (dens, m):
 print " Using cube grid with spacing 0.1"
 
 # get the density (Plot.densfresults)
-dens = results.get_density(grid=cubegrid(results.get_molecule(), spacing=0.1))
+dens = results.get_density(spacing=0.1)
 
 # write density in different file formats
 dens.get_cubfile(os.path.join(pyadfenv.outdir, 'H2O.cub'))
@@ -82,12 +76,12 @@ if 'unittesting' in pyadfenv.options :
 
 # test the squared density gradient
 
-grad = results.get_sqrgradient(grid=cubegrid(results.get_molecule(), spacing=0.1))
+grad = results.get_sqrgradient(spacing=0.1)
 grad.get_cubfile(os.path.join(pyadfenv.outdir, 'H2O-SqrGrad.cub'))
 
 # test the Laplacian of the density
 
-lapl = results.get_laplacian(grid=cubegrid(results.get_molecule(), spacing=0.1))
+lapl = results.get_laplacian(spacing=0.1)
 lapl.get_cubfile(os.path.join(pyadfenv.outdir, 'H2O-Lap.cub'))
 
 #####################################################

@@ -1,8 +1,8 @@
-# This file is part of 
+# This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
 # Copyright (C) 2006-2014 by Christoph R. Jacob, S. Maya Beyhan,
 # Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Michal Handzlik,
-# Karin Kiewisch, Moritz Klammler, Jetze Sikkema, and Lucas Visscher 
+# Karin Kiewisch, Moritz Klammler, Jetze Sikkema, and Lucas Visscher
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -28,52 +28,58 @@
 from PatternsLib import Singleton
 from Errors import PyAdfError
 
+
 class JobRunner (object):
+
     """
     Abstract base class for job runners.
     """
     __metaclass__ = Singleton
-    
-    def __init__ (self):
+
+    def __init__(self):
         pass
-    
-    def run_job (self, job):
+
+    def run_job(self, job):
         pass
-    
-    
+
+
 class SerialJobRunner (JobRunner):
+
     """
     Serial job Runner.
-    
+
     Jobs are executed instantly on the local machine in a serial fashion.
     """
-    def __init__ (self):
+
+    def __init__(self):
         JobRunner.__init__(self)
 
         from Files import adf_filemanager
         self._files = adf_filemanager()
-    
-    def write_runscript_and_execute (self, job):
 
-        import os, stat, subprocess
+    def write_runscript_and_execute(self, job):
+
+        import os
+        import stat
+        import subprocess
         from Utils import newjobmarker
 
-        job.before_run ()
-        
+        job.before_run()
+
         runscript = job.get_runscript()
 
         rsname = './pyadf_runscript'
         f = open(rsname, 'w')
-        f.write (runscript)
+        f.write(runscript)
         f.close()
         os.chmod(rsname, stat.S_IRWXU)
-        
+
         outfile = open(self._files.outputfilename, 'a')
-        outfile.write (newjobmarker)
+        outfile.write(newjobmarker)
         outfile.flush()
 
         errfile = open(self._files.errfilename, 'a')
-        errfile.write (newjobmarker)
+        errfile.write(newjobmarker)
         errfile.flush()
 
         retcode = subprocess.call(rsname, shell=False, stdout=outfile, stderr=errfile)
@@ -83,17 +89,18 @@ class SerialJobRunner (JobRunner):
 
         os.remove(rsname)
 
-        if (retcode != 0) :
-            raise PyAdfError ("Error running job (non-zero return code)")
-        if not job.check_success(self._files.outputfilename, self._files.errfilename) :
-            raise PyAdfError ("Error running job (check_sucess failed)")
+        if (retcode != 0):
+            raise PyAdfError("Error running job (non-zero return code)")
+        if not job.check_success(self._files.outputfilename, self._files.errfilename):
+            raise PyAdfError("Error running job (check_sucess failed)")
 
-        job.after_run ()
-    
-    def run_job (self, job):
+        job.after_run()
 
-        import os, shutil
-        
+    def run_job(self, job):
+
+        import os
+        import shutil
+
         job.print_jobinfo()
 
         print "   Output will be written to : ", \
@@ -101,7 +108,7 @@ class SerialJobRunner (JobRunner):
         print
 
         checksum = job.get_checksum()
-        fileid = self._files.get_id (checksum)
+        fileid = self._files.get_id(checksum)
 
         if (fileid == None):
             print " Running main job ..."
@@ -110,14 +117,14 @@ class SerialJobRunner (JobRunner):
             os.mkdir('jobtempdir')
             os.chdir('jobtempdir')
 
-            if 'TC_HPMPI_MACHINE_FILE' in os.environ :
+            if 'TC_HPMPI_MACHINE_FILE' in os.environ:
                 os.system('$PYADFHOME/src/scripts/create_pwd_on_nodes.py')
 
             try:
                 self.write_runscript_and_execute(job)
 
-                for f in job.result_filenames() :
-                    if os.path.exists(f): 
+                for f in job.result_filenames():
+                    if os.path.exists(f):
                         shutil.copy(f, cwd)
             finally:
                 os.chdir(cwd)
@@ -127,7 +134,7 @@ class SerialJobRunner (JobRunner):
 
             os.system('rm -rf jobtempdir')
 
-        else :
+        else:
             print "Job was found in results archive - not running it again"
 
             r = job.create_results_instance()
@@ -135,7 +142,7 @@ class SerialJobRunner (JobRunner):
 
         r._checksum = checksum
 
-        print " Done with "+ job.print_jobtype()
+        print " Done with " + job.print_jobtype()
         print
         print " Results file id is ", r.fileid
         print

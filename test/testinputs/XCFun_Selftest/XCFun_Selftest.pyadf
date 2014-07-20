@@ -1,0 +1,19 @@
+import os
+import xcfun
+
+print xcfun.xcfun_splash()
+
+try :
+    devnull = os.open(os.devnull, os.O_RDWR) 
+    stderr_save = os.dup(2)
+    os.dup2(devnull, 2)
+
+    failed = xcfun.xcfun_test()
+
+finally:
+    os.dup2(stderr_save, 2)
+    os.close(devnull)
+
+if 'unittesting' in pyadfenv.options :
+    testobj.assert_(failed == 0)
+

@@ -10,13 +10,13 @@ rotmat, transvec = mol_mv.align(mol_ref, indole)
 
 print "Rotation matrix: "
 print rotmat
-testobj.assertAlmostEqualVectors(rotmat.flat, [-0.95663663,  0.19593333, -0.21553766,
-                                                0.27171306,  0.86690498, -0.41790881,
-                                                0.10496841, -0.45835127, -0.8825507  ], 3)
+testobj.assertAlmostEqual(rotmat, [[-0.95663663,  0.19593333, -0.21553766],
+                                   [0.27171306,  0.86690498, -0.41790881],
+                                   [0.10496841, -0.45835127, -0.8825507 ]], 3)
 
 print "Translation vector: "
 print transvec
-testobj.assertAlmostEqualVectors(transvec, [0.82692685, 2.2025666, 1.45990422], 3)
+testobj.assertAlmostEqual(transvec, [0.82692685, 2.2025666, 1.45990422], 3)
 
 # check the rotated and translated molecule
 mol_ref_orig = molecule(os.path.join(pyadfenv.outdir,'plus-2.xyz'))

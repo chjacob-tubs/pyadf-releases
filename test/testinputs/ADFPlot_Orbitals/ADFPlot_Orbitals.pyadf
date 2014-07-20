@@ -23,13 +23,13 @@ cgrid = cubegrid(results.get_molecule(), spacing=0.1)
 agrid = adfgrid(results)
 
 for type, grid in [("cub", cgrid), ("adf", agrid)] :
-    
+
     # get a single orbitals (and its density)
     orb = results.get_orbital(grid=grid, irrep="B1", num=1)
     orbdens = results.get_orbital_density(grid=grid, orbs={"B1":1})
 
-    orbint     = orb.integral() 
-    orbdensint = orbdens.integral() 
+    orbint     = orb.integral()
+    orbdensint = orbdens.integral()
     print "     Integral of the orbital         ", orbint
     print "     Integral of the orbital density ", orbdensint
 
@@ -45,9 +45,9 @@ for type, grid in [("cub", cgrid), ("adf", agrid)] :
     dens2 = results.get_orbital_density(grid=grid, orbs={'A1':[1,2,3], 'B1':1, 'B2':1})
     diffdens = dens - dens2
 
-    densint     = dens.integral() 
-    dens2int    = dens2.integral() 
-    diffdensint = diffdens.integral(lambda x: abs(x)) 
+    densint     = dens.integral()
+    dens2int    = dens2.integral()
+    diffdensint = diffdens.integral(lambda x: abs(x))
     print "     Integral of the density             ", densint
     print "     Integral of the density (from orbs) ", dens2int
     print "     Integral of the difference density  ", diffdensint
@@ -60,77 +60,59 @@ for type, grid in [("cub", cgrid), ("adf", agrid)] :
             testobj.assertAlmostEqual(densint, 10.0, 3)
 
     # get density from (all) localized orbitals (using get orbital density)
-    
+
     locdens  = results.get_orbital_density(grid=grid, orbs={'LOC':[1,2,3,4,5]})
     locdiffdens = dens - locdens
 
-    locdensint  = locdens.integral() 
-    locdiffdensint = locdiffdens.integral(lambda x: abs(x)) 
+    locdensint  = locdens.integral()
+    locdiffdensint = locdiffdens.integral(lambda x: abs(x))
     print "     Integral of the density (from localized orbs) ", locdensint
     print "     Integral of the difference density            ", locdiffdensint
 
     if 'unittesting' in pyadfenv.options:
         testobj.assertAlmostEqual(locdiffdensint, 0.0, 6)
-    
+
     # get density from (all) localized orbitals (now using get_locorb_density)
-    
-    locdens  = results.get_locorb_density(grid=grid, orbs=[1,2,3,4,5])
+
+    locdens  = results.get_density(grid=grid, orbs={'Loc':[1,2,3,4,5]})
     locdiffdens = dens - locdens
 
-    locdensint  = locdens.integral() 
-    locdiffdensint = locdiffdens.integral(lambda x: abs(x)) 
+    locdensint  = locdens.integral()
+    locdiffdensint = locdiffdens.integral(lambda x: abs(x))
     print "     Integral of the density (from localized orbs) ", locdensint
     print "     Integral of the difference density            ", locdiffdensint
 
     if 'unittesting' in pyadfenv.options:
         testobj.assertAlmostEqual(locdiffdensint, 0.0, 6)
-    
-    # get density from localized orbitals again, using get_locorb_density
-    # (now calculated in two different batches)    
 
-    locdens1  = results.get_locorb_density(grid=grid, orbs=[1,2])
-    locdens2  = results.get_locorb_density(grid=grid, orbs=[3,4,5])
+    # get density from localized orbitals again, using get_locorb_density
+    # (now calculated in two different batches)
+
+    locdens1  = results.get_density(grid=grid, orbs={'Loc':[1,2]})
+    locdens2  = results.get_density(grid=grid, orbs={'Loc':[3,4,5]})
     locdens = locdens1 + locdens2
     locdiffdens = dens - locdens
 
-    locdensint  = locdens.integral() 
-    locdiffdensint = locdiffdens.integral(lambda x: abs(x)) 
+    locdensint  = locdens.integral()
+    locdiffdensint = locdiffdens.integral(lambda x: abs(x))
     print "     Integral of the density (from localized orbs) ", locdensint
     print "     Integral of the difference density            ", locdiffdensint
 
     if 'unittesting' in pyadfenv.options:
         testobj.assertAlmostEqual(locdiffdensint, 0.0, 6)
-    
-    # get density from localized orbital 1 
-    
-    locdens1  = results.get_locorb_density(grid=grid, orbs=[1])
+
+    # get density from localized orbital 1
+
+    locdens1  = results.get_density(grid=grid, orbs={'Loc':[1]})
     locdens2  = results.get_orbital_density(grid=grid, orbs={'LOC':[1]})
     locdiffdens = locdens1 - locdens2
 
-    locdens1_int  = locdens1.integral() 
-    locdens2_int  = locdens2.integral() 
-    locdiffdensint = locdiffdens.integral(lambda x: abs(x)) 
+    locdens1_int  = locdens1.integral()
+    locdens2_int  = locdens2.integral()
+    locdiffdensint = locdiffdens.integral(lambda x: abs(x))
     print "     Integral of the locdens 1 ", locdens1_int
     print "     Integral of the locdens 2 ", locdens2_int
     print "     Integral of the difference density            ", locdiffdensint
 
     if 'unittesting' in pyadfenv.options:
         testobj.assertAlmostEqual(locdiffdensint, 0.0, 6)
-    
-    # squared gradient of the density
-
-    sqrgrad = results.get_sqrgradient(grid=grid)
-    locsqrgrad = results.get_locorb_sqrgradient(grid=grid, orbs=[1,2,3,4,5])
-    diffgrad = sqrgrad - locsqrgrad
-
-    sqrgrad_int = sqrgrad.integral()
-    diffgrad_int = diffgrad.integral()
-
-    print "     Integral of squared density gradient ", sqrgrad_int
-    print "     Integral of difference in squared gradient  ", diffgrad_int
-
-    if 'unittesting' in pyadfenv.options:
-        if (type == 'adf') :
-            testobj.assertAlmostEqual(sqrgrad_int, 18330.621, 2)
-        testobj.assertAlmostEqual(diffgrad_int, 0.0, 6)
-

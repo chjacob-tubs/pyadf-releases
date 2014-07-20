@@ -6,7 +6,7 @@
 #  - extracting embedding potential from FDE calculation
 #  - extracting kinetic-energy component of emb. potential
 #  - calculating embedding potentials from rho_1 and rho_tot
-#  - calculating components of embedding potential from 
+#  - calculating components of embedding potential from
 #    rho_1 and rho_tot
 #  - calculationg NDSD and CJCORR potentials
 #
@@ -71,7 +71,7 @@ dens_2 = r_h2o_2.get_density(grid=cgrid)
 grad_1 = fde_res.get_sqrgradient(grid=cgrid)
 grad_2 = r_h2o_2.get_sqrgradient(grid=cgrid)
 # squared gradient can also be obtained for localized orbitals:
-#grad_2 = r_h2o_2.get_locorb_sqrgradient(grid=cgrid, orbs=[1,2,3,4,5])
+#grad_2 = r_h2o_2.get_sqrgradient(grid=cgrid, orbs={'Loc':[1,2,3,4,5]})
 
 # the values of the densities along the y-axis
 
@@ -88,7 +88,7 @@ d2 = dens_2.get_values()[0,:,0]
 
 ##############################################################################
 # 0) Get embedding potential and its kinetic-energy component from the
-#    embedding calculation (get_embedding_potential) on the ADF grid. 
+#    embedding calculation (get_embedding_potential) on the ADF grid.
 #    This uses the ALLFRAGMENTS option by Maya Beyhan in CJDENSF
 ##############################################################################
 
@@ -106,6 +106,11 @@ embpot1_pw91k = fde_res.get_embedding_potential(grid=agrid, pot="TOTAL")
 embpot1_pw91k = fde_res.get_embedding_potential(grid=cgrid, pot="TOTAL").get_values()[0,:,0]
 
 # kinetic energy component with different functionals
+kinpot1 = fde_res.get_embedding_potential(grid=cgrid, pot="KIN").get_values()[0,:,0]
+xcpot1 = fde_res.get_embedding_potential(grid=cgrid, pot="XC").get_values()[0,:,0]
+nucpot1 = fde_res.get_embedding_potential(grid=cgrid, pot="NUC").get_values()[0,:,0]
+coulpot1 = fde_res.get_embedding_potential(grid=cgrid, pot="COUL").get_values()[0,:,0]
+
 kinpot1_tf    = fde_res.get_embedding_potential(grid=cgrid, pot="KINPOT THOMASFERMI").get_values()[0,:,0]
 kinpot1_pw91k = fde_res.get_embedding_potential(grid=cgrid, pot="KINPOT PW91k").get_values()[0,:,0]
 kinpot1_ndsd  = fde_res.get_embedding_potential(grid=cgrid, pot="KINPOT NDSD").get_values()[0,:,0]
@@ -117,7 +122,7 @@ embpot1_tf   = embpot1_pw91k - kinpot1_pw91k + kinpot1_tf
 embpot1_ndsd = embpot1_pw91k - kinpot1_pw91k + kinpot1_ndsd
 
 ##############################################################################
-# 2) Get the embedding potential and its components from individual rho1 
+# 2) Get the embedding potential and its components from individual rho1
 #    and rho_tot densities. (i.e., as v[rho_tot] - v[rho_1])
 #
 #    This differs slightly from the embedding potential calculated for (1)
@@ -181,7 +186,7 @@ if 'unittesting' in pyadfenv.options:
     testobj.assert_(diff_embpot_pw91k < 0.1)
 
 # plotting a comparison of the the different potentials:
-# 
+#
 # pylab.figure(1)
 # pylab.plot(x,kinpot1_tf,'r-',x,kinpot2_tf,'r+', x,kinpot1_pw91k,'g-',x,kinpot2_pw91k,'g+')
 # pylab.figure(2)
@@ -189,7 +194,7 @@ if 'unittesting' in pyadfenv.options:
 
 ###########################################################
 # NDSD kinetic-energy potential:
-# 
+#
 # The NDSD potential depends on both rho_1 and rho_2, and
 # has to be calculated differently
 ###########################################################
@@ -213,11 +218,11 @@ def calc_kinpot_ndsd (rho1, grad1, rho2, grad2, kinpot_nadd_tf, kinpot2_vw) :
     s1 = grad1.apply_function(numpy.sqrt) / ( rho1**(4./3.) * (2.0*(3.0*math.pi**2)**(1./3.)) )
     s2 = grad2.apply_function(numpy.sqrt) / ( rho2**(4./3.) * (2.0*(3.0*math.pi**2)**(1./3.)) )
 
-    switch1 = ( (s2*(-1.0) + 0.3).apply_function(lambda x: numpy.exp(50.0*x)) + 1. )**(-1) 
+    switch1 = ( (s2*(-1.0) + 0.3).apply_function(lambda x: numpy.exp(50.0*x)) + 1. )**(-1)
     switch2 = ( ( (s2*(-1.0) + 0.9).apply_function(lambda x: numpy.exp(50.0*x)) + 1. )**(-1) )*(-1.0) + 1.0
-    switch3 = ( (rho2*(-1.0) + 0.7).apply_function(lambda x: numpy.exp(50.0*x)) + 1. )**(-1) 
+    switch3 = ( (rho2*(-1.0) + 0.7).apply_function(lambda x: numpy.exp(50.0*x)) + 1. )**(-1)
     switch = switch1*switch2*switch3
-    
+
     return kinpot_nadd_tf + switch*kinpot2_vw
 
 kinpot_nadd_tf = r_supermol.get_kinetic_potential(grid=cgrid, func='THOMASFERMI')
@@ -260,7 +265,7 @@ def calc_kinpot_cjcorr (rho1, rho2, embpot, kinpot_nadd) :
 
     switch = (rho1 / (rho2 * 0.1))**2
     switch = switch.apply_function(lambda x: numpy.exp(-x))
-    
+
     kinpot_cjcorr = kinpot_nadd - switch*embpot
     return kinpot_cjcorr
 
@@ -279,4 +284,4 @@ diff_embpot_cj = numpy.abs(embpot1_cj - embpot2_cj).sum() * 0.02
 
 if 'unittesting' in pyadfenv.options:
     testobj.assert_(diff_embpot_cj < 0.01)
- 
+

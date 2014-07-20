@@ -1,0 +1,130 @@
+import numpy
+import xcfun
+
+dens = numpy.arange(0.0, 5.0, 0.01)
+spindens = 0.1*numpy.sin(dens)
+
+densgrad = numpy.zeros((dens.shape[0], 3))
+densgrad[:,0] = 0.2*numpy.cos(dens)
+densgrad[:,1] = 0.3*numpy.sin(dens)
+densgrad[:,2] = 0.1*numpy.sin(dens)**2
+
+denslapl = numpy.zeros((dens.shape[0], 6))
+denslapl[:,0] = 0.5
+denslapl[:,1] = 0.1 * dens
+denslapl[:,2] = numpy.cos(dens)**2
+denslapl[:,3] = numpy.sin(dens)
+denslapl[:,4] = 0.6*numpy.cos(dens)**2
+denslapl[:,5] = 0.3*numpy.sin(dens)
+
+lda_fun = xcfun.Functional({'LDA': 1.0})
+
+#
+# LDA - spin-compensated
+#
+
+refpot_lda = numpy.loadtxt(os.path.join(pyadfenv.outdir, 'lda.pot'))
+
+pot = lda_fun.eval_potential_n(dens)
+pot = pot[:,1] # total potential
+
+if 'unittesting' in pyadfenv.options :
+    testobj.assertAlmostEqual(pot[1:], refpot_lda[1:], 12)
+
+#
+# LDA - spin-resolved / closed-shell case
+#
+
+rho = numpy.zeros((dens.shape[0],2))
+rho[:,0] = 0.5 * dens[:]
+rho[:,1] = 0.5 * dens[:]
+
+pot = lda_fun.eval_potential_ab(rho)
+pot = pot[:,1] # alpha potential
+
+if 'unittesting' in pyadfenv.options :
+    testobj.assertAlmostEqual(pot[1:], refpot_lda[1:], 12)
+
+#
+# LDA - spin-resolved / open-shell case
+#
+
+rho = numpy.zeros((dens.shape[0],2))
+rho[:,0] = dens[:] + spindens[:]
+rho[:,1] = dens[:] - spindens[:]
+
+pot = lda_fun.eval_potential_ab(rho)
+pot_alpha = pot[:,1] # alpha potential
+pot_beta  = pot[:,2] # beta potential
+
+refpot_lda_alpha = numpy.loadtxt(os.path.join(pyadfenv.outdir, 'lda_alpha.pot'))
+refpot_lda_beta  = numpy.loadtxt(os.path.join(pyadfenv.outdir, 'lda_beta.pot'))
+
+if 'unittesting' in pyadfenv.options :
+    testobj.assertAlmostEqual(pot_alpha[1:], refpot_lda_alpha[1:], 12)
+    testobj.assertAlmostEqual(pot_alpha[2:], refpot_lda_alpha[2:], 12)
+
+#
+# PBE - spin-compensated
+#
+
+pbe_fun = xcfun.Functional({'PBE': 1.0})
+
+out = pbe_fun.eval_potential_n(dens, densgrad, denslapl)
+pot = out[:,1] # total potential
+
+refpot_pbe = numpy.loadtxt(os.path.join(pyadfenv.outdir, 'pbe.pot'))
+
+if 'unittesting' in pyadfenv.options :
+    testobj.assertAlmostEqual(pot[1:], refpot_pbe[1:], 12)
+
+#
+# PBE - spin-resolved / closed-shell case
+#
+
+rho = numpy.zeros((dens.shape[0],2))
+rho[:,0] = 0.5 * dens[:]
+rho[:,1] = 0.5 * dens[:]
+
+rhograd = numpy.zeros((dens.shape[0], 3, 2))
+rhograd[:,0:3,0] = 0.5 * densgrad[:,0:3]
+rhograd[:,0:3,1] = 0.5 * densgrad[:,0:3]
+
+rholapl = numpy.zeros((dens.shape[0], 6, 2))
+rholapl[:,0:6,0] = 0.5 * denslapl[:,0:6]
+rholapl[:,0:6,1] = 0.5 * denslapl[:,0:6]
+
+out = pbe_fun.eval_potential_ab(rho, rhograd, rholapl)
+pot = out[:,1] # alpha potential
+
+if 'unittesting' in pyadfenv.options :
+    testobj.assertAlmostEqual(pot[1:], refpot_pbe[1:], 12)
+
+#
+# PBE - spin-resolved / open-shell case
+#
+
+rho = numpy.zeros((dens.shape[0],2))
+rho[:,0] = dens[:] + spindens[:]
+rho[:,1] = dens[:] - spindens[:]
+
+rhograd = numpy.zeros((dens.shape[0], 3, 2))
+rhograd[:,0:3,0] = 0.4 * densgrad[:,0:3]
+rhograd[:,0:3,1] = 0.6 * densgrad[:,0:3]
+
+rholapl = numpy.zeros((dens.shape[0], 6, 2))
+rholapl[:,0:6,0] = 0.7 * denslapl[:,0:6]
+rholapl[:,0:6,1] = 0.2 * denslapl[:,0:6]
+
+out = pbe_fun.eval_potential_ab(rho, rhograd, rholapl)
+
+pot_alpha = out[:,1] # alpha potential
+pot_beta  = out[:,2] # total potential
+
+refpot_pbe_alpha = numpy.loadtxt(os.path.join(pyadfenv.outdir, 'pbe_alpha.pot'))
+refpot_pbe_beta  = numpy.loadtxt(os.path.join(pyadfenv.outdir, 'pbe_beta.pot'))
+
+if 'unittesting' in pyadfenv.options :
+    testobj.assertAlmostEqual(pot_alpha, refpot_pbe_alpha, 12)
+    testobj.assertAlmostEqual(pot_beta,  refpot_pbe_beta, 12)
+

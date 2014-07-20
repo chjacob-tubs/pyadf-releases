@@ -1,0 +1,81 @@
+import numpy
+import xcfun
+
+# first closed-shell: water molecule
+
+mol_a = molecule(os.path.join(pyadfenv.outdir, 'H2O.xyz'))
+mol_a.set_symmetry('NOSYM')
+
+mol_b = molecule(os.path.join(pyadfenv.outdir, 'NH3.xyz'))
+mol_b.set_symmetry('NOSYM')
+
+mol = mol_a + mol_b
+
+settings = adfsettings(functional='BLYP')
+settings.set_save_tapes([21,10])
+
+blyp = xcfun.Functional({'BeckeX': 1.0, 'LYPC': 1.0})
+
+###
+# this way we get a common grid for both fragments
+res = adfsinglepointjob(mol, basis='TZP', settings=settings).run()
+agrid = adfgrid(res)
+
+###
+# now we calculate water, and get data over the supermolecular grid
+res_a = adfsinglepointjob(mol_a, basis='TZP', settings=settings).run()
+
+h2o_elpot = res_a.get_potential(agrid, pot='nuc') + res_a.get_potential(agrid, pot='coul')
+h2o_dens  = res_a.get_density(agrid, fit=False, order=2)
+
+xcpot_adf_a   = res_a.get_potential(agrid, pot='xc').values
+xcpot_xcfun_a = blyp.eval_potential_n(density=h2o_dens[0].values,
+                                      densgrad=h2o_dens[1].values,
+                                      denshess=h2o_dens[2].values)[:,1]
+
+if 'unittesting' in pyadfenv.options:
+    # compare ADF xc potential and XCFUN xc potential for water
+    xcpot_adf_a   = numpy.where(h2o_dens[0].values < 1e-8, 0.0, xcpot_adf_a)
+    xcpot_xcfun_a = numpy.where(h2o_dens[0].values < 1e-8, 0.0, xcpot_xcfun_a)
+    testobj.assertAlmostEqual(xcpot_xcfun_a, xcpot_adf_a, places=6)
+
+###
+# now we calculate NH3, and get data over the supermolecular grid
+res_b = adfsinglepointjob(mol_b, basis='TZP', settings=settings).run()
+
+nh3_elpot = res_b.get_potential(agrid, pot='nuc') + res_b.get_potential(agrid, pot='coul')
+nh3_dens  = res_b.get_density(agrid, fit=False, order=2)
+
+xcpot_adf_b   = res_b.get_potential(agrid, pot='xc').values
+xcpot_xcfun_b = blyp.eval_potential_n(density=nh3_dens[0].values,
+                                      densgrad=nh3_dens[1].values,
+                                      denshess=nh3_dens[2].values)[:,1]
+
+if 'unittesting' in pyadfenv.options:
+    # compare ADF xc potential and XCFUN xc potential for NH3
+    xcpot_adf_b   = numpy.where(nh3_dens[0].values < 1e-8, 0.0, xcpot_adf_b)
+    xcpot_xcfun_b = numpy.where(nh3_dens[0].values < 1e-8, 0.0, xcpot_xcfun_b)
+    testobj.assertAlmostEqual(xcpot_xcfun_b, xcpot_adf_b, places=6)
+
+###
+# now for an embedding potential from the two densities
+
+embed_settings = EmbedXCFunSettings()
+embed_settings.set_fun_nad_xc({'BeckeX': 1.0, 'LYPC': 1.0})
+embed_settings.set_fun_nad_kin({'PW91k': 1.0})
+
+embed_settings.show_functionals()
+
+embed_eval = EmbedXCFunEvaluator(settings=embed_settings)
+
+embpot_h2o_step_one = nh3_elpot + embed_eval.get_nad_pot(h2o_dens, nh3_dens)
+embpot_nh3_step_one = h2o_elpot + embed_eval.get_nad_pot(nh3_dens, h2o_dens)
+
+embpot_h2o_step_two = embed_eval.get_emb_pot(h2o_dens, nh3_dens, nh3_elpot)
+embpot_nh3_step_two = embed_eval.get_emb_pot(nh3_dens, h2o_dens, h2o_elpot)
+
+if 'unittesting' in pyadfenv.options:
+    # make sure PyEmbed one-step and two-step give the same result
+    testobj.assertAlmostEqual(embpot_h2o_step_one.values, embpot_h2o_step_two.values, places=6)
+    testobj.assertAlmostEqual(embpot_nh3_step_one.values, embpot_nh3_step_two.values, places=6)
+

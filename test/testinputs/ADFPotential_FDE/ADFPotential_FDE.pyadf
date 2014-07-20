@@ -128,7 +128,7 @@ pot.get_xyzvfile(os.path.join(pyadfenv.outdir, 'pot.xyzv'))
 
 if 'unittesting' in pyadfenv.options :
     testobj.assertAlmostEqual(negdens,      -0.03563950457, 4)
-    testobj.assertAlmostEqual(error_sumfrag, 0.17225153234, 4)
-    testobj.assertAlmostEqual(error_fde,     0.08440861473, 4)
+    testobj.assertAlmostEqual(error_sumfrag, 0.17209382144, 4)
+    testobj.assertAlmostEqual(error_fde,     0.08430315221, 4)
     testobj.assertAlmostEqual(error_fdepot,  0.07496349982, 4)
 

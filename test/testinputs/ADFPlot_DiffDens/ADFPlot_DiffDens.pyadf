@@ -45,21 +45,21 @@ for name, grid in [('adfgrid', adfgrid(r_tot)), ('cubegrid', cubegrid(r_tot.get_
 
     # export total density
     denstot.get_xyzvfile(os.path.join(pyadfenv.outdir, 'Supermol-%s.xyzv'%name))
-    denstot.get_tape41(os.path.join(pyadfenv.outdir, 'Supermol-%s.t41'%name))
+    denstot.get_tape41(os.path.join(pyadfenv.outdir, 'Supermol-%s.t41'%name), 'SCF', 'Density')
 
     # adding a constant value to a density
     denstot = denstot + 0.0
-    denstot.get_tape41(os.path.join(pyadfenv.outdir, 'Supermol-1-%s.t41'%name))
+    denstot.get_tape41(os.path.join(pyadfenv.outdir, 'Supermol-1-%s.t41'%name), 'SCF', 'Density')
 
     # the sum-of-fragments density
     dens_sumfrag = dens1 + dens2
     dens_sumfrag.get_xyzvfile(os.path.join(pyadfenv.outdir, 'SumFrag-%s.xyzv'%name))
-    dens_sumfrag.get_tape41(os.path.join(pyadfenv.outdir, 'SumFrag-%s.t41'%name))
+    dens_sumfrag.get_tape41(os.path.join(pyadfenv.outdir, 'SumFrag-%s.t41'%name), 'SCF', 'Density')
 
     # the difference density
     diff_dens = dens_sumfrag - denstot
     diff_dens.get_xyzvfile(os.path.join(pyadfenv.outdir, 'Diff-%s.xyzv'%name))
-    diff_dens.get_tape41(os.path.join(pyadfenv.outdir, 'Diff-%s.t41'%name))
+    diff_dens.get_tape41(os.path.join(pyadfenv.outdir, 'Diff-%s.t41'%name), 'SCF', 'Density')
 
     # integrate the absolute value of the density
     int_diff = diff_dens.integral(func=lambda x: abs(x))

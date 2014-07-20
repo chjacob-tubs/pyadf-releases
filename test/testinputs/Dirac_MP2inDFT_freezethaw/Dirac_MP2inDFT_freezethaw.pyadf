@@ -28,7 +28,7 @@ frags = [fragment(r_h2o_1, [m_h2o_1], isfrozen=True, fdeoptions={"RELAX":""}),
          fragment(r_h2o_2, [m_h2o_2], isfrozen=True),
 	 fragment(None,    [m_mol]  ) ]
 
-wft_settings = diracsettings(method='MP2', hamiltonian='DC', 
+wft_settings = diracsettings(method='MP2', hamiltonian='DC',
                              transform=['all'], properties=['dipole','efg','nqcc'])
 
 adfoptions   = { "basis":"DZP",     "settings":dft_part_settings, "options":['NOSYM'], "fde":{'RELAXCYCLES':2}}
@@ -48,14 +48,14 @@ dipole_vect = wftindft_res.get_dipole_vector()
 print "Dipole moment (DHF) for FDE water molecule (Dirac): ", dipole_vect
 
 if 'unittesting' in pyadfenv.options :
-    testobj.assertAlmostEqualVectors(dipole_vect, [ 0.00000000, 0.00396321, 0.87905247], 4)
+    testobj.assertAlmostEqual(dipole_vect, [ 0.00000000, 0.00396321, 0.87905247], 4)
 
 #
-# and now the mp2 dipole moment 
+# and now the mp2 dipole moment
 #
 dipole_vect = wftindft_res.get_dipole_vector(level='MP2')
 print "Dipole moment (MP2) for FDE water molecule (Dirac): ", dipole_vect
 
 if 'unittesting' in pyadfenv.options :
-    testobj.assertAlmostEqualVectors(dipole_vect, [ 0.00000000, 0.00399293, 0.84194236], 4)
+    testobj.assertAlmostEqual(dipole_vect, [ 0.00000000, 0.00399293, 0.84194236], 4)
 

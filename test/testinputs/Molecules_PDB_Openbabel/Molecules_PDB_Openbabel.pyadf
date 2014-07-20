@@ -1,6 +1,3 @@
-
-MoleculeFactory().use_openbabel(True)
-
 ##########################################################
 # 1) Test reading of different residues from PDB file
 

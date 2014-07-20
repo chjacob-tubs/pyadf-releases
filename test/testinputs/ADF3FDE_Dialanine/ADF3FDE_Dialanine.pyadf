@@ -1,5 +1,3 @@
-MoleculeFactory().use_openbabel(True)
-
 import math
 import numpy
 import copy
@@ -46,8 +44,8 @@ print " Diff Dens Int        : ", diff_dens.integral()
 print " Diff Dens Int (Sqr.) : ", sqrt_error
 print " Diff Dens Int (Abs.) : ", abs_error
 
-testobj.assertAlmostEqual (sqrt_error, 0.00687410, 5)
-testobj.assertAlmostEqual (abs_error,  0.06881236, 5)
+testobj.assertAlmostEqual (sqrt_error, 0.00483100, 5)
+testobj.assertAlmostEqual (abs_error,  0.04337426, 5)
 
 def check_dipole (testobj, dipole_vect_ref, dipole_vect):
 
@@ -60,6 +58,6 @@ print mfcc_dipole
 print fde_dipole
 
 check_dipole (testobj, [ 0.56269604, -0.69415351, -0.73474538], supermol_dipole)
-check_dipole (testobj, [ 0.56452353, -0.69343547, -0.71273127], mfcc_dipole)
-check_dipole (testobj, [ 0.58145058, -0.69676995, -0.72293635], fde_dipole)
+check_dipole (testobj, [ 0.56461034, -0.69343547, -0.71267449], mfcc_dipole)
+check_dipole (testobj, [ 0.57395739, -0.69197140, -0.73130716], fde_dipole)
 

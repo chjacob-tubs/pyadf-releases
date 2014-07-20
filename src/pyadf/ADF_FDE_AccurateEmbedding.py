@@ -1,8 +1,8 @@
-# This file is part of 
+# This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
 # Copyright (C) 2006-2014 by Christoph R. Jacob, S. Maya Beyhan,
 # Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Michal Handzlik,
-# Karin Kiewisch, Moritz Klammler, Jetze Sikkema, and Lucas Visscher 
+# Karin Kiewisch, Moritz Klammler, Jetze Sikkema, and Lucas Visscher
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -25,25 +25,26 @@
  @author:       Samuel Fux
  @organization: ETH Zurich and Karlsruhe Institute of Technology (KIT)
  @contact:      christoph.jacob@kit.edu
- 
+
 """
 
 from BaseJob import metajob
 from ADFSinglePoint import adfsinglepointjob
 from ADFFragments import fragment, adffragmentsjob
 from ADFPotential import adfpotentialjob
-from PlotGrids import adfgrid
+from Plot.Grids import adfgrid
 from Utils import Bohr_in_Angstrom
 from pyadf.Errors import PyAdfError
 
 import os.path
 
-class adfaccurateembeddingresults (object) :
 
-    def __init__ (self) :
+class adfaccurateembeddingresults (object):
+
+    def __init__(self):
         pass
 
-    def write_accurate_potential (self, grid, outdir) :
+    def write_accurate_potential(self, grid, outdir):
 
         # construct initial guess for the potential and save it to a variable
         startpot = self.frag1.get_potential(grid=grid, pot='total')
@@ -61,32 +62,32 @@ class adfaccurateembeddingresults (object) :
         final_pot = startpot + rec_pot
         super_pot = self.super.get_potential(grid, pot='total')
 
-       # difference between the supermolecular and the reconstructed potential  
+       # difference between the supermolecular and the reconstructed potential
         diff_pot = super_pot - final_pot
         diff_pot.get_xyzvfile(os.path.join(outdir, "diff_pot.xyzv"))
 
-    def write_approximate_potentials (self, grid, kin_funcs, outdir) :
+    def write_approximate_potentials(self, grid, kin_funcs, outdir):
 
         # FIXME: add NDSD and CJCORR here
-        
-        for func in kin_funcs :
+
+        for func in kin_funcs:
 
             #  get kinetic potential for the supermolecular system
             kinpot_tot = self.super.get_kinetic_potential(grid, func=func)
-    
+
             # calculate approximate kinetic-energy potential from the reconstructed density
             apots = self.pot.get_kinetic_potential(grid, func=func)
-    
+
             # difference potential
             apot = kinpot_tot - apots
 
             # write potential to file
-            apot.get_xyzvfile(os.path.join(outdir, "approx_"+func+".xyzv"))
+            apot.get_xyzvfile(os.path.join(outdir, "approx_" + func + ".xyzv"))
 
-            
-class adfaccurateembeddingjob (metajob) :
 
-    def __init__ (self, frag1, frag2, basis, ghostbasis, settings, potoptions) :
+class adfaccurateembeddingjob (metajob):
+
+    def __init__(self, frag1, frag2, basis, ghostbasis, settings, potoptions):
         self.frag1 = frag1
         self.frag2 = frag2
 
@@ -96,7 +97,7 @@ class adfaccurateembeddingjob (metajob) :
         self.frag1.set_symmetry('NOSYM')
         self.frag2.set_symmetry('NOSYM')
         self.supermol.set_symmetry('NOSYM')
-        
+
         # if requested, add ghost basis functions to the active fragment
         if ghostbasis == True:
             self.frag1 = self.frag1.add_as_ghosts(self.frag2)
@@ -107,31 +108,31 @@ class adfaccurateembeddingjob (metajob) :
         self.potoptions = potoptions
 
         # maximum number of iterations in potential reconstruction
-        if 'CYCLES' in self.potoptions :
+        if 'CYCLES' in self.potoptions:
             self.cyc = self.potoptions['CYCLES']
             del self.potoptions['CYCLES']
-        else :
+        else:
             self.cycles = 500
 
-    def assign_locorbs_to_fragments (self, results) :
+    def assign_locorbs_to_fragments(self, results):
 
         # get number of electrons for each fragment and check that it is even
         # then, number of electrons divided by two is the number of localized orbitals
-        
+
         number_of_locorbs = results.super.get_number_of_electrons()
-        if number_of_locorbs % 2 == 1 :
+        if number_of_locorbs % 2 == 1:
             raise PyAdfError('odd number of electrons for supermolecule')
         else:
             number_of_locorbs = number_of_locorbs / 2
 
         number_of_locorbs_1 = results.frag1.get_number_of_electrons()
-        if number_of_locorbs_1 % 2 == 1 :
+        if number_of_locorbs_1 % 2 == 1:
             raise PyAdfError('odd number of electrons for subsystem 1')
         else:
             number_of_locorbs_1 = number_of_locorbs_1 / 2
 
         number_of_locorbs_2 = results.frag2.get_number_of_electrons()
-        if number_of_locorbs_2 % 2 == 1 :
+        if number_of_locorbs_2 % 2 == 1:
             raise PyAdfError('odd number of electrons for supsystem 2')
         else:
             number_of_locorbs_2 = number_of_locorbs_2 / 2
@@ -140,23 +141,23 @@ class adfaccurateembeddingjob (metajob) :
         # supermolecular calculation and assign it to the subsystem
         # that is closest to its "center of density"
 
-        def calc_center_of_density (dens):
+        def calc_center_of_density(dens):
             """
             Calculates the center of density of a given density and returns a list [x,y,z].
             """
             import numpy
             center = numpy.zeros(3)
-            for w, c, d in zip(dens.grid.weightiter(), dens.grid.coorditer(), dens.valueiter()) :
-                center += w * d * c 
-            return Bohr_in_Angstrom*center
+            for w, c, d in zip(dens.grid.weightiter(), dens.grid.coorditer(), dens.valueiter()):
+                center += w * d * c
+            return Bohr_in_Angstrom * center
 
         adfGrid = adfgrid(results.super)
 
         results.locorb_set1 = []
         results.locorb_set2 = []
-        for i in range(1,number_of_locorbs+1):
+        for i in range(1, number_of_locorbs + 1):
             locorb_dens = results.super.get_locorb_density(grid=adfGrid, orbs=[i])
-            center_of_density = calc_center_of_density (locorb_dens)
+            center_of_density = calc_center_of_density(locorb_dens)
             print "center of density of localized orbital nr. ", i, "  : ", center_of_density
 
             dist1 = self.frag1.distance_to_point(center_of_density, ghosts=False)
@@ -168,30 +169,30 @@ class adfaccurateembeddingjob (metajob) :
             elif dist1 > dist2 + 1e-4:
                 results.locorb_set2.append(i)
             else:
-                if results.frag1.get_charge() < results.frag2.get_charge() :
+                if results.frag1.get_charge() < results.frag2.get_charge():
                     results.locorb_set1.append(i)
-                elif results.frag2.get_charge() < results.frag1.get_charge() :
+                elif results.frag2.get_charge() < results.frag1.get_charge():
                     results.locorb_set2.append(i)
                 else:
-                    raise PyAdfError('localized orbital can not be assigned clearly to one of the subsystems')    
+                    raise PyAdfError('localized orbital can not be assigned clearly to one of the subsystems')
 
         print "locorb_set1 :", results.locorb_set1
         print "locorb_set2 :", results.locorb_set2
 
-        if not (len(results.locorb_set1) == number_of_locorbs_1) :
+        if not (len(results.locorb_set1) == number_of_locorbs_1):
             raise PyAdfError('wrong number of localized orbitals for subsystem 1')
-        if not (len(results.locorb_set2) == number_of_locorbs_2) :
+        if not (len(results.locorb_set2) == number_of_locorbs_2):
             raise PyAdfError('wrong number of localized orbitals for subsystem 2')
-        
-    def metarun (self) :
+
+    def metarun(self):
 
         results = adfaccurateembeddingresults()
 
         # run supermolecular calculation
         self.settings.set_lmo(True)
-        self.settings.set_save_tapes([21,10])
+        self.settings.set_save_tapes([21, 10])
         self.settings.set_exactdensity(True)
-        
+
         results.super = adfsinglepointjob(self.supermol, self.basis, settings=self.settings).run()
 
         # orbital localization is turned off for the other calculations
@@ -201,7 +202,7 @@ class adfaccurateembeddingjob (metajob) :
         results.frag1 = adfsinglepointjob(self.frag1, self.basis, settings=self.settings).run()
         results.frag2 = adfsinglepointjob(self.frag2, self.basis, settings=self.settings).run()
 
-        # get localized orbital densities for subsystems 1 and 2 
+        # get localized orbital densities for subsystems 1 and 2
 
         self.assign_locorbs_to_fragments(results)
 
@@ -228,12 +229,12 @@ class adfaccurateembeddingjob (metajob) :
         # Calculate the error in the density
 
         # the reconstructed density
-        rec_dens = results.pot.get_density(grid=adfGrid) 
+        rec_dens = results.pot.get_density(grid=adfGrid)
 
         # the difference density
         diff_dens = sys1_dens - rec_dens
 
         # calculate integral over the difference density
         results.dens_error = diff_dens.integral(func=lambda x: abs(x))
-        
+
         return results

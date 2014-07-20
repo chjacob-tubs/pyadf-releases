@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 
-# This file is part of 
+# This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
 # Copyright (C) 2006-2014 by Christoph R. Jacob, S. Maya Beyhan,
 # Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Michal Handzlik,
-# Karin Kiewisch, Moritz Klammler, Jetze Sikkema, and Lucas Visscher 
+# Karin Kiewisch, Moritz Klammler, Jetze Sikkema, and Lucas Visscher
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -19,34 +19,36 @@
 #    You should have received a copy of the GNU General Public License
 #    along with PyADF.  If not, see <http://www.gnu.org/licenses/>.
 
-import os, sys, shutil
+import os
+import sys
+import shutil
 import traceback
 
 try:
     import cProfile
-except:
+except ImportError:
     pass
 
 from pyadf import *
 from pyadfenv import setup_pyadfenv, setup_test_pyadfenv
 
-if (os.path.basename(sys.argv[0]) == 'pyadf') :
-    pyadfenv = setup_pyadfenv ()
-else :
-    pyadfenv = setup_test_pyadfenv (pyadfinput, testing_force_openbabel)
+if (os.path.basename(sys.argv[0]) == 'pyadf'):
+    pyadfenv = setup_pyadfenv()
+else:
+    pyadfenv = setup_test_pyadfenv(pyadfinput, testing_force_openbabel)
 
 DefaultJobRunner.instance = None
 
 stdout_save = sys.stdout
 stderr_save = sys.stderr
 
-if not 'interactive' in pyadfenv.options :
+if not 'interactive' in pyadfenv.options:
     # redirect PyADF output to a file
     sys.stdout = file(pyadfenv.pyadfout, 'w', 0)
     sys.stderr = sys.stdout
 
-print 
-print " "+50*"*"
+print
+print " " + 50 * "*"
 print " *                                          "
 print " *  PyADF v0.9                              "
 print " *                                          "
@@ -59,7 +61,7 @@ print " *     PyADF is free software: you can redistribute it and/or modify     
 print " *     it under the terms of the GNU General Public License as published by  "
 print " *     the Free Software Foundation, either version 3 of the License, or     "
 print " *     (at your option) any later version. "
-print " * " 
+print " * "
 print " *     PyADF is distributed in the hope that it will be useful,        "
 print " *     but WITHOUT ANY WARRANTY; without even the implied warranty of  "
 print " *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the   "
@@ -68,13 +70,13 @@ print " * "
 print " *     You should have received a copy of the GNU General Public License "
 print " *     along with PyADF.  If not, see <http://www.gnu.org/licenses/>.    "
 print " * "
-print " "+50*"*"
+print " " + 50 * "*"
 print
 
 # directory where the pyadf source is
 print " Directory of PyADF source:"
 print "     ", os.environ['PYADFHOME']
-print 
+print
 
 # directory pyadf was started from (where the input is)
 print " Directory of input file:"
@@ -87,54 +89,54 @@ print "     ", pyadfenv.outdir
 print
 
 # name of the input file
-print " "+40*"-"
+print " " + 40 * "-"
 print " PyADF input file: ", os.path.basename(pyadfenv.inputname)
 print
 
 # print the input file
 f = file(pyadfenv.inputname, 'r')
-for l in f.readlines() :
-    if l.strip(' \n\r') != "" :
-        print l, 
-print " "+40*"-"
+for l in f.readlines():
+    if l.strip(' \n\r') != "":
+        print l,
+print " " + 40 * "-"
 print
 f.close()
 
 # initialize file manager
-myfiles = adf_filemanager (pyadfenv.outdir, pyadfenv.jobid)
-myfiles.set_outputfilename ("alloutput")
+myfiles = adf_filemanager(pyadfenv.outdir, pyadfenv.jobid)
+myfiles.set_outputfilename("alloutput")
 
 # initialize MoleculeFactory
-if 'openbabel' in pyadfenv.options :
-    MoleculeFactory().use_openbabel(True)
-else :
-    MoleculeFactory().use_openbabel(False)
+if not ('openbabel' in pyadfenv.options):
+    MoleculeFactory().use_openbabel(None)
+else:
+    MoleculeFactory().use_openbabel(pyadfenv.options['openbabel'])
 
-if "restartdir" in pyadfenv.options :
+if "restartdir" in pyadfenv.options:
     print " Using restart directory: ", pyadfenv.options["restartdir"]
-    myfiles.import_resultsdir (pyadfenv.options["restartdir"])
+    myfiles.import_resultsdir(pyadfenv.options["restartdir"])
 
-print " "+50*"*"
+print " " + 50 * "*"
 print " Executing PyADF input ..."
 print
 
 try:
     globs = globals().copy()
     globs.update(locals())
-    if not "profile" in pyadfenv.options :
+    if not "profile" in pyadfenv.options:
         execfile(pyadfenv.inputname, globs)
     else:
         profout = os.path.join(pyadfenv.outdir, "pyadf.profile")
         print "Profile will be written to: ", profout
         cProfile.runctx("execfile(pyadfenv.inputname, globs)", globals(), locals(), profout)
 
-    print " "+50*"*"
+    print " " + 50 * "*"
     print " Finished Execution of PyADF input"
-        
+
 except Exception, e:
-        
-    if 'unittesting' in pyadfenv.options :
-        myfiles.cleanup ()
+
+    if 'unittesting' in pyadfenv.options:
+        myfiles.cleanup()
         sys.stdout = stdout_save
         sys.stderr = stderr_save
         del pyadfenv
@@ -144,23 +146,23 @@ except Exception, e:
     print
     traceback.print_exception(*sys.exc_info())
     print
-    if myfiles.have_results() :
-        crashdir = os.path.join(pyadfenv.outdir, "pyadf_crashed."+pyadfenv.jobid)
+    if myfiles.have_results():
+        crashdir = os.path.join(pyadfenv.outdir, "pyadf_crashed." + pyadfenv.jobid)
         os.mkdir(crashdir)
-        myfiles.copy_all_results_to_dir (crashdir)
-        print " Results were saved to: ", "pyadf_crashed."+pyadfenv.jobid
+        myfiles.copy_all_results_to_dir(crashdir)
+        print " Results were saved to: ", "pyadf_crashed." + pyadfenv.jobid
         print
 
-else :
+else:
 
-    if ('save_results' in pyadfenv.options) and myfiles.have_results() :
-        savedir = os.path.join(pyadfenv.outdir, "pyadf_results."+pyadfenv.jobid)
+    if ('save_results' in pyadfenv.options) and myfiles.have_results():
+        savedir = os.path.join(pyadfenv.outdir, "pyadf_results." + pyadfenv.jobid)
         os.mkdir(savedir)
-        myfiles.copy_all_results_to_dir (savedir)
-        print " Results were saved to: ", "pyadf_results."+pyadfenv.jobid
+        myfiles.copy_all_results_to_dir(savedir)
+        print " Results were saved to: ", "pyadf_results." + pyadfenv.jobid
         print
 
-myfiles.cleanup ()
+myfiles.cleanup()
 sys.stdout = stdout_save
 sys.stderr = stderr_save
 pyadfenv.cleanup()

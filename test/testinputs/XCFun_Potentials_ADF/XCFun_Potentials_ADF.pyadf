@@ -1,0 +1,55 @@
+import numpy
+import xcfun
+
+blyp = xcfun.Functional({'BeckeX': 1.0, 'LYPC': 1.0})
+
+# first closed-shell: water molecule
+
+mol = molecule(os.path.join(pyadfenv.outdir, 'H2O.xyz'))
+mol.set_symmetry('NOSYM')
+
+settings = adfsettings(functional='BLYP')
+settings.set_save_tapes([21,10])
+
+res = adfsinglepointjob(mol, basis='TZP', settings=settings).run()
+
+agrid = adfgrid(res)
+
+xcpot_adf = res.get_potential(agrid, pot='xc').values
+
+dd = res.get_density(agrid, fit=False, order=2)
+
+xcpot_xcfun = blyp.eval_potential_n(density=dd[0].values,
+                                    densgrad=dd[1].values,
+                                    denshess=dd[2].values)[:,1]
+
+if 'unittesting' in pyadfenv.options:
+    xcpot_adf = numpy.where(dd[0].values < 1e-8, 0.0, xcpot_adf)
+    xcpot_xcfun = numpy.where(dd[0].values < 1e-8, 0.0, xcpot_xcfun)
+    testobj.assertAlmostEqual(xcpot_xcfun, xcpot_adf, places=6)
+
+# now unrestricted: nitrogen atom
+
+mol = molecule(os.path.join(pyadfenv.outdir, 'N.xyz'))
+mol.set_symmetry('NOSYM')
+
+settings = adfsettings(functional='BLYP')
+settings.set_save_tapes([21,10])
+settings.set_unrestricted(True)
+
+res = adfsinglepointjob(mol, basis='TZP', settings=settings).run()
+
+agrid = adfgrid(res)
+
+xcpot_adf = res.get_potential(agrid, pot='xc').values
+
+dd = res.get_density(agrid, fit=False, order=2)
+
+xcpot_xcfun = blyp.eval_potential_ab(density=dd[0].values,
+                                     densgrad=dd[1].values,
+                                     denshess=dd[2].values)[:,1:]
+
+if 'unittesting' in pyadfenv.options:
+    xcpot_adf = numpy.where(dd[0].values < 1e-8, 0.0, xcpot_adf)
+    xcpot_xcfun = numpy.where(dd[0].values < 1e-8, 0.0, xcpot_xcfun)
+    testobj.assertAlmostEqual(xcpot_xcfun, xcpot_adf, places=6)

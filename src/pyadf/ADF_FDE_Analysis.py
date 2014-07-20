@@ -1,8 +1,8 @@
-# This file is part of 
+# This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
 # Copyright (C) 2006-2014 by Christoph R. Jacob, S. Maya Beyhan,
 # Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Michal Handzlik,
-# Karin Kiewisch, Moritz Klammler, Jetze Sikkema, and Lucas Visscher 
+# Karin Kiewisch, Moritz Klammler, Jetze Sikkema, and Lucas Visscher
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -17,14 +17,14 @@
 #    You should have received a copy of the GNU General Public License
 #    along with PyADF.  If not, see <http://www.gnu.org/licenses/>.
 """
- Job and results of analysis of an ADF FDE calculation for a list of fragments. 
+ Job and results of analysis of an ADF FDE calculation for a list of fragments.
 
  It defines and collects measures of accuracy of subsystem DFT:
 
      - absolute error in difference density
      - rms error in difference density
-     - error in dipole moment 
- 
+     - error in dipole moment
+
  @author: S. Maya Beyhan
  @author: Andreas W. Goetz
  @organization: Vrije Univeristeit Amsterdam (2008)
@@ -37,19 +37,22 @@ from BaseJob import metajob
 from ADFSinglePoint import adfsinglepointjob
 from ADFFragments import adffragmentsjob, fragment
 from ADF_FDE import adffdejob
-from PlotGrids import adfgrid
+from Plot.Grids import adfgrid
 
-import os, glob
+import os
+import glob
+
 
 class adffdeanalysissettings (object):
+
     """
-    Class for settings of  adffdeanalysisjob. 
+    Class for settings of  adffdeanalysisjob.
     """
 
-    def __init__ (self, tnad=None, runtype=None, usebasis='False', options=None, ncycle=None, cjcorr='False'): 
+    def __init__(self, tnad=None, runtype=None, usebasis='False', options=None, ncycle=None, cjcorr='False'):
 
         if tnad == None:
-            self.set_tnad(['COULOMB', 'THOMASFERMI', 'PW91K', 'PW91Kscaled', 'TW02', 'TF9W', 'PBE2', 'PBE3', 'PBE4']) 
+            self.set_tnad(['COULOMB', 'THOMASFERMI', 'PW91K', 'PW91Kscaled', 'TW02', 'TF9W', 'PBE2', 'PBE3', 'PBE4'])
         else:
             self.set_tnad(tnad)
 
@@ -61,7 +64,7 @@ class adffdeanalysissettings (object):
         self.set_usebasis(usebasis)
 
         self.set_options(options)
-        
+
         self.set_cjcorr(cjcorr)
 
         if ncycle == None:
@@ -69,42 +72,43 @@ class adffdeanalysissettings (object):
         else:
             self.set_ncycle(ncycle)
 
-    def set_tnad (self, tnad):
+    def set_tnad(self, tnad):
         if not isinstance(tnad, list):
             tnad = [tnad]
         self.tnad = tnad
 
-    def set_runtype (self, runtype):
+    def set_runtype(self, runtype):
         if not isinstance(runtype, list):
             runtype = [runtype]
         self.runtype = runtype
 
-    def set_usebasis (self, usebasis):
-        self.usebasis = usebasis   
+    def set_usebasis(self, usebasis):
+        self.usebasis = usebasis
 
-    def set_options (self, options):
+    def set_options(self, options):
         self.options = options
-         
-    def set_ncycle (self, ncycle):
+
+    def set_ncycle(self, ncycle):
         self.ncycle = ncycle
 
-    def set_cjcorr (self, cjcorr):
+    def set_cjcorr(self, cjcorr):
         self.cjcorr = cjcorr
 
 
 class adffdeanalysisjob (metajob):
+
     """
     Class for ADF FDE analysis jobs.
     """
 
-    def __init__ (self, molecules, settings, adfsettings=None, basis=None, core=None, 
-                  fde=None, adffdesettings=None):
+    def __init__(self, molecules, settings, adfsettings=None, basis=None, core=None,
+                 fde=None, adffdesettings=None):
         """
         Constructor of adffdeanalysisjob.
 
         @param molecules: molecules for which to run the analysis
         @type molecules:  list of L{molecule} objects
-        
+
         @param settings:
            settings for the adffdeanalysisjob
         @type settings: L{adffdeanalysissettings}
@@ -128,19 +132,19 @@ class adffdeanalysisjob (metajob):
         """
 
         metajob.__init__(self)
-            
-        if not isinstance (molecules, list):
-            raise PyAdfError ('molecule should be an instance of list')
+
+        if not isinstance(molecules, list):
+            raise PyAdfError('molecule should be an instance of list')
         else:
             self.molecules = molecules
 
         if settings == None:
-            raise PyAdfError ('no adffdeanalysissettings provided')
+            raise PyAdfError('no adffdeanalysissettings provided')
         else:
             self.settings = settings
 
         self.adfsettings = adfsettings
-        
+
         self.adffdesettings = adffdesettings
 
         if basis == None:
@@ -149,17 +153,17 @@ class adffdeanalysisjob (metajob):
             self.basis = basis
 
         self.core = core
-    
+
         if fde == None:
             self.fde = {}
         else:
             self.fde = fde
 
-    def norm (self, vec=None) :
+    def norm(self, vec=None):
         from math import sqrt
-        return sqrt( sum([x*x for x in vec]) )
+        return sqrt(sum([x * x for x in vec]))
 
-    def calc_diff (self, res_ref=None, res_test=None, grid=None) :
+    def calc_diff(self, res_ref=None, res_test=None, grid=None):
         """
         Calculate difference in dipole moment and integrals of the difference density between a reference and a test.
 
@@ -175,52 +179,52 @@ class adffdeanalysisjob (metajob):
             Grid for integration (should be grid of reference)
         @type grid: grid
 
-        @returns: 
+        @returns:
             integrated difference density, integrated absolute value of difference density,
             RMS of difference density
         @rtype: list of floats
 
         """
         from pyadf.Utils import au_in_Debye
-        from math        import sqrt
+        from math import sqrt
 
-        if (res_ref == None) or (res_test == None) :
-            raise PyAdfError ('Reference and Test results objects required in calc_den')
-        if (grid == None) :
-            raise PyAdfError ('Grid required in calc_diff')
+        if (res_ref == None) or (res_test == None):
+            raise PyAdfError('Reference and Test results objects required in calc_den')
+        if (grid == None):
+            raise PyAdfError('Grid required in calc_diff')
 
-        if not isinstance(res_test, list) :
+        if not isinstance(res_test, list):
             res_test = [res_test]
 
-        dip_ref  = res_ref.get_dipole_vector()
+        dip_ref = res_ref.get_dipole_vector()
         dens_ref = res_ref.get_density(grid=grid)
 
         # test density and dipole moment
-        dip_test  = []
+        dip_test = []
         dens_test = []
-        for r in res_test :
+        for r in res_test:
             dip = r.get_dipole_vector()
             dip_test.append(dip)
             dens = r.get_density(grid=grid)
             dens_test.append(dens)
-        dip_test  = reduce(lambda x, y: x+y, dip_test)
-        dens_test = reduce(lambda x, y: x+y, dens_test)
+        dip_test = reduce(lambda x, y: x + y, dip_test)
+        dens_test = reduce(lambda x, y: x + y, dens_test)
 
         # difference density and integrals
-        dens_diff        = dens_ref - dens_test
-        numElectrons     = dens_ref.integral() 
-        print '-'*50
-        err_dens_diff    = dens_diff.integral()
+        dens_diff = dens_ref - dens_test
+        numElectrons = dens_ref.integral()
+        print '-' * 50
+        err_dens_diff = dens_diff.integral()
         abserr_dens_diff = dens_diff.integral(abs) / numElectrons
-        rmserr_dens_diff = sqrt(dens_diff.integral(lambda x: x*x)) / numElectrons
+        rmserr_dens_diff = sqrt(dens_diff.integral(lambda x: x * x)) / numElectrons
 
         return [au_in_Debye * (dip_ref - dip_test), err_dens_diff, abserr_dens_diff, rmserr_dens_diff]
 
-    def prepare_frags (self):
+    def prepare_frags(self):
         """
         Prepare fragments (make single point runs for molecules).
 
-        @note: 
+        @note:
             we cannot use symmetry in the fragments if we are interested in the
             difference density -> otherwise they will be rotated
 
@@ -233,17 +237,17 @@ class adffdeanalysisjob (metajob):
         self.adfsettings.set_occupations(None)
         for mol in self.molecules:
             mol.set_symmetry('NOSYM')
-            r = adfsinglepointjob( mol=mol, basis=self.basis, core=self.core,
+            r = adfsinglepointjob(mol=mol, basis=self.basis, core=self.core,
                                   settings=self.adfsettings, options=['NOSYMFIT']).run()
             r_frags.append(r)
             if self.settings.usebasis == 'True':
-                frags.append(fragment(r, mol, fdeoptions={"USEBASIS":"", "RELAX":"", "XC":" GGA PBE"}))
-            else: 
-                frags.append(fragment(r, mol, fdeoptions={"XC":"GGA PBE"}))
+                frags.append(fragment(r, mol, fdeoptions={"USEBASIS": "", "RELAX": "", "XC": " GGA PBE"}))
+            else:
+                frags.append(fragment(r, mol, fdeoptions={"XC": "GGA PBE"}))
 
         return frags, r_frags
 
-    def metarun (self):
+    def metarun(self):
         """
         Run the analysis job
 
@@ -252,18 +256,18 @@ class adffdeanalysisjob (metajob):
         """
 
         # prepare fragments (list of results)
-        (frags, r_frags) = self.prepare_frags() 
+        (frags, r_frags) = self.prepare_frags()
 
         # make KS calculation (the reference)
         self.adfsettings.set_save_tapes([10, 21])
 
-        jobKs = adffragmentsjob( frags, basis=self.basis, core=self.core, 
-                                           settings=self.adfsettings).run()
+        jobKs = adffragmentsjob(frags, basis=self.basis, core=self.core,
+                                settings=self.adfsettings).run()
         self.adfsettings.set_save_tapes([21])
 
         # run analysis of densities and return result
-        grid_super     = adfgrid(jobKs)
-        calc_diffSoF    = self.calc_diff(jobKs, r_frags, grid_super)
+        grid_super = adfgrid(jobKs)
+        calc_diffSoF = self.calc_diff(jobKs, r_frags, grid_super)
         calc_diffSoF[0] = self.norm(calc_diffSoF[0])
         # if FDE requested (not only sum-of-fragments) run FDE
         results = {}
@@ -275,7 +279,7 @@ class adffdeanalysisjob (metajob):
             options = None
 
         if self.settings.usebasis == 'True':
-            print '-'*50
+            print '-' * 50
             print 'USEBASIS: Basis functions of frozen fragments will be included in the non-frozen system'
 
         for t in self.settings.tnad:
@@ -287,14 +291,14 @@ class adffdeanalysisjob (metajob):
                 print '\n'
                 print 'Testing the functional ', t
                 print '\n'
-                jobParallelFt = adffdejob( frags, basis=self.basis, core=self.core,
+                jobParallelFt = adffdejob(frags, basis=self.basis, core=self.core,
                                           settings=self.adfsettings, options=options, fde=fde,
                                           adffdesettings=self.adffdesettings).parallel_ft_run()
-                calc_diffFde0  = self.calc_diff(jobKs, jobParallelFt, grid_super)
+                calc_diffFde0 = self.calc_diff(jobKs, jobParallelFt, grid_super)
                 results[t] = [calc_diffSoF, calc_diffFde0]
                 for i in range(0, len(results[t]) - 1):
-                    results[t][i+1][0] = self.norm(results[t][i+1][0])
-                      
+                    results[t][i + 1][0] = self.norm(results[t][i + 1][0])
+
             elif self.settings.runtype == ['normalFt']:
                 print '\n'
                 print 'Testing the functional ', t
@@ -304,53 +308,53 @@ class adffdeanalysisjob (metajob):
 
                 results[t] = [calc_diffSoF]
 
-                fde['RELAXCYCLES'] = self.settings.ncycle 
-                
-                jobNormalFt   = adffdejob( frags, basis=self.basis, core=self.core,
-                                          settings=self.adfsettings, options=options, fde=fde,
-                                          adffdesettings=self.adffdesettings).normal_ft_run()   
-                calc_diffFde   = self.calc_diff(jobKs, jobNormalFt, grid_super)
-                results[t].append(calc_diffFde) 
+                fde['RELAXCYCLES'] = self.settings.ncycle
+
+                jobNormalFt = adffdejob(frags, basis=self.basis, core=self.core,
+                                        settings=self.adfsettings, options=options, fde=fde,
+                                        adffdesettings=self.adffdesettings).normal_ft_run()
+                calc_diffFde = self.calc_diff(jobKs, jobNormalFt, grid_super)
+                results[t].append(calc_diffFde)
                 results[t][1][0] = self.norm(results[t][1][0])
 
             else:
                 print '\n'
                 print 'Testing the functional ', t
                 print '\n'
-                jobParallelFt   = adffdejob( frags, basis=self.basis, core=self.core,
-                                            settings=self.adfsettings, options=options, fde=fde,
-                                            adffdesettings=self.adffdesettings).parallel_ft_run()   
-                calc_diffFde0    = self.calc_diff(jobKs, jobParallelFt, grid_super)
+                jobParallelFt = adffdejob(frags, basis=self.basis, core=self.core,
+                                          settings=self.adfsettings, options=options, fde=fde,
+                                          adffdesettings=self.adffdesettings).parallel_ft_run()
+                calc_diffFde0 = self.calc_diff(jobKs, jobParallelFt, grid_super)
                 calc_diffFde0[0] = self.norm(calc_diffFde0[0])
-              
+
                 fde['NORMALFT'] = ''
                 results[t] = [calc_diffSoF, calc_diffFde0]
 
                 for i in range(1, self.settings.ncycle + 1):
-                    fde['RELAXCYCLES'] = i 
+                    fde['RELAXCYCLES'] = i
 
-                    jobNormalFt    = adffdejob( frags, basis=self.basis, core=self.core,
-                                               settings=self.adfsettings, options=options, fde=fde,
-                                               adffdesettings=self.adffdesettings).normal_ft_run()
-                    calc_diffFde    = self.calc_diff(jobKs, jobNormalFt, grid_super)
+                    jobNormalFt = adffdejob(frags, basis=self.basis, core=self.core,
+                                            settings=self.adfsettings, options=options, fde=fde,
+                                            adffdesettings=self.adffdesettings).normal_ft_run()
+                    calc_diffFde = self.calc_diff(jobKs, jobNormalFt, grid_super)
                     calc_diffFde[0] = self.norm(calc_diffFde[0])
-                    results[t].append(calc_diffFde) 
-                   
-        return results  
-             
-    def print_results (self):
-    
-        results = self.run() 
+                    results[t].append(calc_diffFde)
+
+        return results
+
+    def print_results(self):
+
+        results = self.run()
 
         print '\n'
-        print '+' + 70*'-'                     + '+'
+        print '+' + 70 * '-' + '+'
         print '|' + 'FINAL RESULTS'.center(70) + '|'
-        print '+' + 70*'-'                     + '+'
+        print '+' + 70 * '-' + '+'
         print ' Basis set: ' + self.basis
 
         for kin in results:
-            print ' NADKIN: ' + kin    
-            string = ' '*20
+            print ' NADKIN: ' + kin
+            string = ' ' * 20
             string += '|dmu|(D)'.center(14)
             string += 'dabs'.center(14)
             string += 'drms'.center(14)
@@ -369,8 +373,8 @@ class adffdeanalysisjob (metajob):
                 string += '  %12.6f' % results[kin][1][2]
                 string += '  %12.6f' % results[kin][1][3]
                 print string
-                
-            if not self.settings.runtype == ['normalFt']:   
+
+            if not self.settings.runtype == ['normalFt']:
                 string = 'FDE(0)'.ljust(20)
                 string += '  %12.6f' % results[kin][1][0]
                 string += '  %12.6f' % results[kin][1][2]
@@ -380,30 +384,31 @@ class adffdeanalysisjob (metajob):
             if self.settings.runtype == ['parallelFt', 'normalFt']:
                 for i in range(1, self.settings.ncycle + 1):
                     string = 'FDE(%i)' % i
-                    string += '  %12.6f' % results[kin][i+1][0]
-                    string += '  %12.6f' % results[kin][i+1][2]
-                    string += '  %12.6f' % results[kin][i+1][3]
+                    string += '  %12.6f' % results[kin][i + 1][0]
+                    string += '  %12.6f' % results[kin][i + 1][2]
+                    string += '  %12.6f' % results[kin][i + 1][3]
                     print string
 
 
 class datasetjob(metajob):
+
     """
-    Runs L{adffdeanalysisjob}s for a data set and then calculates the average per 
+    Runs L{adffdeanalysisjob}s for a data set and then calculates the average per
     nadkin for every molecule in the data set
     """
 
-    def __init__ (self, pathNames, settings, adfsettings=None, basis=None, core=None, 
-                  fde=None, adffdesettings=None):
+    def __init__(self, pathNames, settings, adfsettings=None, basis=None, core=None,
+                 fde=None, adffdesettings=None):
 
         metajob.__init__(self)
 
         if pathNames == None:
-            raise PyAdfError ('pathName should be supplied')
+            raise PyAdfError('pathName should be supplied')
         else:
             self.pathNames = pathNames
-         
+
         if settings == None:
-            raise PyAdfError ('no adffdeanalysissettings provided')
+            raise PyAdfError('no adffdeanalysissettings provided')
         else:
             self.settings = settings
 
@@ -421,20 +426,20 @@ class datasetjob(metajob):
         else:
             self.fde = fde
 
-    def norm (self, vec=None) :
+    def norm(self, vec=None):
         from math import sqrt
-        return sqrt (sum ([x*x for x in vec]))
+        return sqrt(sum([x * x for x in vec]))
 
-    def add_lists (self, list1, list2):
+    def add_lists(self, list1, list2):
         newlist = []
         for i in range(0, len(list1)):
             tmplist = []
             for j in range(0, len(list1[i])):
-                tmplist.append(list1[i][j]+list2[i][j])
+                tmplist.append(list1[i][j] + list2[i][j])
             newlist.append(tmplist)
         return newlist
 
-    def divide_by_number (self, list1, number):
+    def divide_by_number(self, list1, number):
         newlist = []
         for i in range(0, len(list1)):
             tmplist = []
@@ -443,16 +448,16 @@ class datasetjob(metajob):
             newlist.append(tmplist)
         return newlist
 
-    def metarun (self):           
-        
-        dataSetJobResults = []       
+    def metarun(self):
+
+        dataSetJobResults = []
         for p in self.pathNames:
-            filelist = glob.glob(os.path.join(p,'*.xyz'))
+            filelist = glob.glob(os.path.join(p, '*.xyz'))
             molecules = []
             for f in filelist:
-                molecules.append(molecule(os.path.join(p, f), inputformat='xyz' ))
+                molecules.append(molecule(os.path.join(p, f), inputformat='xyz'))
 
-            dataSetJob = adffdeanalysisjob( molecules=molecules, settings=self.settings, 
+            dataSetJob = adffdeanalysisjob(molecules=molecules, settings=self.settings,
                                            adfsettings=self.adfsettings, basis=self.basis, core=self.core,
                                            fde=self.fde, adffdesettings=self.adffdesettings).run()
             dataSetJobResults.append(dataSetJob)
@@ -473,7 +478,7 @@ class datasetjob(metajob):
                 dictTmp.update(tmpAvrg)
             tmpAvrg = dict(tmpAvrg)
         else:
-            tmpAvrg = dictTmp 
+            tmpAvrg = dictTmp
         AvrgResults = []
         number = len(dataSetJobResults)
         for key, value in tmpAvrg.iteritems():
@@ -482,21 +487,21 @@ class datasetjob(metajob):
 
         return AvrgResults, dataSetJobResults
 
-    def print_results (self):
-        
+    def print_results(self):
+
         (avrg, dataSetJobResults) = self.run()
 
         for results, p in zip(dataSetJobResults, self.pathNames):
             print '\n'
             print 'Molecule Name: ', p
             print 'Basis Set: ', self.basis
-            print '+' + 70*'-'                     + '+'
+            print '+' + 70 * '-' + '+'
             print '|' + 'FINAL RESULTS'.center(70) + '|'
-            print '+' + 70*'-'                     + '+'
-            
+            print '+' + 70 * '-' + '+'
+
             for kin in results:
-                print ' NADKIN: ' + kin    
-                print ' '*20 + '|dmu|(D)'.center(14) + 'dabs'.center(14) + 'drms'.center(14)
+                print ' NADKIN: ' + kin
+                print ' ' * 20 + '|dmu|(D)'.center(14) + 'dabs'.center(14) + 'drms'.center(14)
                 string = 'Sum of Fragments'.ljust(20)
                 string += '  %12.6f' % results[kin][0][0]
                 string += '  %12.6f' % results[kin][0][2]
@@ -511,26 +516,26 @@ class datasetjob(metajob):
                     string += '  %12.6f' % results[kin][1][3]
                     print string
 
-                if not self.settings.runtype == ['normalFt']:   
+                if not self.settings.runtype == ['normalFt']:
                     string = 'FDE(0)'.ljust(20)
                     string += '  %12.6f' % results[kin][1][0]
                     string += '  %12.6f' % results[kin][1][2]
                     string += '  %12.6f' % results[kin][1][3]
                     print string
-                    
+
                 if self.settings.runtype == ['parallelFt', 'normalFt']:
                     for i in range(1, self.settings.ncycle + 1):
                         string = 'FDE(%i)' % i
                         string = string.ljust(20)
-                        string +='  %12.6f' % results[kin][i+1][0]
-                        string +='  %12.6f' % results[kin][i+1][2]
-                        string +='  %12.6f' % results[kin][i+1][3]
+                        string += '  %12.6f' % results[kin][i + 1][0]
+                        string += '  %12.6f' % results[kin][i + 1][2]
+                        string += '  %12.6f' % results[kin][i + 1][3]
                         print string
         print '\n'
         print '\n'
-        print '+' + 70*'-'                     + '+'
+        print '+' + 70 * '-' + '+'
         print '|' + 'AVERAGE OF FINAL RESULTS'.center(70) + '|'
-        print '+' + 70*'-'                     + '+'
+        print '+' + 70 * '-' + '+'
 
         for kin in avrg.keys():
             print ' NADKIN: ' + kin
@@ -538,12 +543,12 @@ class datasetjob(metajob):
             print '' + 'Sum of Fragments'.center(70) + ''
             print '%12.6f   %12.6f   %12.6f' % (avrg[kin][0][0], avrg[kin][0][2], avrg[kin][0][3])
             if self.settings.runtype == ['normalFt']:
-                print '' + 'FDE%i'.center(70) % (self.settings.ncycle) + '' 
+                print '' + 'FDE%i'.center(70) % (self.settings.ncycle) + ''
                 print '%12.6f   %12.6f   %12.6f' % (avrg[kin][1][0], avrg[kin][1][2], avrg[kin][1][3])
-            if not self.settings.runtype == ['normalFt']:  
-                print '' + 'FDE0'.center(70) + '' 
+            if not self.settings.runtype == ['normalFt']:
+                print '' + 'FDE0'.center(70) + ''
                 print '%12.6f   %12.6f   %12.6f' % (avrg[kin][1][0], avrg[kin][1][2], avrg[kin][1][3])
             if self.settings.runtype == ['parallelFt', 'normalFt']:
                 for i in range(1, self.settings.ncycle + 1):
-                    print '' + 'FDE%i'.center(70) % (i) + '' 
-                    print '%12.6f   %12.6f   %12.6f' % (avrg[kin][i+1][0], avrg[kin][i+1][2], avrg[kin][i+1][3])
+                    print '' + 'FDE%i'.center(70) % (i) + ''
+                    print '%12.6f   %12.6f   %12.6f' % (avrg[kin][i + 1][0], avrg[kin][i + 1][2], avrg[kin][i + 1][3])

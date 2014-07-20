@@ -1,8 +1,8 @@
-# This file is part of 
+# This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
 # Copyright (C) 2006-2014 by Christoph R. Jacob, S. Maya Beyhan,
 # Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Michal Handzlik,
-# Karin Kiewisch, Moritz Klammler, Jetze Sikkema, and Lucas Visscher 
+# Karin Kiewisch, Moritz Klammler, Jetze Sikkema, and Lucas Visscher
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -22,13 +22,14 @@
 
  PyADF is a scripting framework for quantum chemistry, with a special
  focus on multiscale simulations. For an in-depth introduction, see
- the overview article in U{J. Comput. Chem. B{32} (2011), 2328-2338<http://dx.doi.org/10.1002/jcc.21810>}.
- 
+ the overview article in U{J. Comput. Chem. B{32} (2011),
+ 2328-2338<http://dx.doi.org/10.1002/jcc.21810>}.
+
  PyADF input files are Python scripts, in which the classes defined by
- the PyADF scripting framework are available by default. 
- 
+ the PyADF scripting framework are available by default.
+
  This is an example of a minimal PyADF input file::
- 
+
      mol = molecule('h2o.xyz')
      job = adfsinglepointjob( mol, basis='TZ2P')
      results = job.run()
@@ -36,15 +37,15 @@
 
  B{Running PyADF calculations}
 
- To run a PyADF script, use 
+ To run a PyADF script, use
 
  C{pyadf input.pyadf}
 
- Type C{pyadf --help} for command line options. 
+ Type C{pyadf --help} for command line options.
 
  B{Basic steps of a PyADF calculation}
 
- The minimal PyADF script given above shows the typical steps for 
+ The minimal PyADF script given above shows the typical steps for
  setting up a calculation using PyADF.
 
      1. B{Setting up the molecule}
@@ -52,7 +53,7 @@
      Molecules are represented using the L{molecule} class.
      In the simplest case, you just have to give the filename
      of an xyz file containing the coordinates.
- 
+
      >>> mol = molecule('h2o.xyz')
 
      More complicated things are also possible, e.g., obtaining
@@ -81,11 +82,11 @@
 
      >>> results = job.run()
 
-     This will now run the actual ADF calculation. 
+     This will now run the actual ADF calculation.
 
 
      4. B{Doing something with the results}
- 
+
      The C{job.run()} method returns a results object, which is an
      instance of some subclass of L{adfresults} (depending on the
      type of job you ran).
@@ -105,20 +106,20 @@
  individual classes and at the examples in test/testinputs.
 
  B{Further information}
- 
- Detailed documentation of the available classes is available. 
+
+ Detailed documentation of the available classes is available.
  The following classes are most commonly used in PyADF input files:
- 
+
   - B{Molecular Coordinates}
     - For more on the manipulation of the molecular geometry, see L{molecule}
-  - B{ADF Calculations}     
+  - B{ADF Calculations}
     - The most important job and result classes for simple ADF calculations are:
       - ADF single point calculations: L{adfsinglepointjob} and L{adfsinglepointresults}
-      - ADF geometry optimizations: L{adfgeometryjob} 
+      - ADF geometry optimizations: L{adfgeometryjob}
       - ADF frequency calculations: L{adffreqjob}
       - ADF chemical shifts: L{adfnmrjob} and L{adfnmrresults}
       - ADF spin-spin couplings : L{adfcpljob} and L{adfcplresults}
-    - For all ADF calculations, settings are defined with L{adfsettings}  
+    - For all ADF calculations, settings are defined with L{adfsettings}
     - For more on plotting and related functionality, see L{Plot}
   - B{Dalton, Dirac, and NWChem Calculations}
     - Dalton single point calculations: L{daltonsinglepointjob} and L{daltonsinglepointresults}
@@ -132,7 +133,7 @@
     - WFT-in-DFT embedding calculations: L{wftindftjob}
 
  B{Tests and Examples}
- 
+
  The directory C{tests/testinputs} contains a number of examples.
  To run one of these examples, either use the C{test_pyadf}
  testing program, or copy the C{.pyadf} input file together
@@ -147,8 +148,8 @@
  Any suggestions for improvements are welcome!
 
  If you are doing cool things with PyADF, please let us know!
- 
- 
+
+
  @author:       Christoph Jacob and others
  @organization: Karlsruhe Institute of Technology (KIT)
  @contact:      christoph.jacob@kit.edu
@@ -183,8 +184,8 @@
     SNF
     TurboDefinition
  @group Plotting:
-    PlotGrids
-    Plot
+    Plot.Grids
+    ADF_Densf
  @group PyADF infrastructure:
     Files, JobRunner, BaseJob, ADFBase
  @group Utilities:
@@ -201,56 +202,59 @@ import kf
 
 from Utils import pse, Bohr_in_Angstrom, au_in_eV, au_in_Debye, conversion
 
-from Molecule  import molecule, MoleculeFactory
+from Molecule import molecule, MoleculeFactory
 
-from Files     import adf_filemanager
+from Files import adf_filemanager
 from JobRunner import DefaultJobRunner, SerialJobRunner
-from BaseJob   import job, results 
-from ADFBase   import adfjob, adfresults
+from BaseJob import job, results
+from ADFBase import adfjob, adfresults
 
-from ADFSinglePoint    import adfsettings, adfscfsettings, adfsinglepointjob, \
-                              adfsinglepointresults, adfspjobdecorator
-from ADFFragments      import fragment, fragmentlist, \
-                              adffragmentsjob
-from ADFGeometry       import adfgeometrysettings, adfgeometryjob, adfgradientsjob, \
-                              adfgradientsresults
-from ADFFrequencies    import adffreqjob
-from ADF_NMR           import adfnmrjob, adfnmrresults
-from ADF_CPL           import cplsettings, adfcpljob, adfcplresults
-from ADFNumDiff        import numgradsettings, adfnumgradjob, \
-                              adfnumgradsjob
+from ADFSinglePoint import adfsettings, adfscfsettings, adfsinglepointjob, \
+    adfsinglepointresults, adfspjobdecorator
+from ADFFragments import fragment, fragmentlist, adffragmentsjob
+from ADFGeometry import adfgeometrysettings, adfgeometryjob, adfgradientsjob, adfgradientsresults
+from ADFFrequencies import adffreqjob
+from ADF_NMR import adfnmrjob, adfnmrresults
+from ADF_CPL import cplsettings, adfcpljob, adfcplresults
+from ADFNumDiff import numgradsettings, adfnumgradjob, adfnumgradsjob
 
 from DaltonSinglePoint import daltonsettings, daltonsinglepointjob
-from DaltonCC2         import daltonCC2job  
+from DaltonCC2 import daltonCC2job
 
-from Dirac             import diracsettings, diracjob, diracsinglepointjob
+from Dirac import diracsettings, diracjob, diracsinglepointjob
 
-from NWChem            import nwchemsettings, nwchemjob, nwchemsinglepointjob
-from NWChemCC2         import nwchemCC2job
+from NWChem import nwchemsettings, nwchemjob, nwchemsinglepointjob
+from NWChemCC2 import nwchemCC2job
 
-from Turbomole         import TurbomoleSinglePointSettings, TurbomoleGeometryOptimizationSettings, \
-                              TurbomoleGradientSettings, TurbomoleForceFieldSettings, \
-                              TurbomoleSinglePointJob, \
-                              TurbomoleGeometryOptimizationJob, TurbomoleGradientJob, \
-                              TurbomoleForceFieldJob
+from Turbomole import TurbomoleSinglePointSettings, TurbomoleGeometryOptimizationSettings, \
+    TurbomoleGradientSettings, TurbomoleForceFieldSettings, \
+    TurbomoleSinglePointJob, \
+    TurbomoleGeometryOptimizationJob, TurbomoleGradientJob, \
+    TurbomoleForceFieldJob
 
 #from SNF               import SNFJob
 
-from ADF_FDE           import adffdejob, adffderesults, adffdesettings
+from ADF_FDE import adffdejob, adffderesults, adffdesettings
 
 try:
-     from ADF_3FDE          import cappedfragment, cappedfragmentlist, capmolecule, \
-                                  adfmfccjob, mfccresults, adf3fdejob
-except ImportError :
-     pass
+    from ADF_3FDE import cappedfragment, cappedfragmentlist, capmolecule, \
+        adfmfccjob, mfccresults, adf3fdejob
+except ImportError:
+    pass
 
 from ADF_FDE_AccurateEmbedding import adfaccurateembeddingjob
 
-from Plot              import densfresults, densfresults_unrestricted, densfjob
-from PlotGrids         import cubegrid, adfgrid, customgrid
-                              
-from WFTinDFT          import diracfragment, wftindftjob
+from ADF_Densf import densfjob
+from Plot.Grids import cubegrid, adfgrid, customgrid
 
-from ADF_FDE_Analysis  import adffdeanalysisjob, adffdeanalysissettings, datasetjob 
-                              
-from ADFPotential      import adfimportgridjob, adfpotentialjob 
+from WFTinDFT import diracfragment, wftindftjob
+
+from ADF_FDE_Analysis import adffdeanalysisjob, adffdeanalysissettings, datasetjob
+
+from ADFPotential import adfimportgridjob, adfpotentialjob, adfimportembpotjob
+
+try:
+    import xcfun
+    from PyEmbed import *
+except ImportError:
+    pass

@@ -25,7 +25,7 @@ dipole_vect = r_mol.get_dipole_vector()
 print "Dipole moment for isolated water molecule (ADF): ", dipole_vect
 
 if 'unittesting' in pyadfenv.options :
-    testobj.assertAlmostEqualVectors(dipole_vect,  [0.0, 0.0, 0.731050], 4) 
+    testobj.assertAlmostEqual(dipole_vect,  [0.0, 0.0, 0.731050], 4)
 
 fdesettings = adfsettings()
 # save TAPE10 is needed for exporting the FDE potential
@@ -44,7 +44,7 @@ dipole_vect = fderes.get_dipole_vector()
 print "Dipole moment for FDE water molecule (ADF): ", dipole_vect
 
 if 'unittesting' in pyadfenv.options :
-    testobj.assertAlmostEqualVectors(dipole_vect,  [0.0, 0.0, 0.775334], 4) 
+    testobj.assertAlmostEqual(dipole_vect,  [0.0, 0.0, 0.775334], 4)
 
 # NWChem without embedding
 settings = nwchemsettings(method='DFT', functional='LDA', properties=['dipole'])
@@ -58,7 +58,7 @@ print "Dipole moment for isolated water molecule (NWChem): ", dipole_vect
 
 if 'unittesting' in pyadfenv.options :
     testobj.assertAlmostEqual(energy,  -75.8552958824, 6)
-    testobj.assertAlmostEqualVectors(dipole_vect,  [0.0, 0.0, 0.774208], 4)
+    testobj.assertAlmostEqual(dipole_vect,  [0.0, 0.0, 0.774208], 4)
 
 # NWChem with embedding
 nwchem_res = nwchemsinglepointjob( m_mol, basis='cc-pVDZ', fdein=fderes, settings=settings ).run()
@@ -71,5 +71,5 @@ print "Dipole moment for FDE water molecule (NWChem): ", dipole_vect
 
 if 'unittesting' in pyadfenv.options :
     testobj.assertAlmostEqual(energy, -75.5390740295, 6)
-    testobj.assertAlmostEqualVectors(dipole_vect,  [0.0, 0.0, 0.840760], 4)
+    testobj.assertAlmostEqual(dipole_vect,  [0.0, 0.0, 0.840760], 4)
 

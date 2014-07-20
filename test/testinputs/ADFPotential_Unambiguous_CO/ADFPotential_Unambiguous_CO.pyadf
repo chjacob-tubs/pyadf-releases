@@ -2,7 +2,7 @@
 #
 # PyADF test ADFPotential_Unambiguous_CO
 #
-# Unambiguous potential reconstruction in basis set 
+# Unambiguous potential reconstruction in basis set
 # see: Ch. R. Jacob, J. Chem. Phys. 135, 244102 (2011).
 #
 # Test by Christoph Jacob, KIT, 2011-2012
@@ -34,12 +34,12 @@ def run_potjob (refresults, potproj, projchange) :
     startpot1 = get_startpot(refresults, agrid)
 
     settings = adfsettings(functional='BP86', accint=6.0, converge=1e-04,
-                           basispath='$PYADFHOME/test/testinputs/ADFPotential_Unambiguous_CO/basis-extfit') 
+                           basispath='$PYADFHOME/test/testinputs/ADFPotential_Unambiguous_CO/basis-extfit')
     settings.set_save_tapes([21,10])
     settings.set_ncycles(1000)
 
     job = adfsinglepointjob(mol, basis='DZP', settings=settings)
-    potops = {'EIGENSHIFT':0.001, 'SMALLEIGTHRESH':1e-6, 
+    potops = {'EIGENSHIFT':0.001, 'SMALLEIGTHRESH':1e-6,
               'POTPROJ':potproj, 'PROJCHANGE':projchange, 'DENSCONV':1.0e-5}
     potjob = adfpotentialjob(job, refdens, potoptions=potops, startpot=startpot1)
 
@@ -69,7 +69,7 @@ def compare_results(refresults, potresults) :
     potorbens = potorbens + homo_shift
     diff_orbens = reforbens - potorbens
 
-    return denserr_adf, diff_orbens 
+    return denserr_adf, diff_orbens
 
 def main():
 
@@ -81,7 +81,7 @@ def main():
     ###################################################################
 
     settings = adfsettings(functional='BP86', accint=6.0, converge=1e-04,
-                           basispath='$PYADFHOME/test/testinputs/ADFPotential_Unambiguous_CO/basis-extfit') 
+                           basispath='$PYADFHOME/test/testinputs/ADFPotential_Unambiguous_CO/basis-extfit')
     settings.set_save_tapes([21,10])
     settings.set_ncycles(100)
 
@@ -103,7 +103,7 @@ def main():
 
     if 'unittesting' in pyadfenv.options :
          testobj.assertAlmostEqual(denserr_adf, 0.0058701, 4)
-         testobj.assertAlmostEqualVectors(diff_orbens[:12], 
+         testobj.assertAlmostEqual(diff_orbens[:12],
                  [ 0.00364046,  0.02056636, -0.00699741, -0.00578036, -0.00741276, -0.00741276,
                    0.0       , -0.01223837, -0.01223837, -0.03575814, -0.03604084, -0.03604084], 4)
 
@@ -123,7 +123,7 @@ def main():
 
     if 'unittesting' in pyadfenv.options :
          testobj.assert_(denserr_adf < 1.0e-3)
-         testobj.assertAlmostEqualVectors(diff_orbens[:12], 
+         testobj.assertAlmostEqual(diff_orbens[:12],
                 [-0.00228256, -0.00348623, -0.00025208, -0.00030852,  0.00012506,  0.00012506,
                   0.0       , -0.00171702, -0.00171702, -0.00153104, -0.00218519, -0.00218519], 4)
 
@@ -143,7 +143,7 @@ def main():
 
     if 'unittesting' in pyadfenv.options :
          testobj.assertAlmostEqual(denserr_adf, 0.1583613, 4)
-         testobj.assertAlmostEqualVectors(diff_orbens[:12], 
+         testobj.assertAlmostEqual(diff_orbens[:12],
                  [-0.48936859, -0.12758322, -0.03110104, 0.002554,   0.02016181, 0.02016181,
                    0.0,         0.02248438,  0.02248438, 0.06504899, 0.0371402,  0.0371402 ], 3)
 
@@ -163,8 +163,8 @@ def main():
 
     if 'unittesting' in pyadfenv.options :
          testobj.assert_(denserr_adf < 1.0e-3)
-         testobj.assertAlmostEqualVectors(diff_orbens[:12],
-                 [ -1.76825336e-02, -3.15750839e-03,  3.48663861e-04, 7.46838586e-05,  3.01087465e-04,  3.01087474e-04,   
-                    0.00000000e+00, -9.86934181e-04, -9.86934204e-04, 1.90506912e-04, -8.13542591e-04, -8.13542550e-04], 3) 
+         testobj.assertAlmostEqual(diff_orbens[:12],
+                 [ -1.76825336e-02, -3.15750839e-03,  3.48663861e-04, 7.46838586e-05,  3.01087465e-04,  3.01087474e-04,
+                    0.00000000e+00, -9.86934181e-04, -9.86934204e-04, 1.90506912e-04, -8.13542591e-04, -8.13542550e-04], 3)
 
 main()

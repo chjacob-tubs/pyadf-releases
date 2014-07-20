@@ -3,7 +3,7 @@
 # Simple Python module for numerically solving a one-electron 
 # Schrodinger equation for a given potential.
 #
-# Copyright (C) 2010-2014 by Christoph R. Jacob
+# Copyright (C) 2010-2012 by Christoph R. Jacob
 # 
 # when using, please cite:
 # Ch. R. Jacob, J. Chem. Phys. 135, 244102 (2011).
@@ -14,9 +14,9 @@
 #
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2014 by Christoph R. Jacob, S. Maya Beyhan,
-# Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Michal Handzlik,
-# Karin Kiewisch, Moritz Klammler, Jetze Sikkema, and Lucas Visscher
+# Copyright (C) 2006-2012 by Christoph R. Jacob, S. Maya Beyhan,
+# Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Karin Kiewisch,
+# Jetze Sikkema, and Lucas Visscher
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -55,6 +55,47 @@ class Grid (object) :
         self.lapl_symm = None
         self.lapl = None
 
+    def get_discrete_nabla(self):
+
+        w2 = scipy.sparse.diags([self.w2], [0], format='csc')
+
+        # Bickley five-point (error h^5) with m=4, j=2
+
+        A2 = scipy.sparse.diags([2.0, -16.0, 16.0, -2.0], [-2, -1, 1, 2], 
+                               shape=(self.N,self.N), format='lil')  
+
+        # Bickley five-point (error h^4) with m=5, j=0 - to avoid any assumption for func[-1] 
+        A2[0,0] = -50.0
+        A2[0,1] =  96.0
+        A2[0,2] = -72.0
+        A2[0,3] =  32.0
+        A2[0,4] =  -6.0
+
+        # Bickley five-point (error h^4) with m=5, j=1 - to avoid any assumption for func[-1] 
+        A2[1,0] =  -6.0
+        A2[1,1] = -20.0
+        A2[1,2] =  36.0
+        A2[1,3] = -12.0
+        A2[1,4] =   2.0
+
+        # Bickley five-point (error h^4) with m=5, j=3,4 - to avoid any assumption for func[-1] 
+        A2[-2,-5] =  -2.0
+        A2[-2,-4] =  12.0
+        A2[-2,-3] = -36.0
+        A2[-2,-2] =  20.0
+        A2[-2,-1] =   6.0
+
+        A2[-1,-5] =    6.0
+        A2[-1,-4] =  -32.0
+        A2[-1,-3] =   72.0
+        A2[-1,-2] =  -96.0
+        A2[-1,-1] =   50.0
+
+        A2 = (1.0/(24.0*self.h)) * A2.tocsc()
+        A2 = w2.dot(A2)
+
+        return A2
+
     def get_discrete_laplacian (self):
     
         w2 = scipy.sparse.diags([self.w2], [0], format='csc')
@@ -76,25 +117,51 @@ class Grid (object) :
         A2 = scipy.sparse.diags([-5.0, 80.0, -150.0, 80.0, -5.0], [-2, -1, 0, 1, 2], 
                                shape=(self.N,self.N), format='lil')  
 
-        A2[0,0] =  -75.0
-        A2[0,1] =  -20.0
-        A2[0,2] =   70.0
-        A2[0,3] =  -30.0
-        A2[0,4] =    5.0
+        # Bickley six-point (error h^6) with m=5, j=1 - assuming/enforcing func[-1] = 0 
+        A2[0,0] = -75.0
+        A2[0,1] = -20.0
+        A2[0,2] =  70.0
+        A2[0,3] = -30.0
+        A2[0,4] =   5.0
+
+        # Bickley six-point (error h^6) with m=5, j=4,5 - to avoid any assumption for func[-1] 
+        A2[-2,-6] =   5.0
+        A2[-2,-5] = -30.0
+        A2[-2,-4] =  70.0
+        A2[-2,-3] = -20.0
+        A2[-2,-2] = -75.0
+        A2[-2,-1] =  50.0
+
+        A2[-1,-6] =  -50.0
+        A2[-1,-5] =  305.0
+        A2[-1,-4] = -780.0
+        A2[-1,-3] = 1070.0
+        A2[-1,-2] = -770.0
+        A2[-1,-1] =  225.0
 
         A2 = (1.0/(60.0*self.h*self.h)) * A2.tocsc()
 
         A2 = w.dot(A2.dot(w))
         A2 = A2 - scipy.sparse.diags([self.fac_wp*self.w2], [0], shape=(self.N,self.N), format='csc')
 
-        # symmetrize
-        A2 = 0.5 * (A2 + A2.transpose())
-
         return A1, A2
 
     def calc_integral(self, func) :
-        return self.h * numpy.dot(1.0/self.w2,func)
-    
+        ii = numpy.dot(1.0/self.w2,func)
+        ii = ii + (1.0/6.0)*func[0]/self.w2[0] - (1.0/24.0)*func[1]/self.w2[1] \
+                + (1.0/24.0)*func[-2]/self.w2[-2] - (1.0/6.0)*func[-1]/self.w2[-1]
+        return self.h * ii
+   
+    def extrapolate_to_zero(self, func) :
+
+        # Bickley six-point (error h^4) with m=5, j=0 - to avoid any assumption for func[-1] 
+
+        f1 = (1.0/(120.0*self.h))   * (-274.0*func[0] + 600.0*func[1] - 600.0*func[2] + 400.0*func[3] - 150.0*func[4] + 24.0*func[5])
+        f2 = (1.0/(60.0*self.h**2)) * ( 225.0*func[0] - 770.0*func[1] +1070.0*func[2] - 780.0*func[3] + 305.0*func[4] - 50.0*func[5])
+        f3 = (1.0/(20.0*self.h**3)) * ( -85.0*func[0] + 355.0*func[1] - 590.0*func[2] + 490.0*func[3] - 205.0*func[4] + 35.0*func[5])
+
+        return func[0] - f1*self.h + f2*self.h**2 - f3*self.h**3 
+ 
 class RationalGrid (Grid) :
 
     def __init__ (self, N, b) :
@@ -107,6 +174,7 @@ class RationalGrid (Grid) :
         self.fac_wp = 0.0
         self.cs1 = self.b
 
+        self.nabla = self.get_discrete_nabla()
         self.lapl_symm, self.lapl = self.get_discrete_laplacian()
 
 class LogGrid (Grid) :
@@ -126,6 +194,7 @@ class LogGrid (Grid) :
         self.fac_wp = 1.0/(4*T*T) 
         self.cs1 = self.b/T
 
+        self.nabla = self.get_discrete_nabla()
         self.lapl_symm, self.lapl = self.get_discrete_laplacian()
 
 def eigh_davidson (A, k, startvecs, convmax=1e-7, convnorm=1e-12) :
@@ -185,8 +254,10 @@ class OneDimSolver (object) :
     def __init__(self, grid) :
         self.grid = grid
         self.old_evecs = {} 
+
+        self.lapl_symmetrized = 0.5 * (grid.lapl + grid.lapl.transpose())
         
-    def calc_orbitals(self, pot, l, norbs) :
+    def calc_orbitals(self, pot, l, norbs, kmat=None) :
 
         A = self.grid.lapl_symm.copy()
 
@@ -206,10 +277,15 @@ class OneDimSolver (object) :
         # add potential
         A = -0.5 * A + scipy.sparse.diags([pot + 0.5*l*(l+1)/(self.grid.r*self.grid.r)], [0], format='csc')
 
+        A = A.toarray()
+        if kmat is not None :
+            A = A + kmat
+
         if True :
         #if not self.old_evecs.has_key(l) :
 
-            evals, evecs  = numpy.linalg.eigh(A.toarray())
+            #evals, evecs  = numpy.linalg.eigh(A.toarray())
+            evals, evecs  = numpy.linalg.eigh(A)
 
             order = evals.argsort()
             evals = evals[order[:norbs]]
@@ -276,9 +352,9 @@ class OneDimSolver (object) :
 
         return dens, e_tot-e_pot, e_pot
 
-def calc_orbitals (grid, pot, l, norbs) :
+def calc_orbitals (grid, pot, l, norbs, kmat=None) :
     solver = OneDimSolver(grid)
-    return solver.calc_orbitals(pot, l, norbs)
+    return solver.calc_orbitals(pot, l, norbs, kmat)
 
 def calc_density(grid, pot, occs, ons=None, output=True) :
     solver = OneDimSolver(grid)
@@ -343,7 +419,7 @@ class CalcFuncGrad(object):
         return self.grad
 
     def grad_smooth (self, pot) :
-        return -8.0*math.pi * self.grid.h * self.grid.lapl.dot(pot-self.startpot) 
+        return -8.0*math.pi * self.grid.h * self.lapl_symmetrized.dot(pot-self.startpot) 
 
     def hess (self, pot, lambda_smooth=None) :
         H = numpy.zeros((self.grid.N, self.grid.N))
@@ -392,7 +468,7 @@ class CalcFuncGrad(object):
         return Hinv
 
     def hess_smooth (self):
-        return -8.0*math.pi * self.grid.h * self.grid.lapl.toarray()
+        return -8.0*math.pi * self.grid.h * self.lapl_symmetrized.toarray()
 
     def error (self) :
         abserr = 4.0*math.pi * self.grid.calc_integral(numpy.abs(self.dens-self.refdens))

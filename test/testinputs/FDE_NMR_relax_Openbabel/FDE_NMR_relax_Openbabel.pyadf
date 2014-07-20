@@ -1,6 +1,3 @@
-
-MoleculeFactory().use_openbabel(True)
-
 filename = os.path.join(pyadfenv.outdir, 'an.pdb')
 
 m = molecule (filename, inputformat='pdb')

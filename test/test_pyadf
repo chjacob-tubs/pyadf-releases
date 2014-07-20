@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 #
-# This file is part of 
+# This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
 # Copyright (C) 2006-2011 by Christoph R. Jacob, S. Maya Beyhan,
 # Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Karin Kiewisch,
-# Jetze Sikkema, and Lucas Visscher 
+# Jetze Sikkema, and Lucas Visscher
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -22,68 +22,88 @@
 import unittest
 import pyadf
 
-from pyadf_doctests   import make_doctest_suite
+from pyadf_doctests import make_doctest_suite
 from pyadf_testinputs import make_testinputs_suite
 
-def get_options ():
+
+def get_options():
 
     from optparse import OptionParser
 
     parser = OptionParser(usage="usage: %prog [options]")
 
-    parser.add_option("--tests", default="all", 
+    parser.add_option("--tests", default="all",
                       dest="tests", help="which tests to run [available: short, medium, long, all]")
-    parser.add_option("--noopenbabel", action="store_false", default=True,  
+    parser.add_option("--noopenbabel", action="store_false", default=True,
                       dest="openbabel", help="skip tests relying on Openbabel")
-    parser.add_option("--nodalton", action="store_false", default=True,  
+    parser.add_option("--nodalton", action="store_false", default=True,
                       dest="dalton", help="skip Dalton tests")
-    parser.add_option("--nodirac", action="store_false", default=True,  
+    parser.add_option("--nodirac", action="store_false", default=True,
                       dest="dirac", help="skip Dirac tests")
-    parser.add_option("--nonwchem", action="store_false", default=True,  
+    parser.add_option("--noquantumespresso", action="store_false", default=True,
+                      dest="espresso", help="skip Quantum Espresso tests")
+    parser.add_option("--nomolcas", action="store_false", default=True,
+                      dest="molcas", help="skip Molcas tests")
+    parser.add_option("--nonwchem", action="store_false", default=True,
                       dest="nwchem", help="skip NWChem tests")
-    parser.add_option("--noturbomole", action="store_false", default=True,  
+    parser.add_option("--noturbomole", action="store_false", default=True,
                       dest="turbomole", help="skip Turbomole tests")
-    parser.add_option("--singletest", default=None, 
+    parser.add_option("--singletest", default=None,
                       dest="singletest", help="name of one specific test to run")
-    parser.add_option("--keep", "-k", action="store_true", default=False, 
+    parser.add_option("--keep", "-k", action="store_true", default=False,
                       dest="keep", help="keep temporary test directories")
-    parser.add_option("--profile", "-p", action="store_true", default=False, 
+    parser.add_option("--profile", "-p", action="store_true", default=False,
                       dest="profile", help="run tests using the Python profiler")
-    parser.add_option("--force-openbabel", action="store_true", default=False,  
-                      dest="forceopenbabel", help="Always force using the Openbabel Molecule class")
+    parser.add_option("--openbabel", action="store_true", default=False,
+                      dest="forceopenbabel",
+                      help="Always force using the Openbabel Molecule class")
+    parser.add_option("--openbabelfree", action="store_true", default=False,
+                      dest="forceopenbabelfree",
+                      help="Always force using the Openbabel-free Molecule class")
 
     (options, args) = parser.parse_args()
 
     return options
 
 
-def test () :
+def test():
 
     options = get_options()
 
-    suite = unittest.TestSuite ()
+    suite = unittest.TestSuite()
 
-    if options.singletest :
-        suite.addTest (make_testinputs_suite(testnames=[options.singletest], 
-                                             keep=options.keep, prof=options.profile,
-                                             forceopenbabel=options.forceopenbabel))
+    forceopenbabel = None
+    if options.forceopenbabel:
+        forceopenbabel = True
+    if options.forceopenbabelfree:
+        forceopenbabel = False
+
+    if options.singletest:
+        suite.addTest(make_testinputs_suite(testnames=[options.singletest],
+                                            keep=options.keep, prof=options.profile,
+                                            forceopenbabel=forceopenbabel))
     else:
-        try :
+        try:
             from kf import KFFileTests
-            suite.addTest ( unittest.TestLoader().loadTestsFromTestCase(KFFileTests) ) 
-        except :
+            suite.addTest(unittest.TestLoader().loadTestsFromTestCase(KFFileTests))
+        except:
             pass
-        
-        doctests = make_doctest_suite()
-        if doctests is not None :
-            suite.addTest (make_doctest_suite())
-        suite.addTest (make_testinputs_suite(tests=options.tests, 
-                                             dalton=options.dalton, dirac=options.dirac, nwchem=options.nwchem,
-                                             turbomole=options.turbomole, openbabel=options.openbabel, 
-                                             keep=options.keep, prof=options.profile,
-                                             forceopenbabel=options.forceopenbabel))
 
-    unittest.TextTestRunner(verbosity=2).run(suite)
+        doctests = make_doctest_suite()
+        if doctests is not None:
+            suite.addTest(make_doctest_suite())
+        suite.addTest(make_testinputs_suite(tests=options.tests,
+                                            dalton=options.dalton,
+                                            dirac=options.dirac,
+                                            nwchem=options.nwchem,
+                                            espresso=options.espresso,
+                                            molcas=options.molcas,
+                                            turbomole=options.turbomole,
+                                            openbabel=options.openbabel,
+                                            keep=options.keep, prof=options.profile,
+                                            forceopenbabel=forceopenbabel))
+
+    unittest.TextTestRunner(verbosity=2, descriptions=False).run(suite)
 
 
 if __name__ == '__main__':

@@ -1,8 +1,8 @@
-# This file is part of 
+# This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
 # Copyright (C) 2006-2014 by Christoph R. Jacob, S. Maya Beyhan,
 # Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Michal Handzlik,
-# Karin Kiewisch, Moritz Klammler, Jetze Sikkema, and Lucas Visscher 
+# Karin Kiewisch, Moritz Klammler, Jetze Sikkema, and Lucas Visscher
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -29,41 +29,43 @@
 
 from ADFGeometry import adfgeometryjob
 
-class adffreqjob (adfgeometryjob) :
+
+class adffreqjob(adfgeometryjob):
+
     """
     A job class for ADF frequency calculations.
 
     Corresponding results class: L{adfsinglepointresults}
-    
+
     @group Initialization:
         __init__
     """
 
-    def __init__ (self, mol, basis, settings=None) :
+    def __init__(self, mol, basis, settings=None):
         """
         Constructor for ADF frequency jobs.
 
         @param mol:
             The molecular coordinates.
         @type mol: L{molecule}
-        
-        @param basis: 
+
+        @param basis:
             A string specifying the basis set to use (e.g. C{basis='TZ2P'}).
             Alternatively, a dictionary can be given listing different basis sets
             for different atom types. Such a dictionary must contain an entry "default"
             giving the basis set to use for all other atom types
             (e.g. C{basis={default:'DZP', 'C':'TZ2P'}}).
         @type basis: str or dict
-        
-        @param settings: The settings for this calculation, see L{adfsettings}
-        @type settings: L{adfsettings}        
-        """        
-        adfgeometryjob.__init__ (self, mol, basis, settings)
 
-    def get_geometry_block (self) :
-        block  = " AnalyticalFreq \n"
+        @param settings: The settings for this calculation, see L{adfsettings}
+        @type settings: L{adfsettings}
+        """
+        adfgeometryjob.__init__(self, mol, basis, settings)
+
+    def get_geometry_block(self):
+        block = " AnalyticalFreq \n"
         block += " END\n\n"
         return block
 
-    def print_jobtype (self) :
+    def print_jobtype(self):
         return "ADF frequency job (Analytical Frequencies)"

@@ -1,8 +1,8 @@
-# This file is part of 
+# This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
 # Copyright (C) 2006-2014 by Christoph R. Jacob, S. Maya Beyhan,
 # Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Michal Handzlik,
-# Karin Kiewisch, Moritz Klammler, Jetze Sikkema, and Lucas Visscher 
+# Karin Kiewisch, Moritz Klammler, Jetze Sikkema, and Lucas Visscher
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -17,10 +17,10 @@
 #    You should have received a copy of the GNU General Public License
 #    along with PyADF.  If not, see <http://www.gnu.org/licenses/>.
 """
- Job and results for ADF CPL calculations. 
+ Job and results for ADF CPL calculations.
 
  @author:       Andreas W. Goetz
- @organization: Vrije Universiteit Amsterdam (2008) 
+ @organization: Vrije Universiteit Amsterdam (2008)
 
  @group Jobs:
     adfcpljob
@@ -31,11 +31,12 @@
  @undocumented: operatorname
 """
 
-from Errors  import PyAdfError
+from Errors import PyAdfError
 from ADFBase import adfjob, adfresults
 
 
-class cplsettings (object) :
+class cplsettings (object):
+
     """
     Class for the settings for an ADF CPL job.
 
@@ -52,17 +53,17 @@ class cplsettings (object) :
 
     """
 
-    def __init__ (self, nuclei=None, atompert=None, atomresp=None, operators=None,
-                  iterations=15, converge=1e-05, contributions=None) :
+    def __init__(self, nuclei=None, atompert=None, atomresp=None, operators=None,
+                 iterations=15, converge=1e-05, contributions=None):
         """
         Create settings object for a CPL run.
 
         @param nuclei:
            list of pairs of the nuclei to calculate the nuclear spin-spin couplings for
-           (numbers in INPUT ORDER, set_cplnuclei takes care of reordering for correct 
+           (numbers in INPUT ORDER, set_cplnuclei takes care of reordering for correct
            use of nuclei key). Also see L{set_nuclei}.
         @type nuclei: list of list of int
-    
+
         @param atompert:
            list of perturbing nuclei (numbers in INPUT ORDER). Also see L{set_atompert}.
         @type atompert: list of int
@@ -70,7 +71,7 @@ class cplsettings (object) :
         @param atomresp:
            list of responding nuclei (numbers in INPUT ORDER). Also see L{set_atomresp}.
         @type atomresp: list of int
-           
+
         @param operators:
            list of operators to be included in the Hamiltonian ('fc', 'sd', 'dso', 'pso').
            Also see L{set_operators}.
@@ -79,21 +80,21 @@ class cplsettings (object) :
         @param iterations:
            number of CP-KS iterations. Also see L{set_iterations}.
         @type iterations: int
-        
+
         @param converge:
            convergence criterion for CP-KS iterations. Also see L{set_converge}
         @type converge: float
-        
+
         @param contributions:
            If orbital contributions to J-couplings shall be computed, a string has to be passed.
            It can contain the threshold and loc and sfo (see ADF-CPL documentation).
            Also see L{set_contributions}.
         @type contributions: str
-        
+
         @note:
            You can *either* use nuclei *or* atompert/atomresp
            See also the ADF-CPL documentation
-        
+
         @example:
            nuclei = [ [1, 2], [2, 4, 5] ] computes the couplings between
            nuclei 1 and 2,
@@ -108,21 +109,21 @@ class cplsettings (object) :
            nuclei 2 and 5
 
         """
-        self.nuclei        = nuclei
-        self.atompert      = atompert
-        self.atomresp      = atomresp
-        self.operators     = None
+        self.nuclei = nuclei
+        self.atompert = atompert
+        self.atomresp = atomresp
+        self.operators = None
         if operators is None:
             self.set_operators(['fc'])
         else:
-            self.set_operators (operators)
-        self.iterations    = iterations
-        self.converge      = converge
+            self.set_operators(operators)
+        self.iterations = iterations
+        self.converge = converge
         self.contributions = contributions
 
-        self.cplnuclei     = None
+        self.cplnuclei = None
 
-    def set_nuclei(self, nuclei) :
+    def set_nuclei(self, nuclei):
         """
         Determine for which atoms the J-couplings calculations shall be done.
 
@@ -134,27 +135,27 @@ class cplsettings (object) :
         """
         self.nuclei = nuclei
 
-    def set_cplnuclei(self, adfres=None) :
+    def set_cplnuclei(self, adfres=None):
         """
         Determines the ADF INTERNAL NUMBERING for the Nuclei block in the CPL input.
-        
+
         This requires that the nuclei are already set in the constructor or with L{set_nuclei}.
-        
+
         @param adfres: Results from an ADF single point run
         @type adfres:  L{adfsinglepointresults}
         """
 
-        if adfres == None :
-            raise PyAdfError ('No ADF results object provided in set_cplnuclei')
-        
-        if self.nuclei == None :
-            self.cplnuclei = None
-        else :
-            self.cplnuclei = []
-            for nucblock in self.nuclei :
-                self.cplnuclei.append ( adfres.get_atom_index (nucblock) )
+        if adfres == None:
+            raise PyAdfError('No ADF results object provided in set_cplnuclei')
 
-    def set_atompert(self, atompert) :
+        if self.nuclei == None:
+            self.cplnuclei = None
+        else:
+            self.cplnuclei = []
+            for nucblock in self.nuclei:
+                self.cplnuclei.append(adfres.get_atom_index(nucblock))
+
+    def set_atompert(self, atompert):
         """
         Determine the perturbing atoms for the J-couplings calculations.
 
@@ -166,7 +167,7 @@ class cplsettings (object) :
         """
         self.atompert = atompert
 
-    def set_atomresp(self, atomresp) :
+    def set_atomresp(self, atomresp):
         """
         Determine the responding atoms for the J-couplings calculations.
 
@@ -178,7 +179,7 @@ class cplsettings (object) :
         """
         self.atomresp = atomresp
 
-    def set_operators(self, operators) :
+    def set_operators(self, operators):
         """
         Determine the operators used in the J-couplings calculations.
 
@@ -188,49 +189,49 @@ class cplsettings (object) :
 
         @note: should not be used together with set_nuclei, needs set_atompert
         """
-        self.operators = [ op.lower() for op in operators ]
+        self.operators = [op.lower() for op in operators]
 
-    def set_iterations(self, iterations) :
+    def set_iterations(self, iterations):
         """
         Set the number of CP-KS iterations.
-        
+
         @param iterations: maximum number of CP-KS iterations
         @type  iterations: int
         """
         self.iterations = iterations
 
-    def set_converge(self, converge) :
+    def set_converge(self, converge):
         """
         Set the convergence criterion for the CP-KS iterations.
-        
+
         @param converge: CP-KS convergence criterion
         @type  converge: float
         """
         self.converge = converge
 
-    def set_contributions(self, contributions) :
+    def set_contributions(self, contributions):
         """
         Set computation of orbital contributions.
-        
-        @param contributions: 
+
+        @param contributions:
             see ADF-CPL documentation for CONTRIBUTIONS key in NMRCOUPLING block
-        @type contributions: str    
+        @type contributions: str
         """
         self.contributions = contributions
 
-    def check_settings(self) :
+    def check_settings(self):
         """
         Check consistency of settings for CPL.
 
         @note: set_cplnuclei should be called before!
         """
-        if self.cplnuclei != None and ( self.atompert != None or self.atomresp != None ):
-            raise PyAdfError ('You cannot use nuclei and atompert/atomresp')
+        if self.cplnuclei != None and (self.atompert != None or self.atomresp != None):
+            raise PyAdfError('You cannot use nuclei and atompert/atomresp')
         if self.cplnuclei == None:
             if self.atomresp == None or self.atomresp == None:
-                raise PyAdfError ('You have to specify atompert and atomresp')
+                raise PyAdfError('You have to specify atompert and atomresp')
 
-    def print_settings(self, mol=None) :
+    def print_settings(self, mol=None):
         """
         Print the settings for the CPL run.
 
@@ -240,46 +241,46 @@ class cplsettings (object) :
 
         """
 
-        if mol == None :
-            raise PyAdfError ('Molecule object required in print_settings')
+        if mol == None:
+            raise PyAdfError('Molecule object required in print_settings')
 
         if self.nuclei == None:
             pnuc = self.atompert
             rnuc = self.atomresp
         else:
-            pnuc = [ n[0] for n in self.nuclei ]
-            pnuc = [ n for n in set(pnuc) ]
+            pnuc = [n[0] for n in self.nuclei]
+            pnuc = [n for n in set(pnuc)]
             rnuc = []
-            for nblock in [ n[1:len(n)] for n in self.nuclei ]:
+            for nblock in [n[1:len(n)] for n in self.nuclei]:
                 rnuc += nblock
-            rnuc = [ n for n in set(rnuc) ]
+            rnuc = [n for n in set(rnuc)]
 
-        operators = {'fc':'Fermi Contact',
-                     'sd':'Spin Dipole',
-                     'dso':'Diamagnetic Spin-Orbit',
-                     'pso':'Paramagnetic Spin-Orbit'}
+        operators = {'fc': 'Fermi Contact',
+                     'sd': 'Spin Dipole',
+                     'dso': 'Diamagnetic Spin-Orbit',
+                     'pso': 'Paramagnetic Spin-Orbit'}
 
         print '   Nuclear spin-spin coupling constants calculation:'
         print '   (nuclei in INPUT ORDER)\n'
         print '   >> Perturbing nuclei <<'
-        print mol.print_coordinates (pnuc)
+        print mol.print_coordinates(pnuc)
         print '   >> Responding nuclei <<'
-        print mol.print_coordinates (rnuc)
+        print mol.print_coordinates(rnuc)
         print '   Operators included in the calculation:'
         for op in self.operators:
-            print '   - '+operators[op]
+            print '   - ' + operators[op]
 
-    def get_settings_block(self) :
+    def get_settings_block(self):
         """
         Obtain block for a CPL input which contains all settings
 
         @returns: all CPL settings prepared for the input file
         @rtype: str
-        
+
         """
         settings_block = ''
         for op in self.operators:
-            settings_block += ' '+op+'\n'
+            settings_block += ' ' + op + '\n'
         if not 'fc' in self.operators:
             settings_block += ' nofc\n'
         # CPL keys have a weird behavior:
@@ -289,31 +290,32 @@ class cplsettings (object) :
         #   nosd will instruct CPL to use the spin-orbit routines for the fc term also in non-relativistic calculations
         #   nosd together with nofc will lead to a crash of CPL
         #   therefore I decided not to set 'nosd'
-        ### if not 'sd' in self.operators:
+        # if not 'sd' in self.operators:
         ###     settings_block += ' nosd\n'
         if self.nuclei == None:
             line = ' AtomPert'
             for nuc in self.atompert:
-                line += ' '+str(nuc)
-            settings_block += line+'\n'
+                line += ' ' + str(nuc)
+            settings_block += line + '\n'
             line = ' AtomResp'
             for nuc in self.atomresp:
-                line += ' '+str(nuc)
-            settings_block += line+'\n'
+                line += ' ' + str(nuc)
+            settings_block += line + '\n'
         else:
             for nucblock in self.cplnuclei:
                 line = ' Nuclei'
                 for nuc in nucblock:
-                    line += ' '+str(nuc)
-                settings_block += line+'\n'
-        settings_block += ' scf iterations '+str(self.iterations)+' converge %.1e\n' % self.converge
-        if self.contributions != None :
-            settings_block += ' Contributions '+self.contributions+'\n'
-            
+                    line += ' ' + str(nuc)
+                settings_block += line + '\n'
+        settings_block += ' scf iterations ' + str(self.iterations) + ' converge %.1e\n' % self.converge
+        if self.contributions != None:
+            settings_block += ' Contributions ' + self.contributions + '\n'
+
         return settings_block
 
 
-class adfcplresults (adfresults) :
+class adfcplresults (adfresults):
+
     """
     Class for the results of an ADF CPL job.
 
@@ -322,16 +324,16 @@ class adfcplresults (adfresults) :
 
     @group Retrieval of specific results:
        read_couplings, get_coupling, get_all_couplings
-    
+
     """
 
-    def __init__ (self, j=None) :
+    def __init__(self, j=None):
         """
         Consructor for adfcplresults.
         """
-        adfresults.__init__ (self, j)
+        adfresults.__init__(self, j)
 
-    def read_couplings (self, unit=None) :
+    def read_couplings(self, unit=None):
         """
         Read all nuclear spin-spin coupling constants from tape21.
 
@@ -340,39 +342,39 @@ class adfcplresults (adfresults) :
         @type unit: str
 
         @returns: square matrix of nuclear spin-spin coupling constants
-        @rtype: float[n][n] 
+        @rtype: float[n][n]
 
         """
 
         if unit == None:
-            raise PyAdfError ( 'No unit specified for reading nuclear spin-spin couplings in read_couplings' )
+            raise PyAdfError('No unit specified for reading nuclear spin-spin couplings in read_couplings')
         elif unit not in ('J', 'K'):
-            raise PyAdfError ( 'Wrong unit specified for reading nuclear spin-spin couplings in read_couplings' )
+            raise PyAdfError('Wrong unit specified for reading nuclear spin-spin couplings in read_couplings')
 
         section = 'NMR Coupling %s const InputOrder' % unit
         clist = self.get_result_from_tape('Properties', section, 21)
 
         # Alternatively we can use adfreport to extract data
-        # Note: Then we need to convert the return value to 
-        #alternative: from os import popen
-        #alternative: command = 'adfreport %s nmr-j-coupling-constant' % self.get_tape_filename(21)
-        #alternative: f = popen(command)
-        #alternative: clist = f.read().replace('\n','').split(' ')
-        #alternative: f.close()
+        # Note: Then we need to convert the return value to
+        # alternative: from os import popen
+        # alternative: command = 'adfreport %s nmr-j-coupling-constant' % self.get_tape_filename(21)
+        # alternative: f = popen(command)
+        # alternative: clist = f.read().replace('\n','').split(' ')
+        # alternative: f.close()
 
         # put couplings now in an list of lists (store as array)
         natom = self.job.mol.get_number_of_atoms()
         coupls = []
-        for i in range(natom) :
-            start = i*natom
-            coupls.append( clist[start:start+natom] )
+        for i in range(natom):
+            start = i * natom
+            coupls.append(clist[start:start + natom])
 
         return coupls
 
-    def get_coupling (self, nucs=None, unit='J') :
+    def get_coupling(self, nucs=None, unit='J'):
         """
         Get nuclear spin-spin coupling for an atom pair.
-        
+
         @param nucs:
            pair of nuclei (in ADF INPUT ORDER)
         @type nucs: list of int
@@ -387,29 +389,29 @@ class adfcplresults (adfresults) :
         """
 
         small = 1.e-02
-        
-        if nucs == None :
-            raise PyAdfError ( 'No list of pairs of nuclei provided in get_coupling' )
+
+        if nucs == None:
+            raise PyAdfError('No list of pairs of nuclei provided in get_coupling')
 
         natom = self.job.mol.get_number_of_atoms()
-        if ( nucs[0] > natom ) or ( nucs[1] > natom ) :
-            raise PyAdfError ( 'Atom number too large in get_coupling' )
+        if (nucs[0] > natom) or (nucs[1] > natom):
+            raise PyAdfError('Atom number too large in get_coupling')
 
         unit = unit.upper()
         coupls = self.read_couplings(unit)
         na = nucs[0] - 1
         nb = nucs[1] - 1
-        if abs ( coupls[na][nb] ) > small :
+        if abs(coupls[na][nb]) > small:
             return coupls[na][nb]
-        elif abs ( coupls[nb][na] ) > small :
+        elif abs(coupls[nb][na]) > small:
             return coupls[nb][na]
         else:
             return float(0)
 
-    def get_all_couplings (self, unit='J') :
+    def get_all_couplings(self, unit='J'):
         """
         Get all non-zero nuclear spin-spin coupling constants in canonical order.
-        
+
         That means all couplings for which a calculation has been done
 
         @param unit:
@@ -417,10 +419,10 @@ class adfcplresults (adfresults) :
             Default is J coupling constants.
         @type unit: str
 
-        @returns: 
+        @returns:
             nuclear spin-spin coupling constants in a list of tuples.
             Each tuple has the form (atom 1, atom 2, coupling constant)
-        @rtype: list of tuples 
+        @rtype: list of tuples
         """
 
         small = 1.e-02
@@ -432,16 +434,17 @@ class adfcplresults (adfresults) :
 
         coupls = []
         for i in range(natom):
-            for j in range (i):
-                if abs ( all_couplings[i][j] ) > small:
-                    coupls.append( (i+1, j+1, all_couplings[i][j]) )
-                elif abs ( all_couplings[j][i] ) > small:
-                    coupls.append( (i+1, j+1, all_couplings[j][i]) )
+            for j in range(i):
+                if abs(all_couplings[i][j]) > small:
+                    coupls.append((i + 1, j + 1, all_couplings[i][j]))
+                elif abs(all_couplings[j][i]) > small:
+                    coupls.append((i + 1, j + 1, all_couplings[j][i]))
 
         return coupls
 
 
-class adfcpljob (adfjob) :
+class adfcpljob (adfjob):
+
     """
     Class for ADF spin-spin coupling jobs (using the CPL program).
 
@@ -449,19 +452,19 @@ class adfcpljob (adfjob) :
     on the available options.
 
     Corresponding results class: L{adfcplresults}
-    
+
     @group Initialization:
         __init__
     """
 
-    def __init__ (self, adfres=None, settings=None, options=None) :
+    def __init__(self, adfres=None, settings=None, options=None):
         """
         Constructor of ADF spin-spin coupling jobs.
 
         @param adfres:
            results from an ADF single point run
         @type adfres: (subclass of) L{adfsinglepointresults}
-        
+
         @param settings:
            settings for this CPL run
         @type settings: L{cplsettings}
@@ -470,15 +473,15 @@ class adfcpljob (adfjob) :
            optional settings for this CPL run (e.g. GGA).
            These options are included as given in the CPL input.
            See ADF-CPL documentation for details.
-        @type options: list of str    
+        @type options: list of str
         """
-        
+
         if adfres == None:
             raise PyAdfError('No ADF singe point results provided in adfcpljob')
         elif settings == None:
             raise PyAdfError('No settings (cplsettings) provided in adfcpljob')
 
-        adfjob.__init__ (self)
+        adfjob.__init__(self)
 
         self.adfresults = adfres
 
@@ -496,34 +499,34 @@ class adfcpljob (adfjob) :
             else:
                 self.options = [options]
 
-    def create_results_instance (self):
+    def create_results_instance(self):
         return adfcplresults(self)
 
-    def get_runscript (self) :
-        #pylint: disable-msg=W0221
-        return adfjob.get_runscript (self, program='cpl')
+    def get_runscript(self):
+        # pylint: disable-msg=W0221
+        return adfjob.get_runscript(self, program='cpl')
 
-    def get_input (self) :
+    def get_input(self):
         cplinput = ''
         for opt in self.options:
-            cplinput += opt+'\n'
+            cplinput += opt + '\n'
         cplinput += 'NMRCoupling \n'
         cplinput += self.settings.get_settings_block()
         cplinput += 'End \n'
 
-        if self._checksum_only :
+        if self._checksum_only:
             cplinput += self.adfresults.get_checksum()
-        
+
         return cplinput
-        
-    def print_jobtype (self):
+
+    def print_jobtype(self):
         return "CPL job"
-        
-    def print_jobinfo(self) :
-        print ' '+50*'-'
-        print ' Running '+self.print_jobtype()
+
+    def print_jobinfo(self):
+        print ' ' + 50 * '-'
+        print ' Running ' + self.print_jobtype()
         print
-        print '   SCF taken from ADF job ', self.adfresults.fileid,' (results id)'
+        print '   SCF taken from ADF job ', self.adfresults.fileid, ' (results id)'
         print
         self.settings.print_settings(self.adfresults.get_molecule())
         print
@@ -532,16 +535,17 @@ class adfcpljob (adfjob) :
             print opt
         print
 
-    def before_run (self):
-        self.adfresults.get_tapes_copy ()
+    def before_run(self):
+        self.adfresults.get_tapes_copy()
 
 
 class couplings(object):
+
     """
     Class for storing results of ADF spin-spin calculations.
-    
+
     This class can be abused...
-    ...it should only be used to store couplings constants of one 
+    ...it should only be used to store couplings constants of one
     of the following combinations of operators:
     fc, fc+sd, sd, dso, pso, fc+sd+dso+pso (total)
 
@@ -557,7 +561,7 @@ class couplings(object):
        get_fc, get_fcsd, get_sd, get_dso, get_pso, get_total
 
     @exampleuse:
-    
+
     >>> settings = cplsettings()
     >>> nuclei = [2,3]
     >>> settings.set_nuclei(nuclei)
@@ -575,11 +579,11 @@ class couplings(object):
     """
 
     def __init__(self, fcsd=None, fc=None, sd=None, dso=None, pso=None, total=None):
-        self.fcsd  = fcsd
-        self.fc    = fc
-        self.sd    = sd
-        self.dso   = dso
-        self.pso   = pso
+        self.fcsd = fcsd
+        self.fc = fc
+        self.sd = sd
+        self.dso = dso
+        self.pso = pso
         self.total = total
 
     def compute_sd(self):
@@ -601,7 +605,7 @@ class couplings(object):
     def set_coupling(self, coupling=None, operators=None):
         """
         Set value for a coupling constant.
-        
+
         This method (as this class) can be abused...
         ...it should only be used to store one of the following combinations of operators:
         fc, fc+sd, sd, dso, pso, fc+sd+dso+pso (total)
@@ -609,7 +613,7 @@ class couplings(object):
         @param coupling:
            Coupling constant
         @type coupling: float
-        
+
         @param operators:
            Operator list which determines the type of coupling constant
            (one of 'fc', 'sd', 'dso', 'pso'; or 'fc', 'sd'; or 'fc', 'sd', 'dso', 'pso')
@@ -635,7 +639,7 @@ class couplings(object):
     def get_coupling(self, operators=None):
         """
         Get value of a coupling constant.
-        
+
         This method (as this class) can be abused...
         ...it should only be used to store one of the following combinations of operators:
         fc, fc+sd, sd, dso, pso, fc+sd+dso+pso (total)
@@ -673,7 +677,7 @@ class couplings(object):
     def get_fc(self):
         return self.fc
 
-    def set_sd (self, sd=None) :
+    def set_sd(self, sd=None):
         self.sd = sd
 
     def get_sd(self):
@@ -701,7 +705,7 @@ class couplings(object):
 def operatorname(operators=None):
     """
     Function returns list of operators concatenated with a plus symbol.
-    
+
     ( 'fc+sd' for ['fc', 'sd'] )
     """
     if operators == None:
@@ -711,4 +715,3 @@ def operatorname(operators=None):
         for op in operators:
             name += op + '+'
         return name[0:-1]
-

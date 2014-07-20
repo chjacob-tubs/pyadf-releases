@@ -12,7 +12,7 @@
 # in the potential and in the orbital energies are compared. The
 # errors in the potential and the orbital energies are quite large,
 # because there are (unphysical) oscillations in the reconstructed
-# potential. 
+# potential.
 #
 # Test by Christoph Jacob, ETH Zurich and KIT, 2009-2010
 #
@@ -42,8 +42,8 @@ dipole_vect = refresults.get_dipole_vector ()
 dipole_magn = refresults.get_dipole_magnitude ()
 
 if 'unittesting' in pyadfenv.options :
-    testobj.assertAlmostEqual(dipole_magn, 0.71293219, 6) 
-    testobj.assertAlmostEqualVectors (dipole_vect, [-0.59194682, -0.39733017, 0.0], 6)
+    testobj.assertAlmostEqual(dipole_magn, 0.71293219, 6)
+    testobj.assertAlmostEqual (dipole_vect, [-0.59194682, -0.39733017, 0.0], 6)
 
 # get reference density
 
@@ -72,9 +72,9 @@ if 'unittesting' in pyadfenv.options :
     print abs(dipole_vect[1] + 0.39733017)
     print abs(dipole_vect[2])
     testobj.assert_(abs(dipole_magn - 0.71293219) < 0.01)
-    testobj.assert_(abs(dipole_vect[0] + 0.59194682) < 0.007) 
-    testobj.assert_(abs(dipole_vect[1] + 0.39733017) < 0.007) 
-    testobj.assert_(abs(dipole_vect[2]) < 0.007) 
+    testobj.assert_(abs(dipole_vect[0] + 0.59194682) < 0.007)
+    testobj.assert_(abs(dipole_vect[1] + 0.39733017) < 0.007)
+    testobj.assert_(abs(dipole_vect[2]) < 0.007)
 
 # check integral of difference density
 
@@ -85,7 +85,7 @@ denserror = diff_dens.integral(func=lambda x: abs(x))
 print "Error in density: ", denserror
 
 if 'unittesting' in pyadfenv.options :
-    testobj.assert_(denserror < 0.005) 
+    testobj.assert_(denserror < 0.005)
 
 # get the final reconstructed potential
 pot = potresults.get_final_potential()
@@ -107,7 +107,7 @@ poterror = diffpotrho.integral(func=lambda x: abs(x))
 print "Difference in Potential: ", poterror
 
 if 'unittesting' in pyadfenv.options :
-    testobj.assert_(poterror < 0.3) 
+    testobj.assert_(poterror < 0.3)
 
 # compare orbital energies
 orben_diffs = (reforbens-potorbens - shift)*au_in_eV
@@ -118,7 +118,7 @@ sum_orben_diffs = numpy.abs(orben_diffs[:5]).sum()
 print sum_orben_diffs
 
 if 'unittesting' in pyadfenv.options :
-    testobj.assert_(sum_orben_diffs < 0.12) 
+    testobj.assert_(sum_orben_diffs < 0.12)
 
 print "Virtual orbital energy differences "
 print orben_diffs[5:15]

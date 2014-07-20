@@ -36,7 +36,7 @@ def check_results (testobj, avrg) :
     testobj.assertAlmostEqual(avrg['PBE2'][0][0], 0.454709, 4) 
     testobj.assertAlmostEqual(avrg['PBE2'][0][2], 0.006764, 4) 
     testobj.assertAlmostEqual(avrg['PBE2'][0][3], 0.001183, 4) 
-    testobj.assertAlmostEqual(avrg['PBE2'][1][0], 0.302179, 4) 
+    testobj.assertAlmostEqual(avrg['PBE2'][1][0], 0.302100, 4) 
     testobj.assertAlmostEqual(avrg['PBE2'][1][2], 0.007322, 4) 
     testobj.assertAlmostEqual(avrg['PBE2'][1][3], 0.001093, 4) 
 

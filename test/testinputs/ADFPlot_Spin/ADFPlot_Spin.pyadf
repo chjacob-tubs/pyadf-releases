@@ -56,8 +56,8 @@ for name, grid in [('agrid', agrid), ('cgrid', cgrid)] :
              testobj.assertAlmostEqual(en_a, -120.100655274, 6)
              testobj.assertAlmostEqual(en_b, -112.706598753, 6)
          else:
-             testobj.assertAlmostEqual(en_a, -686.969070604, 6)
-             testobj.assertAlmostEqual(en_b, -679.703787098, 6)
+             testobj.assertAlmostEqual(en_a, -686.969070031, 6)
+             testobj.assertAlmostEqual(en_b, -679.703786439, 6)
 
     pot_nuc  = results.get_potential(grid=grid, pot='nuc')
     pot_coul = results.get_potential(grid=grid, pot='coul')
@@ -76,5 +76,5 @@ for name, grid in [('agrid', agrid), ('cgrid', cgrid)] :
              testobj.assertAlmostEqual(en_a, -120.100655274, 6)
              testobj.assertAlmostEqual(en_b, -112.706598753, 6)
          else:
-             testobj.assertAlmostEqual(en_a, -686.969070604, 6)
-             testobj.assertAlmostEqual(en_b, -679.703787098, 6)
+             testobj.assertAlmostEqual(en_a, -686.969070031, 6)
+             testobj.assertAlmostEqual(en_b, -679.703786439, 6)

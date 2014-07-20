@@ -25,7 +25,7 @@ agrid = adfgrid(results)
 ##########################################
 
 pot_kin_tot = results.get_kinetic_potential(grid=cgrid, func='PW91k')
-pot_kin_loc = results.get_locorb_kinpot(grid=cgrid, orbs=[1,2,3,4,5], func='PW91k')
+pot_kin_loc = results.get_kinetic_potential(grid=cgrid, func='PW91k', orbs={'Loc':[1,2,3,4,5]})
 
 diff_pot = pot_kin_tot - pot_kin_loc
 
@@ -40,7 +40,7 @@ if 'unittesting' in pyadfenv.options :
 ##########################################
 
 pot_xc_tot = results.get_potential(grid=cgrid, pot='XC')
-pot_xc_loc = results.get_locorb_xcpot(grid=cgrid, orbs=[1,2,3,4,5])
+pot_xc_loc = results.get_potential(grid=cgrid, pot='XC', orbs={'Loc':[1,2,3,4,5]})
 
 diff_pot = pot_xc_tot - pot_xc_loc
 
@@ -55,7 +55,7 @@ if 'unittesting' in pyadfenv.options :
 ##########################################
 
 pot_coul_tot = results.get_potential(grid=cgrid, pot='Coul')
-pot_coul_loc = results.get_locorb_coulpot(grid=cgrid, orbs=[1,2,3,4,5])
+pot_coul_loc = results.get_potential(grid=cgrid, pot='Coul', orbs={'Loc':[1,2,3,4,5]})
 
 diff_pot = pot_coul_tot - pot_coul_loc
 
@@ -65,8 +65,8 @@ print "Integral of difference in Coulomb potentials", int_diff
 if 'unittesting' in pyadfenv.options :
     testobj.assertAlmostEqual(int_diff, 0.0, 6)
 
-pot_coul_loc1 = results.get_locorb_coulpot(grid=cgrid, orbs=[1,2])
-pot_coul_loc2 = results.get_locorb_coulpot(grid=cgrid, orbs=[3,4,5])
+pot_coul_loc1 = results.get_potential(grid=cgrid, pot='Coul', orbs={'Loc':[1,2]})
+pot_coul_loc2 = results.get_potential(grid=cgrid, pot='Coul', orbs={'Loc':[3,4,5]})
 pot_coul_loc = pot_coul_loc1 + pot_coul_loc2
 
 diff_pot = pot_coul_tot - pot_coul_loc

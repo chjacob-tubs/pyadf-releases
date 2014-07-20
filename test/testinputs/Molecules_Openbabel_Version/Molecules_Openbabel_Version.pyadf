@@ -1,10 +1,15 @@
 #
 # check Openbabel version; 
-# currently, it should be 2.3.1
+# currently, it should be >= 2.3.1
 #
 
 import openbabel
 
-required_version = '2.3.1'
+obversion = openbabel.OBReleaseVersion()
 
-testobj.assert_(openbabel.OBReleaseVersion() == required_version)
+ver1, ver2, ver3 = obversion.split('.') 
+
+testobj.assert_(ver1 == '2')
+testobj.assert_(ver2 == '3')
+testobj.assert_(ver3 >= '1')
+

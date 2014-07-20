@@ -150,8 +150,27 @@ def main():
 
     potresults = run_potjob(refresults, potproj='ZERO', projchange=1e-2)
 
+    #grid = LogGrid(400, b=0.01, rmax=100.0)
+    #
+    #coords = numpy.zeros((grid.N,3))
+    #coords[:,0] = grid.r
+    #loggrid = customgrid(mol, coords)
+
+    #d_ref_alpha = refresults.get_density(grid=loggrid)['alpha'].get_values()
+    #d_ref_beta  = refresults.get_density(grid=loggrid)['beta'].get_values()
+
+    #startpot, fa_pot = get_startpot(refresults, loggrid)
+    #startpot = startpot.get_values()
+
     recpot_num_alpha = numpy.loadtxt(os.path.join(pyadfenv.outdir, 'recpot_num_Li_olyp_alpha.txt'))
     recpot_num_beta  = numpy.loadtxt(os.path.join(pyadfenv.outdir, 'recpot_num_Li_olyp_beta.txt'))
+
+    #recpot_num_alpha = reconstruct_potential(grid, 2.0*grid.r*grid.r*d_ref_alpha, startpot+recpot_num_alpha, {0:2}, denserr=2e-4) + recpot_num_alpha
+    #recpot_num_beta = reconstruct_potential(grid, 2.0*grid.r*grid.r*d_ref_beta, startpot+recpot_num_beta, {0:1}, denserr=2e-4) + recpot_num_beta
+
+    #numpy.savetxt(os.path.join(pyadfenv.outdir, 'recpot_num_Li_olyp_alpha.txt'), recpot_num_alpha)
+    #numpy.savetxt(os.path.join(pyadfenv.outdir, 'recpot_num_Li_olyp_beta.txt'), recpot_num_beta)
+
     recpot_num = recpot_num_alpha, recpot_num_beta
 
     denserr_adf, denserr, denserr_recpot_num, denserr_recpot_bas = compare_results(refresults, potresults, recpot_num, 'r-')
@@ -247,8 +266,21 @@ def main():
 
     potresults = run_potjob(refresults, potproj='VIRT', projchange=10.0)
 
+    #d_ref_alpha = refresults.get_density(grid=loggrid)['alpha'].get_values()
+    #d_ref_beta  = refresults.get_density(grid=loggrid)['beta'].get_values()
+
+    #startpot, fa_pot = get_startpot(refresults, loggrid)
+    #startpot = startpot.get_values()
+
     recpot_num_alpha = numpy.loadtxt(os.path.join(pyadfenv.outdir, 'recpot_num_Li_hf_alpha.txt'))
     recpot_num_beta  = numpy.loadtxt(os.path.join(pyadfenv.outdir, 'recpot_num_Li_hf_beta.txt'))
+
+    #recpot_num_alpha = reconstruct_potential(grid, 2.0*grid.r*grid.r*d_ref_alpha, startpot+recpot_num_alpha, {0:2}, denserr=2e-4) + recpot_num_alpha
+    #recpot_num_beta = reconstruct_potential(grid, 2.0*grid.r*grid.r*d_ref_beta, startpot+recpot_num_beta, {0:1}, denserr=2e-4) + recpot_num_beta
+
+    #numpy.savetxt(os.path.join(pyadfenv.outdir, 'recpot_num_Li_hf_alpha.txt'), recpot_num_alpha)
+    #numpy.savetxt(os.path.join(pyadfenv.outdir, 'recpot_num_Li_hf_beta.txt'), recpot_num_beta)
+
     recpot_num = recpot_num_alpha, recpot_num_beta
 
     if plot:

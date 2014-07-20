@@ -1,0 +1,126 @@
+###################################################################
+#
+# PyADF test ADFPlot_DensDeriv
+#
+# Test density derivatives in PyADF's Plot module
+#
+# Test by Christoph Jacob, TU Braunschweig, 2014
+#
+###################################################################
+
+h2o = molecule (os.path.join(pyadfenv.outdir, 'H2O.xyz'))
+h2o.set_symmetry('NOSYM')
+
+settings = adfsettings()
+settings.set_save_tapes([21,10])
+settings.set_lmo(True)
+
+results = adfsinglepointjob( h2o, 'SZ', settings=settings).run()
+
+cgrid = cubegrid(results.get_molecule(), spacing=0.1)
+agrid = adfgrid(results)
+
+for type, grid in [("cub", cgrid), ("adf", agrid)] :
+
+    # squared gradient of the density
+
+    sqrgrad = results.get_sqrgradient(grid=grid)
+    locsqrgrad = results.get_sqrgradient(grid=grid, orbs={'Loc':[1,2,3,4,5]})
+    diffgrad = sqrgrad - locsqrgrad
+
+    orbsqrgrad = results.get_sqrgradient(grid=grid, orbs={'A':[1,2,3,4,5]})
+    orbdiffgrad = sqrgrad - orbsqrgrad
+
+    sqrgrad_int = sqrgrad.integral()
+    diffgrad_int = diffgrad.integral()
+    orbdiffgrad_int = orbdiffgrad.integral()
+
+    print "     Integral of squared density gradient ", sqrgrad_int
+    print "     Integral of difference in squared gradient (locorbs) ", diffgrad_int
+    print "     Integral of difference in squared gradient (orbdens) ", orbdiffgrad_int
+
+    if 'unittesting' in pyadfenv.options:
+        if (type == 'adf') :
+            testobj.assertAlmostEqual(sqrgrad_int, 18330.621, 2)
+        testobj.assertAlmostEqual(diffgrad_int, 0.0, 6)
+        testobj.assertAlmostEqual(orbdiffgrad_int, 0.0, 6)
+
+    # components of the gradient
+
+    densgrad = results.get_densgradient(grid=grid)
+    locdensgrad = results.get_densgradient(grid=grid, orbs={'Loc':[1,2,3,4,5]})
+    orbdensgrad = results.get_densgradient(grid=grid, orbs={'A':[1,2,3,4,5]})
+
+    sqrgrad_calc = densgrad.apply_function(lambda x: x[0]*x[0] + x[1]*x[1] + x[2]*x[2])
+    locsqrgrad_calc = locdensgrad.apply_function(lambda x: x[0]*x[0] + x[1]*x[1] + x[2]*x[2])
+    orbsqrgrad_calc = orbdensgrad.apply_function(lambda x: x[0]*x[0] + x[1]*x[1] + x[2]*x[2])
+
+    diffgrad = sqrgrad - sqrgrad_calc
+    diffgrad_int = diffgrad.integral()
+
+    locdiffgrad = sqrgrad - locsqrgrad_calc
+    locdiffgrad_int = locdiffgrad.integral()
+
+    orbdiffgrad = sqrgrad - orbsqrgrad_calc
+    orbdiffgrad_int = orbdiffgrad.integral()
+
+    print "     Integral of difference in squared gradient  ", diffgrad_int
+    print "     Integral of difference in squared gradient (locorbs) ", locdiffgrad_int
+    print "     Integral of difference in squared gradient (orbdens) ", orbdiffgrad_int
+
+    if 'unittesting' in pyadfenv.options:
+        testobj.assertAlmostEqual(diffgrad_int, 0.0, 6)
+        testobj.assertAlmostEqual(locdiffgrad_int, 0.0, 6)
+        testobj.assertAlmostEqual(orbdiffgrad_int, 0.0, 6)
+
+    # Laplacian of the density
+
+    lapl = results.get_laplacian(grid=grid)
+    loclapl = results.get_laplacian(grid=grid, orbs={'Loc':[1,2,3,4,5]})
+    difflapl = lapl - loclapl
+
+    orblapl = results.get_laplacian(grid=grid, orbs={'A':[1,2,3,4,5]})
+    orbdifflapl = lapl - orblapl
+
+    lapl_int = lapl.integral()
+    difflapl_int = difflapl.integral()
+    orbdifflapl_int = orbdifflapl.integral()
+
+    print "     Integral of Laplacian ", sqrgrad_int
+    print "     Integral of difference in squared gradient (locorbs) ", diffgrad_int
+    print "     Integral of difference in squared gradient (orbdens) ", orbdiffgrad_int
+
+    if 'unittesting' in pyadfenv.options:
+        if (type == 'adf') :
+            testobj.assertAlmostEqual(lapl_int,  0.000504749, 8)
+        testobj.assertAlmostEqual(difflapl_int, 0.0, 6)
+        testobj.assertAlmostEqual(orbdifflapl_int, 0.0, 6)
+
+    # Hessian of the density
+
+    denshess = results.get_density_hessian(grid=grid)
+    lochess = results.get_density_hessian(grid=grid, orbs={'Loc':[1,2,3,4,5]})
+    orbhess = results.get_density_hessian(grid=grid, orbs={'A':[1,2,3,4,5]})
+
+    lapl_calc = denshess.apply_function(lambda x: x[0] + x[3] + x[5])
+    loclapl_calc = lochess.apply_function(lambda x: x[0] + x[3] + x[5])
+    orblapl_calc = orbhess.apply_function(lambda x: x[0] + x[3] + x[5])
+
+    difflapl = lapl - lapl_calc
+    difflapl_int = difflapl.integral()
+
+    locdifflapl = lapl - loclapl_calc
+    locdifflapl_int = locdifflapl.integral()
+
+    orbdifflapl = lapl - orblapl_calc
+    orbdifflapl_int = orbdifflapl.integral()
+
+    print "     Integral of difference in Laplacian  ", difflapl_int
+    print "     Integral of difference in Laplacian (locorbs) ", locdifflapl_int
+    print "     Integral of difference in Laplacian (orbdens) ", orbdifflapl_int
+
+    if 'unittesting' in pyadfenv.options:
+        testobj.assertAlmostEqual(difflapl_int, 0.0, 6)
+        testobj.assertAlmostEqual(locdifflapl_int, 0.0, 6)
+        testobj.assertAlmostEqual(orbdifflapl_int, 0.0, 6)
+

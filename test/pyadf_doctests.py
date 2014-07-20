@@ -1,8 +1,8 @@
-# This file is part of 
+# This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
 # Copyright (C) 2006-2011 by Christoph R. Jacob, S. Maya Beyhan,
 # Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Karin Kiewisch,
-# Jetze Sikkema, and Lucas Visscher 
+# Jetze Sikkema, and Lucas Visscher
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -22,7 +22,8 @@ import unittest
 import re
 
 
-class AlmostEqualChecker (doctest.OutputChecker) :
+class AlmostEqualChecker (doctest.OutputChecker):
+
     """
     Derived OutputChecker to deal with floating point numbers in doctests.
 
@@ -31,45 +32,47 @@ class AlmostEqualChecker (doctest.OutputChecker) :
     them with a normalized form of the number using 8 decimals.
     """
 
-    def normalize (self, string) :
+    def normalize(self, string):
         """
         Some clever regular explession stuff for normalizing the numbers
         """
-        return re.sub(r'(\d+\.\d*|\d*\.\d+)', 
-                      lambda m: "%.8f" % float(m.group(0)), 
+        return re.sub(r'(\d+\.\d*|\d*\.\d+)',
+                      lambda m: "%.8f" % float(m.group(0)),
                       string)
 
-    def check_output (self, want, got, optionflags) :
-        return doctest.OutputChecker.check_output (self, 
-                                                   self.normalize(want), 
-                                                   self.normalize(got), 
-                                                   optionflags)
+    def check_output(self, want, got, optionflags):
+        return doctest.OutputChecker.check_output(self,
+                                                  self.normalize(want),
+                                                  self.normalize(got),
+                                                  optionflags)
 
-    def output_difference (self, example, got, optionflags) :
-        return doctest.OutputChecker.output_difference (self, example, 
-                                                        self.normalize(got), 
-                                                        optionflags)
+    def output_difference(self, example, got, optionflags):
+        return doctest.OutputChecker.output_difference(self, example,
+                                                       self.normalize(got),
+                                                       optionflags)
 
-def make_doctest_suite() : 
 
-    try :
+def make_doctest_suite():
+
+    try:
         import pyadf.Molecule.OBMolecule
 
         molecule_doctests = \
-            doctest.DocTestSuite(pyadf.Molecule.OBMolecule, 
-                                 setUp       = pyadf.Molecule.OBMolecule._setUp_doctest, 
-                                 tearDown    = pyadf.Molecule.OBMolecule._tearDown_doctest, 
-                                 optionflags = doctest.NORMALIZE_WHITESPACE, 
-                                 checker     = AlmostEqualChecker())
+            doctest.DocTestSuite(pyadf.Molecule.OBMolecule,
+                                 setUp=pyadf.Molecule.OBMolecule._setUp_doctest,
+                                 tearDown=pyadf.Molecule.OBMolecule._tearDown_doctest,
+                                 optionflags=doctest.NORMALIZE_WHITESPACE,
+                                 checker=AlmostEqualChecker())
     except ImportError:
         molecule_doctests = None
 
     return molecule_doctests
 
-def test () :
+
+def test():
     suite = make_doctest_suite()
-    if suite is not None :
-        unittest.TextTestRunner(verbosity=2).run(suite)
+    if suite is not None:
+        unittest.TextTestRunner(verbosity=2, descriptions=False).run(suite)
 
 
 if __name__ == '__main__':

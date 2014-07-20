@@ -1,8 +1,8 @@
-# This file is part of 
+# This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
 # Copyright (C) 2006-2014 by Christoph R. Jacob, S. Maya Beyhan,
 # Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Michal Handzlik,
-# Karin Kiewisch, Moritz Klammler, Jetze Sikkema, and Lucas Visscher 
+# Karin Kiewisch, Moritz Klammler, Jetze Sikkema, and Lucas Visscher
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -30,30 +30,32 @@
  @group Results:
     adfnumgradresults
     adfnumgradsresults
-    
+
  @author:       Andreas W. Goetz
- @organization: Vrije Universiteit Amsterdam (2008) 
- 
+ @organization: Vrije Universiteit Amsterdam (2008)
+
 """
 
-from Utils   import Bohr_in_Angstrom
+from Utils import Bohr_in_Angstrom
 from BaseJob import results, metajob
-from Errors  import PyAdfError
+from Errors import PyAdfError
+
 
 class numdiffsettings(object):
+
     """
     Class for the settings of a numerical differences job
-    
+
     """
 
     def __init__(self, stepsize=0.01, atomicunits=True, method='3point'):
         """
         Initialize the settings for a numerical differentiation
-        
+
         @parameter stepsize:
             step size for perturbation (default is in atomic units)
         @type stepsize: float
-        
+
         @param atomicunits:
             Whether the stepsize is given in atomic units.
         @type atomicunits: bool
@@ -74,20 +76,22 @@ class numdiffsettings(object):
 
         self.method = method
 
+
 class numgradsettings(numdiffsettings):
+
     """
     Class for the settings of a numerical gradient job
-    
+
     """
 
     def __init__(self, stepsize=0.01, atomicunits=True, method='3point', partial=False, energyterm=None):
         """
         Initialize the settings for the numerical differentiation
-        
+
         @parameter stepsize:
             step size for displacement of atoms (in Bohr or Angstrom, default is Bohr)
         @type stepsize: float
-        
+
         @param atomicunits:
             Whether the stepsize is given in atomic units.
             By default, it is in Bohr (atomic units).
@@ -105,7 +109,7 @@ class numgradsettings(numdiffsettings):
 
         """
         numdiffsettings.__init__(self, stepsize, atomicunits, method)
-        
+
         # irrespective of the input, we will continue in atomic units
         # we will also extract the bond energy in atomic units
         if not atomicunits:
@@ -121,14 +125,14 @@ class numgradsettings(numdiffsettings):
 
         @returns: information about the settings
         @rtype:   string
-        
+
         """
         if self.atomicunits:
             ssb = self.stepsize
-            ssa = ssb*Bohr_in_Angstrom
+            ssa = ssb * Bohr_in_Angstrom
         else:
             ssa = self.stepsize
-            ssb = ssa/Bohr_in_Angstrom
+            ssb = ssa / Bohr_in_Angstrom
         string = " stepsize: %6.4f Angstrom (%6.4f Bohr)\n" % (ssa, ssb)
 
         if self.method == '3point':
@@ -138,26 +142,29 @@ class numgradsettings(numdiffsettings):
 
         if self.partial:
             string += " ... performing *partial* derivative\n"
-            
+
         return string
 
+
 class numdiffresults(results):
+
     """
     Results of a numdiffjob
-    
+
     """
-    def __init__ (self, job):
-        results.__init__ (self, job)
+
+    def __init__(self, job):
+        results.__init__(self, job)
         self.settings = self.job.settings
         self.points = None
 
     def get_points(self):
         """
         Method to retrieve the perturbed values at the points
-        
-        This is an abstract method that has to be overridden 
+
+        This is an abstract method that has to be overridden
         by child classes.
-        
+
         @returns: the perturbed values at the points
         @rtype:   list of float
 
@@ -175,7 +182,7 @@ class numdiffresults(results):
 
         @returns: the numerical derivative
         @rtype:   float
-        
+
         """
         stepsize = self.settings.stepsize
 
@@ -183,24 +190,27 @@ class numdiffresults(results):
             raise PyAdfError('points have not been initialized in compute_derivative')
 
         if self.settings.method == '3point':
-            derivative = (self.points[0] - self.points[1]) / (2*stepsize)
+            derivative = (self.points[0] - self.points[1]) / (2 * stepsize)
         elif self.settings.method == '5point':
-            derivative = (self.points[3] - 8*self.points[2] + 8*self.points[1] - self.points[0]) / (12*stepsize)
+            derivative = (self.points[3] - 8 * self.points[2] + 8 * self.points[1] - self.points[0]) / (12 * stepsize)
         else:
             raise PyAdfError('unsupported method for numerical differentiation, choose 3point or 5point')
 
         return derivative
 
+
 class numgradresults(numdiffresults):
+
     """
     Results of a numgradjob
-    
+
     @group Retrival of specific results:
         get_gradient
 
     """
-    def __init__ (self, job):
-        numdiffresults.__init__ (self, job)
+
+    def __init__(self, job):
+        numdiffresults.__init__(self, job)
 
     def get_gradient(self, energyterm=None):
         """
@@ -210,7 +220,7 @@ class numgradresults(numdiffresults):
         @param energyterm:
             The energyterm for which partial derivatives should be calculated
         @type energyterm: str
-        
+
         """
         self.get_points(energyterm)
         return self.compute_derivative()
@@ -219,25 +229,28 @@ class numgradresults(numdiffresults):
         """
         Get the energies at the displaced geometries (point)
 
-        This is an abstract method that has to be overridden 
+        This is an abstract method that has to be overridden
         by child classes (e.g.f or different QM programs)
-        
+
         @param energyterm:
             The energyterm for which partial derivatives should be calculated
         @type energyterm: str
-        
+
         @returns: the energy at perturbed geometries
         @rtype:   list of float
 
         """
         pass
-        
+
+
 class adfnumgradresults(numgradresults):
+
     """
     Results of an adfnumgradjob
-    
+
     """
-    def __init__ (self, job):
+
+    def __init__(self, job):
         numgradresults.__init__(self, job)
 
     def get_points(self, energyterm=None):
@@ -256,17 +269,19 @@ class adfnumgradresults(numgradresults):
             else:
                 energy = res.get_result_from_tape('Energy', energyterm)
             self.points.append(energy)
-        
+
+
 class numdiffjob(metajob):
+
     """
     Abstract base class for a numerical differences job
-    
+
     """
 
     def __init__(self, mol, settings):
         """
         Initialize a numerical differences job
-        
+
         @param mol:
             The molecule on which to perform the numerical differences calculation
         @type mol: Pyadf.Molecule.molecule
@@ -278,7 +293,7 @@ class numdiffjob(metajob):
         """
         from Molecule import OBMolecule, OBFreeMolecule
         metajob.__init__(self)
-        
+
         if not (isinstance(mol, OBFreeMolecule.Molecule) or isinstance(mol, OBMolecule.OBMolecule)):
             raise PyAdfError("Molecule missing in numdiffjob")
         self.molecule = mol
@@ -289,7 +304,7 @@ class numdiffjob(metajob):
             self.settings = settings
         else:
             raise PyAdfError("wrong settings object in numdiffjob")
-        
+
     def metarun(self):
         """
         Run the numerical differences job
@@ -299,16 +314,18 @@ class numdiffjob(metajob):
         """
         return numdiffresults(self)
 
+
 class numgradjob(numdiffjob):
+
     """
     Class for a numerical gradient job
-    
+
     """
 
     def __init__(self, mol, atom, coordinate, settings):
         """
         Initialize a numerical gradient job
-        
+
         @param mol:
             The molecule on which to perform the numerical gradient calculation
         @type mol: Pyadf.Molecule.molecule
@@ -316,7 +333,7 @@ class numgradjob(numdiffjob):
         @parameter atom:
             Atom number for which to compute the gradient
         @type atom: int
-        
+
         @parameter coordinate:
             coordinate which the gradient shall be computed (x, y or z)
         @type coordinate: str
@@ -324,10 +341,10 @@ class numgradjob(numdiffjob):
         @param settings:
             settings for the numerical gradient run
         @type settings: numgradsettings
-        
+
         """
-        numdiffjob.__init__ (self, mol, settings)
-        
+        numdiffjob.__init__(self, mol, settings)
+
         if not isinstance(atom, int):
             raise PyAdfError("non-integer atom number provided in numgradjob")
         self.atom = atom
@@ -336,7 +353,7 @@ class numgradjob(numdiffjob):
         if not coordinate in check:
             raise PyAdfError("wrong coordinate provided in numgradjob")
         self.coordinate = coordinate.lower()
-        
+
         if settings == None:
             self.settings = numgradsettings()
         elif isinstance(settings, numgradsettings):
@@ -371,7 +388,7 @@ class numgradjob(numdiffjob):
 
         displacements = []
         for s in steps:
-            displacements.append(s*stepsize)
+            displacements.append(s * stepsize)
 
         return displacements
 
@@ -384,14 +401,16 @@ class numgradjob(numdiffjob):
 
         @returns: the results object for a numerical gradient job
         @rtype:   numgradresults
-        
+
         """
-        return numgradresults (self)
+        return numgradresults(self)
+
 
 class adfnumgradjob(numgradjob):
+
     """
     Class for a numerical gradient job
-    
+
     Example usage:
     >>> # ADF settings
     >>> s_adf = adfsettings()
@@ -417,52 +436,52 @@ class adfnumgradjob(numgradjob):
 
     """
 
-    def __init__(self, mol,  atom, coordinate, settings, scfsettings):
+    def __init__(self, mol, atom, coordinate, settings, scfsettings):
         """
         Initialize a numerical gradient job
-        
+
         @param scfsettings:
             settings for the ADF runs
         @type scfsettings: adfscfsettings
 
         for the other parameters see class numgradjob
-        
+
         """
         import ADFSinglePoint
         import copy
-        
-        numgradjob.__init__ (self, mol, atom, coordinate, settings)
-        
+
+        numgradjob.__init__(self, mol, atom, coordinate, settings)
+
         if not isinstance(scfsettings, ADFSinglePoint.adfscfsettings):
             raise PyAdfError("scfsettings missing in numgradjob")
         self.scfsettings = copy.deepcopy(scfsettings)
 
         self.results = []
 
-    def create_job(self, mol, s_scf) :
+    def create_job(self, mol, s_scf):
         """
         """
         from ADFSinglePoint import adfsinglepointjob
 
-        if s_scf.create_job is None :
+        if s_scf.create_job is None:
             job = adfsinglepointjob(mol=mol, basis=s_scf.basis, core=s_scf.core,
                                     settings=s_scf.settings, pointcharges=s_scf.pointcharges,
                                     options=s_scf.options)
-        else :
+        else:
             job = s_scf.create_job(s_scf, mol)
 
         return job
 
-    def create_job(self, mol, s_scf) :
+    def create_job(self, mol, s_scf):
         """
         """
         from ADFSinglePoint import adfsinglepointjob
 
-        if s_scf.create_job is None :
+        if s_scf.create_job is None:
             job = adfsinglepointjob(mol=mol, basis=s_scf.basis, core=s_scf.core,
                                     settings=s_scf.settings, pointcharges=s_scf.pointcharges,
                                     options=s_scf.options)
-        else :
+        else:
             job = s_scf.create_job(s_scf, mol)
 
         return job
@@ -473,10 +492,10 @@ class adfnumgradjob(numgradjob):
 
         @returns: the results object for a numerical gradient job
         @rtype:   numgradresults
-        
+
         """
 
-        print "-"*50
+        print "-" * 50
         self.print_jobtype()
 
         # determine displacements
@@ -505,36 +524,41 @@ class adfnumgradjob(numgradjob):
 
         return adfnumgradresults(self)
 
+
 class adfnumgradsresults(results):
+
     """
     Results of an adfnumgradsjob
     (The gradients are actually already computed in adfnumgradsjob.run() )
-    
+
     """
-    def __init__ (self, job):
-        results.__init__ (self, job)
+
+    def __init__(self, job):
+        results.__init__(self, job)
         self.settings = self.job.settings
 
     def get_gradients(self):
         """
         Method to retrieve the computed gradients
-        
+
         @returns: the gradients
         @rtype:   numpy array
 
         """
         return self.job.gradients
 
+
 class adfnumgradsjob(metajob):
+
     """
     Class for a numerical gradients job
-    
+
     """
 
     def __init__(self, mol, settings, scfsettings, atoms='all', coordinates=('x', 'y', 'z')):
         """
         Initialize a numerical gradient job
-        
+
         @param mol:
             The molecule on which to perform the numerical gradient calculation
         @type mol: Pyadf.Molecule.molecule
@@ -542,15 +566,15 @@ class adfnumgradsjob(metajob):
         @param settings:
             settings for the numerical gradients run
         @type settings: numgradsettings
-        
+
         @param scfsettings:
             settings for the ADF single point runs at the displaced geometries
         @type scfsettings: scfsettings
-        
+
         @param atoms:
             Atoms for which the gradient shall be computed
         @type atoms: int or list of int
-        
+
         @param coordinates:
             coordinates for which the gradient shall be computed (x, y or z)
         @type coordinates: str or list of str
@@ -558,9 +582,9 @@ class adfnumgradsjob(metajob):
         """
         from Molecule import OBMolecule, OBFreeMolecule
         import ADFSinglePoint
-        
+
         metajob.__init__(self)
-        
+
         if not (isinstance(mol, OBFreeMolecule.Molecule) or isinstance(mol, OBMolecule.OBMolecule)):
             raise PyAdfError("Molecule missing in adfnumgradsjob")
         self.molecule = mol
@@ -605,7 +629,7 @@ class adfnumgradsjob(metajob):
         string += " Computing gradient for\n >>"
         for c in self.coordinates:
             string += " %s," % c
-        string = string[:-1]+" coordinate <<\n"
+        string = string[:-1] + " coordinate <<\n"
         if self.atoms == 'all':
             string += " >> all atoms <<\n"
         else:
@@ -624,9 +648,9 @@ class adfnumgradsjob(metajob):
         """
         import numpy
 
-        mapping = {'x':0, 'y':1, 'z':2}
-        
-        print "-"*50
+        mapping = {'x': 0, 'y': 1, 'z': 2}
+
+        print "-" * 50
         self.print_jobtype()
 
         natoms = self.molecule.get_number_of_atoms()
@@ -634,7 +658,7 @@ class adfnumgradsjob(metajob):
         self.gradients = numpy.zeros((natoms, 3))
 
         if self.atoms == 'all':
-            atomlist = range(1, natoms+1)
+            atomlist = range(1, natoms + 1)
         else:
             atomlist = self.atoms
 
@@ -643,6 +667,6 @@ class adfnumgradsjob(metajob):
                 job = adfnumgradjob(mol=self.molecule, atom=at, coordinate=coord,
                                     settings=self.settings, scfsettings=self.scfsettings)
                 results = job.run()
-                self.gradients[at-1, mapping[coord]] = results.get_gradient(self.settings.energyterm)
-        
+                self.gradients[at - 1, mapping[coord]] = results.get_gradient(self.settings.energyterm)
+
         return adfnumgradsresults(self)

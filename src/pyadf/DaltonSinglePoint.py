@@ -1,8 +1,8 @@
-# This file is part of 
+# This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
 # Copyright (C) 2006-2014 by Christoph R. Jacob, S. Maya Beyhan,
 # Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Michal Handzlik,
-# Karin Kiewisch, Moritz Klammler, Jetze Sikkema, and Lucas Visscher 
+# Karin Kiewisch, Moritz Klammler, Jetze Sikkema, and Lucas Visscher
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -17,7 +17,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with PyADF.  If not, see <http://www.gnu.org/licenses/>.
 """
- The basics needed for Dalton calculations: single point jobs 
+ The basics needed for Dalton calculations: single point jobs
 
  @author:       Christoph Jacob and others
  @organization: Karlsruhe Institute of Technology (KIT)
@@ -28,45 +28,50 @@
  @group Settings:
     daltonsettings
  @group Results:
-    daltonresults, daltonsinglepointresults 
+    daltonresults, daltonsinglepointresults
 """
 
 from Errors import PyAdfError
 from BaseJob import results, job
 from Utils import newjobmarker
-import os, re
+import os
+import re
 
-class daltonresults (results) :
+
+class daltonresults (results):
+
     """
     Class for results of a Dalton calculation.
     """
 
-    def __init__ (self, j=None) :
+    def __init__(self, j=None):
         """
         Constructor for daltonresults.
         """
-        results.__init__ (self, j)
+        results.__init__(self, j)
 
-class daltonsinglepointresults (daltonresults) :
+
+class daltonsinglepointresults (daltonresults):
+
     """
     Class for results of a Dalton single point calculation.
-    
+
     @group Initialization:
         __init__
     @group Retrieval of specific results:
         get_molecule, get_energy
     """
 
-    def __init__ (self, j=None) :
+    def __init__(self, j=None):
         """
         Constructor for daltonsinglepointresults.
         """
-        daltonresults.__init__ (self, j)
+        daltonresults.__init__(self, j)
 
-    def get_molecule (self) :
+    def get_molecule(self):
         """
         Return the molecular geometry after the Dalton job.
-        
+
         @returns: The molecular geometry.
         @rtype:   L{molecule}
 
@@ -74,29 +79,29 @@ class daltonsinglepointresults (daltonresults) :
         """
         pass
 
-    def get_dipole_vector (self) :
+    def get_dipole_vector(self):
         """
         Return the dipole moment vector.
 
         @returns: the dipole moment vector, in atomic units
         @rtype: float[3]
         """
-        
+
         dipole = [0.0, 0.0, 0.0]
-        
+
         output = self.get_output()
-        
+
         start = re.compile("\s*Dipole moment components")
-        for i, l in enumerate(output) :
+        for i, l in enumerate(output):
             m = start.match(l)
             if m:
                 startline = i
 
-        for i, c in enumerate(['x', 'y', 'z']) :
-            dip = re.compile("\s*"+c+"\s*(?P<dip>[-+]?(\d+(\.\d*)?|\d*\.\d+))")
-            m = dip.match(output[startline+5+i])
+        for i, c in enumerate(['x', 'y', 'z']):
+            dip = re.compile("\s*" + c + "\s*(?P<dip>[-+]?(\d+(\.\d*)?|\d*\.\d+))")
+            m = dip.match(output[startline + 5 + i])
             dipole[i] = float(m.group('dip'))
-       
+
         return dipole
 
     def get_energy(self):
@@ -117,47 +122,49 @@ class daltonsinglepointresults (daltonresults) :
                 break
         return energy
 
-class daltonjob (job) :
+
+class daltonjob (job):
+
     """
     An abstract base class for Dalton jobs.
-    
+
     Corresponding results class: L{daltonresults}
 
     @group Initialization:
         __init__
     @group Running Internals:
-        get_daltonfile, get_moleculefile    
+        get_daltonfile, get_moleculefile
     """
 
-    def __init__ (self) :
+    def __init__(self):
         """
         Constructor for Dalton jobs.
         """
-        job.__init__ (self)
+        job.__init__(self)
         self._checksum_only = False
 
-    def create_results_instance (self):
+    def create_results_instance(self):
         return daltonresults(self)
 
-    def print_jobtype (self) :
+    def print_jobtype(self):
         pass
 
-    def get_daltonfile (self) :
+    def get_daltonfile(self):
         """
         Abstract method. Should be overwritten to return the Dalton input file.
         """
         return ""
 
-    def get_moleculefile (self) :
+    def get_moleculefile(self):
         """
         Abstract method. Should be overwritten to return the Dalton molecule file.
         """
         return ""
 
-    def get_checksum (self) :
+    def get_checksum(self):
         import hashlib
         m = hashlib.md5()
-        
+
         self._checksum_only = True
         m.update(self.get_daltonfile())
         m.update(self.get_moleculefile())
@@ -165,16 +172,16 @@ class daltonjob (job) :
 
         return m.digest()
 
-    def get_runscript (self) :
+    def get_runscript(self):
         put_files = [f for f in ['EMBPOT', 'FRZDNS'] if os.path.exists(f)]
 
-        runscript  = "#!/bin/bash \n\n"
+        runscript = "#!/bin/bash \n\n"
 
         runscript += "cat <<eor >DALTON.dal\n"
-        runscript += self.get_daltonfile()  
+        runscript += self.get_daltonfile()
         runscript += "eor\n"
         runscript += "cat DALTON.dal \n"
-        
+
         runscript += "cat <<eor >MOLECULE.mol\n"
         runscript += self.get_moleculefile()
         runscript += "eor\n"
@@ -182,11 +189,11 @@ class daltonjob (job) :
 
         if len(put_files) > 0:
             runscript += 'tar cf dalfiles.tar ' + ' '.join(put_files) + '\n'
-            runscript += 'gzip dalfiles.tar\n' 
+            runscript += 'gzip dalfiles.tar\n'
 
         runscript += "$DALTONBIN/dalton "
         if len(put_files) > 0:
-            runscript += '-f dalfiles' 
+            runscript += '-f dalfiles'
         runscript += " DALTON MOLECULE\n"
         runscript += "retcode=$? \n"
 
@@ -199,28 +206,30 @@ class daltonjob (job) :
         runscript += "rm DALTON.dal \n"
         runscript += "rm MOLECULE.mol \n"
         runscript += "exit $retcode \n"
-       
+
         return runscript
 
-    def check_success (self, outfile, errfile):
+    def check_success(self, outfile, errfile):
         # check that Dalton terminated normally
         if not (os.path.exists('DALTON_MOLECULE.OUT') or os.path.exists('DALTON_MOLECULE.out')):
             raise PyAdfError('Dalton output file does not exist')
 
         f = open(errfile)
         err = f.readlines()
-        for l in reversed(err) :
-            if "SEVERE ERROR" in l :
-                raise PyAdfError ("Error running Dalton job")
+        for l in reversed(err):
+            if "SEVERE ERROR" in l:
+                raise PyAdfError("Error running Dalton job")
             if l == newjobmarker:
                 break
         f.close()
         return True
-    
+
+
 class daltonsettings (object):
+
     """
     Class that holds the settings for a Dalton calculation..
-    
+
     @group Initialization:
         __init__,
         set_method, set_functional
@@ -229,16 +238,16 @@ class daltonsettings (object):
     @group Other Internals:
         __str__
     """
-    
-    def __init__ (self, method='DFT', functional='LDA', dftgrid=None):
+
+    def __init__(self, method='DFT', functional='LDA', dftgrid=None):
         """
         Constructor for daltonsettings.
 
         All arguments are optional, leaving out an argument will choose default settings.
-        
+
         @param method: the computational method, see L{set_method}
         @type method: str
-        @param functional: 
+        @param functional:
             exchange-correlation functional for DFT calculations, see L{set_functional}
         @type  functional: str
         @param dftgrid: the numerical integration grid for the xc part in DFT, see L{set_dftgrid}
@@ -247,72 +256,73 @@ class daltonsettings (object):
         self.functional = None
         self.method = None
         self.dftgrid = None
-        
+
         self.set_method(method)
         self.set_functional(functional)
         self.set_dftgrid(dftgrid)
 
-    def set_method (self, method):
+    def set_method(self, method):
         """
         Select the computational method.
-        
+
         Available options are: C{'HF'}, C{'DFT'}, C{'CC'}
-        
+
         @param method: string identifying the selected method
         @type  method: str
         """
         self.method = method
-    
+
     def set_functional(self, functional):
         """
         Select the exchange-correlation functional for DFT.
-        
-        @param functional: 
-            A string identifying the functional. 
+
+        @param functional:
+            A string identifying the functional.
             See Dalton manual for available options.
         @type functional: str
         """
         self.functional = functional
 
-    def set_dftgrid(self, dftgrid) :
+    def set_dftgrid(self, dftgrid):
         """
         Select the numerical integration grid.
         """
         self.dftgrid = dftgrid
 
-    def get_wavefunction_block (self):
+    def get_wavefunction_block(self):
         block = "**WAVE FUNCTIONS\n"
-        if self.method == 'HF' :
+        if self.method == 'HF':
             block += ".HF\n"
         elif self.method == 'DFT':
             block += ".DFT\n"
-            block += " "+self.functional+"\n"
+            block += " " + self.functional + "\n"
             if self.dftgrid is not None:
-               block += "*DFT INPUT\n"
-               block += "."+self.dftgrid.upper()+"\n"
-        elif self.method == 'CC' :
+                block += "*DFT INPUT\n"
+                block += "." + self.dftgrid.upper() + "\n"
+        elif self.method == 'CC':
             block += '.CC\n'
-        else :
-            raise PyAdfError ('Unknown method in Dalton job')
+        else:
+            raise PyAdfError('Unknown method in Dalton job')
         return block
 
-    def __str__ (self):
+    def __str__(self):
         """
         Returns a human-readable description of the settings.
         """
         s = '  Method: %s \n' % self.method
-        if self.method == 'DFT' :
+        if self.method == 'DFT':
             s += '  Exchange-correlation functional: %s \n' % self.functional
         return s
 
 
-class daltonsinglepointjob (daltonjob) :
+class daltonsinglepointjob (daltonjob):
+
     """
     A class for Dalton single point runs.
-     
+
     See the documentation of L{__init__} and L{daltonsettings} for details
     on the available options.
-    
+
     Corresponding results class: L{daltonsinglepointresults}
 
     @Note: Right now, HF, DFT, and CC jobs are supported.
@@ -329,39 +339,39 @@ class daltonsinglepointjob (daltonjob) :
 
     """
 
-    def __init__ (self, mol, basis, settings=None, fdein=None, options=None) :
+    def __init__(self, mol, basis, settings=None, fdein=None, options=None):
         """
         Constructor for Dalton single point jobs.
 
         @param mol:
             The molecular coordinates.
         @type mol: L{molecule}
-        
-        @param basis: 
+
+        @param basis:
             A string specifying the basis set to use (e.g. C{basis='cc-pVDZ'}).
         @type basis: str
-        
+
         @param settings: The settings for the Dalton job. Currently not used.
         @type  settings: L{daltonsettings}
-                
-        @param fdein: 
+
+        @param fdein:
             Results of an ADF FDE calculation. The embedding potential from this
-            calculation will be imported into Dalton (requires modified Dalton version).        
-        @type  fdein: L{adffragmentsresults}        
-                
-        @param options: 
-            Additional options. 
+            calculation will be imported into Dalton (requires modified Dalton version).
+        @type  fdein: L{adffragmentsresults}
+
+        @param options:
+            Additional options.
             These will each be included directly in the Dalton input file.
         @type options: list of str
         """
-        daltonjob.__init__ (self)
+        daltonjob.__init__(self)
 
-        self.mol      = mol
-        self.basis    = basis
-        if self.mol and (self.basis==None) :
-            raise PyAdfError ("Missing basis set in Dalton single point job")
-        
-        if settings == None :
+        self.mol = mol
+        self.basis = basis
+        if self.mol and (self.basis == None):
+            raise PyAdfError("Missing basis set in Dalton single point job")
+
+        if settings == None:
             self.settings = daltonsettings()
         else:
             self.settings = settings
@@ -374,86 +384,86 @@ class daltonsinglepointjob (daltonjob) :
         if self.mol:
             self.mol.set_symmetry('NOSYM')
 
-        if options is None :
+        if options is None:
             self._options = []
-        else :
+        else:
             self._options = options
 
-    def create_results_instance (self):
+    def create_results_instance(self):
         return daltonsinglepointresults(self)
 
     # FIXME: restart with Dalton not implemented
-    def set_restart (self, restart) :
+    def set_restart(self, restart):
         """
         Set restart file. (NOT IMPLEMENTED)
-        
+
         @param restart: results object of previous Dalton calculation
         @type  restart: L{daltonsinglepointresults}
-        
+
         @Note: restarts with Dalton are not implemented!
         """
         self.restart = restart
 
-    def get_molecule (self) :
+    def get_molecule(self):
         return self.mol
 
-    def get_dalton_block (self):
-        block  = ".RUN WAVE FUNCTIONS\n"
+    def get_dalton_block(self):
+        block = ".RUN WAVE FUNCTIONS\n"
         block += ".DIRECT\n"
-        if self.settings.method in ('HF', 'DFT') :
+        if self.settings.method in ('HF', 'DFT'):
             block += ".RUN PROPERTIES\n"
-        if not self.fdein == None :
+        if not self.fdein == None:
             block += '.FDE\n'
         return block
 
-    def get_integral_block (self):
+    def get_integral_block(self):
         return ""
 
-    def get_properties_block (self):
+    def get_properties_block(self):
         return ""
 
-    def get_options_block (self) :
+    def get_options_block(self):
         block = ""
-        for opt in self._options :
+        for opt in self._options:
             block += opt + "\n"
         return block
 
-    def get_other_blocks (self) :
+    def get_other_blocks(self):
         return ""
 
-    def get_daltonfile (self) :
-        daltonfile = "**DALTON INPUT\n" 
-        daltonfile += self.get_dalton_block() 
-        daltonfile += self.get_integral_block() 
+    def get_daltonfile(self):
+        daltonfile = "**DALTON INPUT\n"
+        daltonfile += self.get_dalton_block()
+        daltonfile += self.get_integral_block()
 
-        daltonfile += self.settings.get_wavefunction_block() 
-        daltonfile += self.get_properties_block() 
+        daltonfile += self.settings.get_wavefunction_block()
+        daltonfile += self.get_properties_block()
 
-        daltonfile += self.get_options_block ()
+        daltonfile += self.get_options_block()
 
-        daltonfile += self.get_other_blocks ()
+        daltonfile += self.get_other_blocks()
         daltonfile += "**END OF DALTON INPUT\n"
 
         return daltonfile
 
-    def get_moleculefile (self):
+    def get_moleculefile(self):
         return self.mol.get_dalton_molfile(self.basis)
 
-    def print_jobtype (self) :
+    def print_jobtype(self):
         return "Dalton single point job"
 
-    def before_run (self) :
-        daltonjob.before_run (self)
-        if not self.fdein == None :
-            self.fdein.export_embedding_data('EMBPOT','FRZDNS')
+    def before_run(self):
+        daltonjob.before_run(self)
+        if not self.fdein == None:
+            self.fdein.export_embedding_data('EMBPOT', 'FRZDNS')
 
-    def after_run (self) :
-        daltonjob.after_run (self)
-        if not self.fdein == None :
+    def after_run(self):
+        daltonjob.after_run(self)
+        if not self.fdein == None:
             os.remove('EMBPOT')
             os.remove('FRZDNS')
 
-    def print_molecule (self) :
+    def print_molecule(self):
 
         print "   Molecule"
         print "   ========"
@@ -461,25 +471,24 @@ class daltonsinglepointjob (daltonjob) :
         print self.get_molecule()
         print
 
-    def print_settings (self) :
-        
+    def print_settings(self):
+
         print "   Settings"
         print "   ========"
         print
         print self.settings
         print
 
-    def print_extras (self) :
+    def print_extras(self):
         pass
 
-    def print_jobinfo (self):
-        print " "+50*"-"
-        print " Running "+ self.print_jobtype()
+    def print_jobinfo(self):
+        print " " + 50 * "-"
+        print " Running " + self.print_jobtype()
         print
 
-        self.print_molecule ()
+        self.print_molecule()
 
-        self.print_settings ()
+        self.print_settings()
 
-        self.print_extras ()
- 
+        self.print_extras()

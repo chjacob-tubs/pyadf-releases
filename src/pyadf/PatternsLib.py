@@ -1,8 +1,8 @@
-# This file is part of 
+# This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
 # Copyright (C) 2006-2014 by Christoph R. Jacob, S. Maya Beyhan,
 # Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Michal Handzlik,
-# Karin Kiewisch, Moritz Klammler, Jetze Sikkema, and Lucas Visscher 
+# Karin Kiewisch, Moritz Klammler, Jetze Sikkema, and Lucas Visscher
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -22,17 +22,20 @@
  @author:       Christoph Jacob and others
  @organization: Karlsruhe Institute of Technology (KIT)
  @contact:      christoph.jacob@kit.edu
- 
+
 """
 
+
 class Singleton(type):
+
     """
     Metaclass for Singleton classes.
-    
+
     @exampleuse:
         >>> class MyClass(object):
-        >>>    __metaclass__ = Singleton
+        ...    __metaclass__ = Singleton
     """
+
     def __init__(self, name, bases, clsdict):
         super(Singleton, self).__init__(name, bases, clsdict)
         self.instance = None
@@ -40,4 +43,4 @@ class Singleton(type):
     def __call__(self, *args, **kw):
         if self.instance is None:
             self.instance = super(Singleton, self).__call__(*args, **kw)
-        return self.instance        
+        return self.instance

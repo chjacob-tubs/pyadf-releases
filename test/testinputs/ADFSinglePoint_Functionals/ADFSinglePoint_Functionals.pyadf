@@ -3,20 +3,20 @@ def check_results (fun, testobj, dipole_vect, dipole_magn):
        magn = 1.68496462
        vect = [0.0, 0.0, -1.6849646]
     if fun == 'PW91':
-       magn = 1.61554179
-       vect = [0.0, 0.0, -1.61554179]
+       magn = 1.61554417
+       vect = [0.0, 0.0, -1.61554417]
     if fun == 'PBE0':
-       magn = 1.65752523
-       vect = [0.0, 0.0, -1.65752523]
+       magn = 1.65752623
+       vect = [0.0, 0.0, -1.65752623]
     if fun == 'M06L':
        magn = 1.66845259
        vect = [0.0, 0.0, -1.66845259]
     if fun == 'M06-2X':
-       magn = 1.68264166 
-       vect = [0.0, 0.0, -1.68264166] 
+       magn = 1.68264374
+       vect = [0.0, 0.0, -1.68264374]
 
-    testobj.assertAlmostEqual(dipole_magn,     magn, 6) 
-    testobj.assertAlmostEqualVectors(dipole_vect, vect, 6)
+    testobj.assertAlmostEqual(dipole_magn,     magn, 6)
+    testobj.assertAlmostEqual(dipole_vect, vect, 6)
 
 ##########################################################
 
@@ -24,7 +24,7 @@ h2o = molecule (os.path.join(pyadfenv.outdir, 'H2O.xyz'))
 
 settings = adfsettings()
 
-for fun in ['LDA', 'PW91', 'PBE0', 'M06L', 'M06-2X']: 
+for fun in ['LDA', 'PW91', 'PBE0', 'M06L', 'M06-2X']:
 
     settings.set_functional(fun)
     settings.set_integration(4.0)
@@ -35,11 +35,11 @@ for fun in ['LDA', 'PW91', 'PBE0', 'M06L', 'M06-2X']:
     dipole_magn = results.get_dipole_magnitude ()
 
 #   convert do debye
-    dipole_vect = dipole_vect * au_in_Debye 
+    dipole_vect = dipole_vect * au_in_Debye
     dipole_magn = dipole_magn * au_in_Debye
 
     print dipole_vect,'  ',dipole_magn
     check_results (fun, testobj, dipole_vect, dipole_magn)
-        
 
-        
+
+
