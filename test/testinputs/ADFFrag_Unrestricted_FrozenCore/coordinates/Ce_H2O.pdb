@@ -1,0 +1,6 @@
+REMARK Created with py_pdb
+ATOM      1 CE   MET     0       0.000   0.000   0.000  1.00  1.00          CE
+ATOM      2  O   HOH     1      -0.430  -0.130   2.450  1.00  1.00           O
+ATOM      3  H   HOH     1      -0.410  -1.020   2.860  1.00  1.00           H
+ATOM      4  H   HOH     1      -1.150   0.360   2.920  1.00  1.00           H
+END

@@ -1,0 +1,47 @@
+
+file_h2o_1 = os.path.join (pyadfenv.outdir, 'FDE-H2O-1.xyz')
+file_h2o_2 = os.path.join (pyadfenv.outdir, 'FDE-H2O-2.xyz')
+file_mol   = os.path.join (pyadfenv.outdir, 'FDE-mol.xyz')
+
+m_h2o_1 = molecule(file_h2o_1)
+m_h2o_2 = molecule(file_h2o_2)
+m_mol   = molecule(file_mol)
+
+m_tot = m_mol + m_h2o_1 + m_h2o_2
+
+print m_tot.print_coordinates()
+
+# Prepare first water molecule
+r_h2o_1 = adfsinglepointjob( m_h2o_1, 'SZ', options=['NOSYMFIT']).run()
+
+# Prepare second water molecule
+r_h2o_2 = adfsinglepointjob( m_h2o_2, 'SZ', options=['NOSYMFIT']).run()
+
+fdesettings = adfsettings()
+# save TAPE10 is needed for exporting the FDE potential
+fdesettings.set_save_tapes([21,10])
+fdesettings.set_functional('BP86')
+fdesettings.set_integration(accint=4.0)
+
+frags = [fragment(r_h2o_1, [m_h2o_1], isfrozen=True),
+         fragment(r_h2o_2, [m_h2o_2], isfrozen=True),
+	 fragment(None,    [m_mol]  ) ]
+
+fde_res = adffragmentsjob( frags, basis="SZ", settings=fdesettings, options=['NOSYM']).run()
+
+fde_res.export_embedding_data(os.path.join(pyadfenv.outdir, 'EMBPOT'), os.path.join(pyadfenv.outdir, 'FRZDNS'))
+
+results = daltonCC2job(fde_res.get_nonfrozen_molecule(), 'STO-6G', fdein=fde_res).run()
+ 
+exens = results.get_excitation_energies ()
+oscs  = results.get_oscillator_strengths ()
+  
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(exens[0], 12.51733, 3)
+    testobj.assertAlmostEqual(exens[1], 14.60532, 3)
+    testobj.assertAlmostEqual(exens[2], 16.30686, 3)
+   
+    testobj.assertAlmostEqual(oscs[0], 0.003089,  3)
+    testobj.assertAlmostEqual(oscs[1], 0.0,       3)
+    testobj.assertAlmostEqual(oscs[2], 0.0707589, 3)
+

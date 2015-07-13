@@ -1,0 +1,42 @@
+def check_results (testobj, dipole_vect, dipole_magn):
+    testobj.assertAlmostEqual(dipole_magn,     0.6629161489, 6) 
+    testobj.assertAlmostEqualVectors(dipole_vect, [0.0, 0.0, -0.6629161489], 6)
+
+def check_results_core (testobj, dipole_vect, dipole_magn):
+    testobj.assertAlmostEqual(dipole_magn,     0.6654267612, 6) 
+    testobj.assertAlmostEqualVectors(dipole_vect, [0.0, 0.0, -0.6654267612], 6)
+
+def check_results_ZORA (testobj, dipole_vect, dipole_magn):
+    testobj.assertAlmostEqual(dipole_magn,     0.661714823, 6) 
+    testobj.assertAlmostEqualVectors(dipole_vect, [0.0, 0.0, -0.661714823], 6)
+
+h2o = molecule (os.path.join(pyadfenv.outdir, 'H2O.xyz'))
+
+results = adfsinglepointjob( h2o, 'SZ').run()
+
+dipole_vect = results.get_dipole_vector ()
+dipole_magn = results.get_dipole_magnitude ()
+
+check_results (testobj, dipole_vect, dipole_magn)
+        
+###################################################################
+
+results = adfsinglepointjob( h2o, 'SZ', core='Large').run()
+
+dipole_vect = results.get_dipole_vector ()
+dipole_magn = results.get_dipole_magnitude ()
+
+check_results_core (testobj, dipole_vect, dipole_magn)
+        
+###################################################################
+
+ZORA_settings = adfsettings(ZORA=True)
+
+results = adfsinglepointjob( h2o, 'ZORA/SZ', settings=ZORA_settings).run()
+
+dipole_vect = results.get_dipole_vector ()
+dipole_magn = results.get_dipole_magnitude ()
+
+check_results_ZORA (testobj, dipole_vect, dipole_magn)
+
+        

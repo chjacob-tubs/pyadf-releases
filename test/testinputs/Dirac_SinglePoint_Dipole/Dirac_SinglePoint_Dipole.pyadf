@@ -1,0 +1,67 @@
+def check_results_hf (testobj, energy, dipole_vect, dipole_magn):
+    
+    testobj.assertAlmostEqual(energy,        -76.021573326, 6)
+
+    testobj.assertAlmostEqual(dipole_magn,     0.802835846, 5)
+    testobj.assertAlmostEqual(dipole_vect[0],  0.778187, 4)
+    testobj.assertAlmostEqual(dipole_vect[1],  0.180580, 4)
+    testobj.assertAlmostEqual(dipole_vect[2], -0.079749, 4)
+
+def check_results_lda (testobj, energy, dipole_vect, dipole_magn):
+
+    testobj.assertAlmostEqual(energy,        -75.853883509, 6)
+
+    testobj.assertAlmostEqual(dipole_magn,     0.755275682, 5)
+    testobj.assertAlmostEqual(dipole_vect[0],  0.732050, 4)
+    testobj.assertAlmostEqual(dipole_vect[1],  0.170115, 4)
+    testobj.assertAlmostEqual(dipole_vect[2], -0.074865, 4)
+
+def check_results_bp86 (testobj, energy, dipole_vect, dipole_magn):
+
+    testobj.assertAlmostEqual(energy,        -76.419593782, 6)
+
+    testobj.assertAlmostEqual(dipole_magn,     0.725156725, 5)
+    testobj.assertAlmostEqual(dipole_vect[0],  0.702823, 4)
+    testobj.assertAlmostEqual(dipole_vect[1],  0.163537, 4)
+    testobj.assertAlmostEqual(dipole_vect[2], -0.071738, 4)
+
+h2o = molecule (os.path.join(pyadfenv.outdir, 'H2O.xyz'))
+h2o.set_symmetry('.NOSYM')
+
+# HF single point calculation
+
+settings = diracsettings(method='HF', hamiltonian='Levy', properties=['dipole'], nucmod='point')
+results = diracsinglepointjob(h2o, 'cc-pVDZ', settings=settings).run()
+
+energy = results.get_energy()
+
+dipole_vect = results.get_dipole_vector ()
+dipole_magn = results.get_dipole_magnitude ()
+
+check_results_hf (testobj, energy, dipole_vect, dipole_magn)
+
+# LDA single point calculation
+
+settings = diracsettings(method='DFT', hamiltonian='Levy', functional='LDA', properties=['dipole'], nucmod='point')
+#settings = diracsettings(method='DFT', hamiltonian='Levy', functional='LDA', 
+#                         properties=['dipole'], dftgrid="ULTRAFINE", nucmod='point')
+results = diracsinglepointjob(h2o, 'cc-pVDZ', settings=settings).run()
+
+energy = results.get_energy()
+dipole_vect = results.get_dipole_vector ()
+dipole_magn = results.get_dipole_magnitude ()
+
+check_results_lda (testobj, energy, dipole_vect, dipole_magn)
+
+# BP86 single point calculation
+
+settings = diracsettings(method='DFT', hamiltonian='Levy', functional='BP86', properties=['dipole'], nucmod='point')
+#settings = diracsettings(method='DFT', hamiltonian='Levy', functional='BP86', 
+#                         properties=['dipole'], dftgrid="ULTRAFINE", nucmod='point')
+results = diracsinglepointjob(h2o, 'cc-pVDZ', settings=settings).run()
+
+energy = results.get_energy()
+dipole_vect = results.get_dipole_vector ()
+dipole_magn = results.get_dipole_magnitude ()
+
+check_results_bp86 (testobj, energy, dipole_vect, dipole_magn)

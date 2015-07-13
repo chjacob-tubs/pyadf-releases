@@ -1,0 +1,44 @@
+
+#set up pathNames
+name1 = os.path.join(pyadfenv.startdir, 'H2O-H2O')
+name2 = os.path.join(pyadfenv.startdir, 'HF-HF')
+pathNames = [name1, name2]
+
+#set up adf
+settings = adfsettings()
+settings.set_integration(3.0)
+settings.set_functional('PBE')
+settings.set_ZORA(ZORA=False)
+
+#set up adffde
+fdesettings = adffdesettings()
+fdesettings.set_occupations(None)
+fdesettings.set_lshift(None)
+fdesettings.set_packtape(False)
+
+#set up adffdeanalysis Settings
+fdeanalysissettings = adffdeanalysissettings()
+fdeanalysissettings.set_runtype(['normalFt'])
+fdeanalysissettings.set_tnad(['PBE2'])
+fdeanalysissettings.set_ncycle(2)
+
+diffjob = datasetjob(pathNames, basis='DZ',
+                     settings=fdeanalysissettings, adfsettings=settings,
+                     adffdesettings=fdesettings)
+diffresults = diffjob.run()
+
+(avrg, dataSetJobResults) = diffresults
+
+diffPrints  = diffjob.print_results()
+
+##############################################################################
+def check_results (testobj, avrg) :
+    testobj.assertAlmostEqual(avrg['PBE2'][0][0], 0.454709, 4) 
+    testobj.assertAlmostEqual(avrg['PBE2'][0][2], 0.006764, 4) 
+    testobj.assertAlmostEqual(avrg['PBE2'][0][3], 0.001183, 4) 
+    testobj.assertAlmostEqual(avrg['PBE2'][1][0], 0.302179, 4) 
+    testobj.assertAlmostEqual(avrg['PBE2'][1][2], 0.007322, 4) 
+    testobj.assertAlmostEqual(avrg['PBE2'][1][3], 0.001093, 4) 
+
+if 'unittesting' in pyadfenv.options :
+    check_results(testobj, avrg)

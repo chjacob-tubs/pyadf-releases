@@ -1,0 +1,161 @@
+def norm (vec=None) :
+    from math import sqrt
+    return sqrt (sum ([x*x for x in vec]))
+
+    
+class diffresults (object) :
+    def __init__ (self, dmu=None, err=None, abserr=None, rmserr=None) :
+        self.dmu    = dmu
+        self.err    = err
+        self.abserr = abserr
+        self.rmserr = rmserr
+
+
+def calc_diff (res_ref=None, res_test=None, grid=None) :
+    """
+    Calculate
+    difference in dipole moment and
+    integrals of the difference density
+    between a reference and a test
+
+    @param : res_ref
+       The results of a reference calulation (should be a KS calculation)
+    @type res_ref: adfsinglepointresults object
+    
+    @param : res_test
+       The results of test calculation(s)
+    @type res_ref: either one of or list of adfsinglepointresults or adffragmentresults
+
+    @param: grid
+       Grid for integration (should be grid of reference)
+    @type grid: grid
+
+    @returns: integrated difference density,
+              integrated absolute value of density,
+              RMS of difference density
+    @rtype: list of floats
+    
+    """
+    from pyadf.Utils import au_in_Debye
+    from math        import sqrt
+
+    if (res_ref == None) or (res_test == None) :
+        raise PyAdfError ('Reference and Test results objects required in calc_den')
+    if (grid == None) :
+        raise PyAdfError ('Grid required in calc_diff')
+
+    if not isinstance(res_test, list) :
+        res_test = [res_test]
+
+    dip_ref  = res_ref.get_dipole_vector()
+    dens_ref = res_ref.get_density(grid=grid)
+
+    # test density and dipole moment
+    dip_test  = []
+    dens_test = []
+    for r in res_test :
+        dip = r.get_dipole_vector()
+        dip_test.append(dip)
+        dens = r.get_density(grid=grid)
+        dens_test.append(dens)
+    print dip_test
+    dip_test  = reduce(lambda x,y: x+y, dip_test)
+    print dip_test
+    dens_test = reduce(lambda x,y: x+y, dens_test)
+
+    # difference density and integrals
+    dens_diff  = dens_ref - dens_test
+    err_dens_diff    = dens_diff.integral()
+    abserr_dens_diff = dens_diff.integral(lambda x: abs(x))
+    rmserr_dens_diff = sqrt(dens_diff.integral(lambda x: x*x))
+
+    return diffresults(au_in_Debye * (dip_ref - dip_test), err_dens_diff, abserr_dens_diff, rmserr_dens_diff)
+
+#-----------------------------------------------------------------------------
+# ADF settings
+s_adf = adfsettings()
+s_adf.set_functional('LDA')
+s_adf.set_integration(3.0)
+s_adf.set_save_tapes([21])
+basis = 'SZ'
+core  = None
+
+#-----------------------------------------------------------------------------
+# molecules and fragment calculations
+# we cannot use symmetry in the fragments if we are interested in the
+# difference density -> otherwise they will be rotated
+fragments = ['NH3', 'H2O']
+
+m_frag = []
+r_frag = []
+frags  = []
+m_super = molecule()
+m_super.set_symmetry('NOSYM')
+for frag in fragments :
+    f = os.path.join (pyadfenv.startdir, frag + '.xyz')
+    m = molecule(f)
+    m.set_symmetry('NOSYM')
+    m_super += m
+    r = adfsinglepointjob( mol=m, basis=basis, core=core,
+                          settings=s_adf, options=['NOSYMFIT']).run()
+    m_frag.append(m)
+    r_frag.append(r)
+    frags.append(fragment(r, m))
+
+#-----------------------------------------------------------------------------
+# KS calculation
+# save TAPE10 for later use of the integration grid
+s_adf.set_save_tapes([10,21])
+r_super = adffragmentsjob( frags, basis=basis, core=core,
+                          settings=s_adf).run()
+s_adf.set_save_tapes([21])
+
+# difference density to fragments
+grid_super = adfgrid(r_super)
+diff_frags = calc_diff(r_super, r_frag, grid=grid_super)
+
+#-----------------------------------------------------------------------------
+# FDE calculations
+diff_fde = []
+fde = {'TNAD':'THOMASFERMI'}
+
+# FDE(0) (parallel FT)
+r_fde = adffdejob( frags, basis=basis, core=core,
+                  settings=s_adf, fde=fde).run()
+diff_fde.append (calc_diff(r_super, r_fde, grid=grid_super))
+
+# FDE(1) (normal FT)
+fde['NORMALFT'] = ''
+fde['RELAXCYCLES'] = 1
+r_fde = adffdejob( frags, basis=basis, core=core,
+                  settings=s_adf, fde=fde).run()
+diff_fde.append (calc_diff(r_super, r_fde, grid=grid_super))
+
+
+print '+' + 70*'-'                     + '+'
+print '|' + 'FINAL RESULTS'.center(70) + '|'
+print '+' + 70*'-'                     + '+'
+print '|dmu|(D)'.rjust(19) + '100*dabs'.rjust(13) + '100*drms'.rjust(13)
+print 'Frags  %12.6f %12.6f %12.6f' % (norm(diff_frags.dmu),  (100/16)*diff_frags.abserr,  (100/16)*diff_frags.rmserr)
+print 'FDE(0) %12.6f %12.6f %12.6f' % (norm(diff_fde[0].dmu), (100/16)*diff_fde[0].abserr, (100/16)*diff_fde[0].rmserr)
+print 'FDE(1) %12.6f %12.6f %12.6f' % (norm(diff_fde[1].dmu), (100/16)*diff_fde[1].abserr, (100/16)*diff_fde[1].rmserr)
+
+
+##############################################################################
+def check_results (testobj, diff_frags, diff_fde) :
+
+    testobj.assertAlmostEqual (norm(diff_frags.dmu),       0.887642, 3) 
+    testobj.assertAlmostEqual ((100/16)*diff_frags.abserr, 1.132664, 3) 
+    testobj.assertAlmostEqual ((100/16)*diff_frags.rmserr, 0.202215, 3) 
+
+    testobj.assertAlmostEqual (norm(diff_fde[0].dmu),       0.647227, 3) 
+    testobj.assertAlmostEqual ((100/16)*diff_fde[0].abserr, 0.857509, 3) 
+    testobj.assertAlmostEqual ((100/16)*diff_fde[0].rmserr, 0.146959, 3) 
+
+    testobj.assertAlmostEqual (norm(diff_fde[1].dmu),       0.639685, 3) 
+    testobj.assertAlmostEqual ((100/16)*diff_fde[1].abserr, 0.844227, 3) 
+    testobj.assertAlmostEqual ((100/16)*diff_fde[1].rmserr, 0.146490, 3) 
+
+if 'unittesting' in pyadfenv.options:
+    check_results(testobj, diff_frags, diff_fde)
+

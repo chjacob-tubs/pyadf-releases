@@ -1,0 +1,20 @@
+#
+# check Openbabel version; 
+# currently, it should be 2.3.1
+#
+
+import openbabel
+
+required_version = '2.3.1'
+
+testobj.assert_(openbabel.OBReleaseVersion() == required_version)
+#
+# check Openbabel version; 
+# currently, it should be 2.3.1
+#
+
+import openbabel
+
+required_version = '2.3.1'
+
+testobj.assert_(openbabel.OBReleaseVersion() == required_version)

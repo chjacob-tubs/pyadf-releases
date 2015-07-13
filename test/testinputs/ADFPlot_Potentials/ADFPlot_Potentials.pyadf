@@ -1,0 +1,64 @@
+########################################################################
+#
+# PyADF test ADFPlot_Potentials
+#
+# Test calculation of potentials (nuclear potential, Coulomb potential,
+# xc potential, and total potential) for a water molecule
+#
+# Test by Christoph Jacob, ETH Zurich and KIT, 2009-2010
+#
+########################################################################
+
+h2o = molecule (os.path.join(pyadfenv.outdir, 'H2O.xyz'))
+
+settings = adfsettings()
+settings.set_save_tapes([21,10])
+
+results = adfsinglepointjob( h2o, 'SZ', settings=settings).run()
+
+#############################################
+# First, we use an evenly spaced cube grid
+#############################################
+
+print " Using cube grid with spacing 0.1"
+cgrid = cubegrid(results.get_molecule(), spacing=0.1)
+
+dens = results.get_density(grid=cgrid)
+
+# nuclear potential
+pot_nuc  = results.get_potential(grid=cgrid, pot='nuc') 
+
+# Coulomb potential
+pot_coul = results.get_potential(grid=cgrid, pot='coul')
+
+# exchange-correlation potential
+pot_xc   = results.get_potential(grid=cgrid, pot='xc')
+
+# total (nuc+coul+xc) potential
+pot_tot  = results.get_potential(grid=cgrid, pot='total')
+
+pot_diff = pot_tot - pot_nuc - pot_coul - pot_xc
+int_diff = pot_diff.integral(func=lambda x: abs(x))
+
+print "Integral of difference in potentials: ", int_diff
+
+if 'unittesting' in pyadfenv.options :
+    testobj.assert_(abs(int_diff) < 1e-6)
+
+##############################
+# now use the ADF grid
+##############################
+
+print " Using ADF grid"
+agrid = adfgrid(results)
+
+dens    = results.get_density(grid=agrid)
+pot_tot = results.get_potential(grid=agrid, pot='total')
+
+integral = (dens*pot_tot).integral()
+
+print "Integral over pot_tot*dens: ", integral
+
+if 'unittesting' in pyadfenv.options :
+    testobj.assertAlmostEqual(integral, -115.81691434, 2)
+

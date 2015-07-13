@@ -1,0 +1,54 @@
+
+m = molecule (os.path.join(pyadfenv.outdir, 'Ce_H2O.pdb'), inputformat='pdb')
+
+lan = m.get_residues(restype='MET')[0]
+lan.set_charge(3)
+
+print "Lanthanide"
+print lan.print_coordinates()
+
+sol = m.get_residues(restype='HOH')
+solvent = molecule()
+for wat in sol:
+  solvent += wat
+
+print "Solvent"
+print "New fragment"
+print solvent.print_coordinates()
+
+set = adfsettings()
+set.set_save_tapes([21,10])
+set.set_functional('PW91')
+set.set_ZORA(True)
+set.set_mixing(0.03)
+
+lan_core = {'Ce':'4d'}
+sol_core = {'O':'1s'}
+
+rlan = adfsinglepointjob( lan, 'TZ2P', core=lan_core, settings=set).run()
+rsolvent = adfsinglepointjob( solvent, 'TZ2P', core=sol_core, settings=set, options=['NOSYM']).run()
+
+lan.set_spin(1)
+set.set_unrestricted(True)
+pc = 1./7.
+set.set_occupations (' A 8 %18.14f %18.14f %18.14f %18.14f %18.14f %18.14f %18.14f// 8' % \
+	(pc,pc,pc,pc,pc,pc,pc))
+
+frags = [fragment(rlan, lan, occ=[['S',1,1],['P',3,3],['F',1,0]]),fragment(rsolvent,solvent)]
+results = adffragmentsjob( frags, 'TZ2P', options=['NOSYM'], settings=set).run ()
+
+dipole = results.get_dipole_vector()
+print dipole
+
+s2 = results.get_s2()
+print s2
+
+def check_dipole (testobj, dipole_vect_ref, dipole_vect):
+
+    testobj.assertAlmostEqual(dipole_vect[0], dipole_vect_ref[0], 6) 
+    testobj.assertAlmostEqual(dipole_vect[1], dipole_vect_ref[1], 6) 
+    testobj.assertAlmostEqual(dipole_vect[2], dipole_vect_ref[2], 6) 
+
+check_dipole (testobj, [-0.86761997, -0.38990915,  2.57971562], dipole)
+
+testobj.assertAlmostEqual(s2, 0.77362, 4)

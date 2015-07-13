@@ -1,0 +1,134 @@
+#######################################################################
+#
+# PyADF test ADFPotential_FDE
+#
+# Potential reconstruction in basis set (Yang/Wu algorithm)
+# for an FDE calculation (see also JCP 132 (2010), 164101)
+#
+# This test first performs a supermolecule calculation on a water
+# dimer as well as calculations on the two isolated water molecules.
+# The "reference density" is then taken as the difference between the
+# supermolecular density and the (frozen) density of the isolated
+# second water molecule.
+# This reference density is the target for the potential reconstruction,
+# which is performed in an FDE calculation (starting from the potential)
+# of the first SCF interation (default).
+# The error in the density is calculated for SumFrag, FDE, and the
+# reconstructed potential. Note that in the latter case the resulting
+# error in the density still quite large (comparable to the FDE
+# calculation) because of the regions of negative target density.
+#
+# Test by Christoph Jacob and Sam Fux, KIT and ETH Zurich, 2009-2010
+#
+#######################################################################
+
+###################################################################
+# H2O reference calculations
+###################################################################
+
+h2o1 = molecule (os.path.join(pyadfenv.outdir, 'H2O-1.xyz'))
+h2o1.set_symmetry('NOSYM')
+h2o2 = molecule (os.path.join(pyadfenv.outdir, 'H2O-2.xyz'))
+h2o2.set_symmetry('NOSYM')
+
+h2o_dimer = h2o1 + h2o2
+h2o_dimer.set_symmetry('NOSYM')
+
+settings = adfsettings()
+settings.set_save_tapes([21,10])
+settings.set_functional('BP86')
+settings.set_integration(3.0)
+
+supermol_res = adfsinglepointjob(h2o_dimer, 'DZ', settings=settings).run()
+grid = adfgrid(supermol_res)
+
+h2o1_job = adfsinglepointjob(h2o1, 'DZ', settings=settings)
+h2o1_res = h2o1_job.run()
+
+h2o2_job = adfsinglepointjob(h2o2, 'DZ', settings=settings)
+h2o2_res = h2o2_job.run()
+
+# write cube file of supermolecular density
+cgrid = cubegrid(supermol_res.get_molecule(), spacing=0.2)
+
+totdens_cub = supermol_res.get_density(grid=cgrid)
+totdens_cub.get_cubfile(os.path.join(pyadfenv.outdir, 'dens.cub'))
+
+# densities (ADF grid) of supermolecule and isolated fragments
+superdens = supermol_res.get_density(grid=grid)
+h2o1dens = h2o1_res.get_density(grid=grid)
+h2o2dens = h2o2_res.get_density(grid=grid)
+
+# reference density (to be reconstructed): supermolecule minus frozen second water
+refdens = superdens - h2o2dens
+
+negdens = refdens.integral(ignore=(refdens.get_values()) > 0.0)
+print "Integral of negative density: ", negdens
+
+##################################################
+# sum-of-fragments and standard FDE errors
+##################################################
+
+error_sumfrag = (refdens - h2o1dens).integral(func=lambda x: abs(x))
+
+print " Error (SumFrag): ", error_sumfrag
+
+# now run an FDE calulation
+
+frags = [fragment(h2o1_res, [h2o1], isfrozen=False),
+         fragment(h2o2_res, [h2o2], isfrozen=True) ]
+
+fde_job = adffragmentsjob(frags, basis="DZ", settings=settings)
+fde_res = fde_job.run()
+
+h2o1_fdedens = fde_res.get_nonfrozen_density(grid=grid)
+
+error_fde = (refdens - h2o1_fdedens).integral(func=lambda x: abs(x))
+
+print " Error (FDE) : ", error_fde
+
+##########################################################################
+# now run FDE with potential reconstruction
+##########################################################################
+
+settings.set_ncycles(100)
+
+frags = [fragment(h2o1_res, [h2o1], isfrozen=False),
+         fragment(h2o2_res, [h2o2], isfrozen=True) ]
+
+# no startpot is given: use potential from first SCF iteration
+fdepot_job = adffragmentsjob(frags, basis="DZ", settings=settings)
+fdepot_job = adfpotentialjob(fdepot_job, refdens, 
+                             potoptions={'EIGENSHIFT':0.1, 'CONVERGE':1e-5, 'CUTNEGATIVEDENS':'1E-8'})
+fdepot_res = fdepot_job.run()
+
+# density from reconstructed potential
+h2o1_fdepotdens = fdepot_res.get_nonfrozen_density(grid=grid)
+
+error_fdepot = (refdens - h2o1_fdepotdens).integral(func=lambda x: abs(x))
+
+print " Error (FDE-Pot) : ", error_fdepot
+
+# write a cube file with the reconstructed part of the potential
+# (the start potential has to be added to this to get the total
+#  reconstructed potential, see test ADFPotential_Basis)
+
+pot = fdepot_res.get_potential(grid=cgrid, pot="reconstructed")
+pot.get_cubfile(os.path.join(pyadfenv.outdir, 'pot.cub'))
+
+# Alternatively, we can also get the final total potential
+# but this only works on the ADF grid 
+
+pot = fdepot_res.get_final_potential()
+pot.get_xyzvfile(os.path.join(pyadfenv.outdir, 'pot.xyzv'))
+
+#############################################
+# comparison of results
+#############################################
+
+if 'unittesting' in pyadfenv.options :
+    testobj.assertAlmostEqual(negdens,      -0.03563950457, 4)
+    testobj.assertAlmostEqual(error_sumfrag, 0.17225153234, 4)
+    testobj.assertAlmostEqual(error_fde,     0.08440861473, 4)
+    testobj.assertAlmostEqual(error_fdepot,  0.07496349982, 4)
+

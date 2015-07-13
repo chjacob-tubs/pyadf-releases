@@ -1,0 +1,78 @@
+#!/usr/bin/env python
+#
+# This file is part of 
+# PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
+# Copyright (C) 2006-2011 by Christoph R. Jacob, S. Maya Beyhan,
+# Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Karin Kiewisch,
+# Jetze Sikkema, and Lucas Visscher 
+#
+#    PyADF is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#
+#    PyADF is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with PyADF.  If not, see <http://www.gnu.org/licenses/>.
+
+import unittest
+
+from pyadf_doctests   import make_doctest_suite
+from pyadf_testinputs import make_testinputs_suite
+
+def get_options ():
+
+    from optparse import OptionParser
+
+    parser = OptionParser(usage="usage: %prog [options]")
+
+    parser.add_option("--tests", default="all", 
+                      dest="tests", help="which tests to run [available: short, medium, long, all]")
+    parser.add_option("--nodalton", action="store_false", default=True,  
+                      dest="dalton", help="skip Dalton tests")
+    parser.add_option("--nodirac", action="store_false", default=True,  
+                      dest="dirac", help="skip Dirac tests")
+    parser.add_option("--nonwchem", action="store_false", default=True,  
+                      dest="nwchem", help="skip NWChem tests")
+    parser.add_option("--singletest", default=None, 
+                      dest="singletest", help="name of one specific test to run")
+    parser.add_option("--keep", "-k", action="store_true", default=False, 
+                      dest="keep", help="keep temporary test directories")
+    parser.add_option("--profile", "-p", action="store_true", default=False, 
+                      dest="profile", help="run tests using the Python profiler")
+
+    (options, args) = parser.parse_args()
+
+    return options
+
+
+def test () :
+
+    options = get_options()
+
+    suite = unittest.TestSuite ()
+
+    if options.singletest :
+        suite.addTest (make_testinputs_suite(testnames=[options.singletest], 
+                                             keep=options.keep, prof=options.profile))
+    else:
+        try :
+            from kf import KFFileTests
+            suite.addTest ( unittest.TestLoader().loadTestsFromTestCase(KFFileTests) ) 
+        except :
+            pass
+        
+        suite.addTest (make_doctest_suite())
+        suite.addTest (make_testinputs_suite(tests=options.tests, 
+                                             dalton=options.dalton, dirac=options.dirac, nwchem=options.nwchem,
+                                             keep=options.keep, prof=options.profile))
+
+    unittest.TextTestRunner(verbosity=2).run(suite)
+
+
+if __name__ == '__main__':
+    test()

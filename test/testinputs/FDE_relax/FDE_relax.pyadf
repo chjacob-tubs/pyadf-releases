@@ -1,0 +1,42 @@
+
+file_h2o_1 = os.path.join (pyadfenv.outdir, 'FDE-H2O-1.xyz')
+file_h2o_2 = os.path.join (pyadfenv.outdir, 'FDE-H2O-2.xyz')
+file_mol   = os.path.join (pyadfenv.outdir, 'FDE-mol.xyz')
+
+m_h2o_1 = molecule(file_h2o_1)
+m_h2o_2 = molecule(file_h2o_2)
+m_mol   = molecule(file_mol)
+
+m_tot = m_mol + m_h2o_1 + m_h2o_2
+
+print m_tot.print_coordinates()
+
+# Prepare first water molecule
+r_h2o_1 = adfsinglepointjob( m_h2o_1, 'DZP', options=['NOSYMFIT']).run()
+
+# Prepare second water molecule
+r_h2o_2 = adfsinglepointjob( m_h2o_2, 'DZP', options=['NOSYMFIT']).run()
+
+frags = [fragment(r_h2o_1, [m_h2o_1], isfrozen=True, fdeoptions={"RELAX":""}),
+         fragment(r_h2o_2, [m_h2o_2], isfrozen=True, fdeoptions={"RELAX":""}),
+         fragment(None,    [m_mol]  ) ]
+
+fde_res = adffragmentsjob( frags, basis="TZ2P",
+                          fde={'RELAXCYCLES':2}, options=['NOSYM']).run()
+
+dipole_vect = fde_res.get_dipole_vector ()
+dipole_magn = fde_res.get_dipole_magnitude ()
+
+###################################################################
+
+def check_results (testobj, dipole_vect, dipole_magn):
+
+    testobj.assertAlmostEqual(dipole_magn,     0.833191201, 6) 
+
+    testobj.assertAlmostEqual(dipole_vect[0],  0.0,         4) 
+    testobj.assertAlmostEqual(dipole_vect[1],  0.0,         4) 
+    testobj.assertAlmostEqual(dipole_vect[2],  0.833191201, 4) 
+
+if 'unittesting' in pyadfenv.options:
+    check_results(testobj, dipole_vect, dipole_magn)
+

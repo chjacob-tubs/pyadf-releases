@@ -1,0 +1,58 @@
+def check_results (testobj, dipole_vect, dipole_magn):
+    
+    testobj.assertAlmostEqual(dipole_magn,     0.6629161489, 6) 
+
+    testobj.assertAlmostEqual(dipole_vect[0],  0.0,          6) 
+    testobj.assertAlmostEqual(dipole_vect[1],  0.0,          6) 
+    testobj.assertAlmostEqual(dipole_vect[2], -0.6629161489, 6) 
+
+# delete the standard file manager
+myfiles.cleanup()
+DefaultJobRunner.instance = None
+
+#create a custom file manager
+first_filemanager = adf_filemanager (pyadfenv.outdir, pyadfenv.jobid)
+first_filemanager.set_outputfilename ("first_adfoutput")
+
+h2o = molecule (os.path.join(pyadfenv.outdir, 'H2O.xyz'))
+
+results = adfsinglepointjob(h2o, 'SZ').run()
+
+dipole_vect = results.get_dipole_vector ()
+dipole_magn = results.get_dipole_magnitude ()
+
+check_results (testobj, dipole_vect, dipole_magn)
+
+savedir = os.path.join(pyadfenv.outdir, "pyadf_results."+pyadfenv.jobid)
+os.mkdir(savedir)
+first_filemanager.copy_all_results_to_dir (savedir)
+print " Results were saved to: ", savedir
+print
+
+# delete the old file manager and create a new one
+first_filemanager.cleanup()
+del(first_filemanager)
+DefaultJobRunner.instance = None
+
+second_filemanager = adf_filemanager (pyadfenv.outdir, pyadfenv.jobid)
+second_filemanager.set_outputfilename ("second_adfoutput")
+
+# import results from first run
+second_filemanager.import_resultsdir (savedir)
+
+print "Imported results from", savedir
+
+results = adfsinglepointjob(h2o, 'SZ').run()
+
+dipole_vect = results.get_dipole_vector ()
+dipole_magn = results.get_dipole_magnitude ()
+
+check_results (testobj, dipole_vect, dipole_magn)
+
+if os.path.exists(second_filemanager.outputfilename) :
+    testobj.fail('job was executed a second time')
+if os.path.exists(second_filemanager.errfilename) :
+    testobj.fail('job was executed a second time')
+
+second_filemanager.cleanup()
+DefaultJobRunner.instance = None

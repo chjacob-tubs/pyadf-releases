@@ -1,0 +1,9 @@
+#!/bin/sh
+
+rm -rf pyadfdoc*
+
+epydoc -v --html --no-frames --name="PyADF" --inheritance=included -o pyadfdoc ../src/pyadf 
+
+tar cf pyadfdoc.tar pyadfdoc
+gzip pyadfdoc.tar
+

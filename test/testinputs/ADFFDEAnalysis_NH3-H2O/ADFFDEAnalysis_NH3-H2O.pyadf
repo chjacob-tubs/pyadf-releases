@@ -1,0 +1,42 @@
+# set up molecule list
+molecules = []
+m1 = molecule(os.path.join(pyadfenv.startdir, 'NH3.xyz'), inputformat='xyz' )
+m2 = molecule(os.path.join(pyadfenv.startdir, 'H2O.xyz'), inputformat='xyz' )
+molecules = [m1, m2]
+
+#set up adf
+settings = adfsettings()
+settings.set_integration(3.0)
+settings.set_functional('PBE')
+settings.set_ZORA(ZORA=False)
+
+#set up adffde
+fdesettings = adffdesettings()
+fdesettings.set_occupations(None)
+fdesettings.set_lshift(None)
+fdesettings.set_packtape(False)
+
+#set up adffdeanalysis Settings
+fdeanalysissettings = adffdeanalysissettings()
+fdeanalysissettings.set_runtype(['normalFt'])
+fdeanalysissettings.set_tnad(['PBE2'])
+fdeanalysissettings.set_ncycle(2)
+
+diffjob = adffdeanalysisjob( molecules=molecules, basis='SZ',
+                            settings=fdeanalysissettings, 
+                            adfsettings=settings, adffdesettings=fdesettings)
+diffresults = diffjob.run()
+
+diffPrints = diffjob.print_results()
+
+##############################################################################
+def check_results (testobj, diffresults) :
+    testobj.assertAlmostEqual(diffresults['PBE2'][0][0], 0.868215, 4) 
+    testobj.assertAlmostEqual(diffresults['PBE2'][0][2], 0.009314, 4) 
+    testobj.assertAlmostEqual(diffresults['PBE2'][0][3], 0.001666, 4) 
+    testobj.assertAlmostEqual(diffresults['PBE2'][1][0], 0.782726, 4) 
+    testobj.assertAlmostEqual(diffresults['PBE2'][1][2], 0.007787, 4) 
+    testobj.assertAlmostEqual(diffresults['PBE2'][1][3], 0.001504, 4) 
+
+if 'unittesting' in pyadfenv.options :
+    check_results(testobj, diffresults)

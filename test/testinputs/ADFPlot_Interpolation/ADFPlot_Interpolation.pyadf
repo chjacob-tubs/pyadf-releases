@@ -1,0 +1,52 @@
+###################################################################
+#
+# PyADF test ADFPlot_Interpolation
+#
+# Test interpolation capabilities of PyADF's Plot module
+#
+# The test performs a calculation on a water molecule and 
+# extracts the total potential on the ADF grid. The potential
+# on an evenly space cube grid is then calculated by interpolation
+# and compared to the potential directly calculated on this grid.
+#
+# Test by Christoph Jacob, ETH Zurich and KIT, 2009-2010
+#
+###################################################################
+
+h2o = molecule (os.path.join(pyadfenv.outdir, 'H2O.xyz'))
+
+settings = adfsettings()
+settings.set_save_tapes([21,10])
+
+results = adfsinglepointjob( h2o, 'SZ', settings=settings).run()
+
+cgrid = cubegrid(results.get_molecule(), spacing=0.2)
+agrid = adfgrid(results)
+
+# calculate the total potential on both cubegrid and adfgrid
+pot_tot_cub = results.get_potential(grid=cgrid, pot='total')
+pot_tot_adf = results.get_potential(grid=agrid, pot='total')
+
+# now calculate the potential on the cubgrid from the
+# density on the adfgrid by interpolation
+pot_cub_interpolated = pot_tot_adf.interpolate(cgrid)
+
+# calculated the difference between the original potential
+# and the interpolated potential. 
+pot_diff = pot_tot_cub - pot_cub_interpolated
+
+# integrate the difference, ignoring points where the potential
+# is larger than 1.0 (close to the oxygen atom)
+#
+# NOTE: the (absolute) error is larger for points where
+#       the density is larger. Here, 8 points should be ignore
+#       (otherwise the error is these 8 points would dominate the
+#       total error
+int_diff = pot_diff.integral(func=lambda x: abs(x), 
+                             ignore=(abs(pot_tot_cub.get_values()) > 10.0))
+
+print "Integral of difference in potentials: ", int_diff
+
+if 'unittesting' in pyadfenv.options :
+    testobj.assert_(int_diff < 0.25, msg=str(int_diff))
+

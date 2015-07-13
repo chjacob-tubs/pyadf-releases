@@ -1,0 +1,283 @@
+###################################################################
+#
+# PyADF test ADFPotential_Unambiguous_Li
+#
+# Unambiguous potential reconstruction in basis set,
+#   unrestricted case 
+# see: Ch. R. Jacob, J. Chem. Phys. 135, 244102 (2011);
+#      K. Boguslawski, Ch. R. Jacob, M. Reiher, in preparation
+#
+# Test by Katharina Boguslawski, ETH Zurich 
+#         and Christoph Jacob, KIT, 2011-2012
+#
+###################################################################
+
+import math, numpy
+from hydrogen_solver import *
+
+plot = False
+
+if plot:
+    import pylab
+
+def get_startpot (refresults, grid) :
+    smallest_exp = 0.46 * 2.0
+
+    nucpot  = refresults.get_potential(grid, pot='nuc')
+    coulpot = refresults.get_potential(grid, pot='coul')
+    fa_pot  = coulpot * (-1.0/3.0) * smallest_exp 
+
+    pot = nucpot + coulpot + fa_pot 
+    return pot, fa_pot
+
+def run_potjob (refresults, potproj, projchange) :
+
+    agrid = adfgrid(refresults)
+    mol = refresults.get_molecule()
+    mol.set_symmetry('NOSYM')
+    mol.set_charge(0)
+    mol.set_spin(1)
+
+    refdens = refresults.get_density(grid=agrid)
+
+    startpot1, dum = get_startpot(refresults, agrid)
+
+    settings = adfsettings(functional='OLYP', accint=12.0, converge=1e-04)
+    settings.set_save_tapes([21,10])
+    settings.set_ncycles(1000)
+    settings.set_unrestricted(True)
+
+    job = adfsinglepointjob(mol, basis='TZ2P', settings=settings, options=['LINEARSCALING 100'])
+    potops = {'SVD':'', 'TIKH':0.0001, 'DENSCONV':1.0e-4,
+              'POTPROJ':potproj, 'PROJCHANGE':projchange, 'PROJSMALLDENS':1e-8}
+    potjob = adfpotentialjob(job, refdens, potoptions=potops, startpot=startpot1)
+
+    return potjob.run()
+
+def compare_results(refresults, potresults, recpot_num, color) :
+
+    mol = refresults.get_molecule()
+    mol.set_symmetry('NOSYM')
+    mol.set_charge(0)
+    mol.set_spin(1)
+
+    ######################################################
+    # comparison of densities (ADF grid)
+    ######################################################
+
+    agrid = adfgrid(refresults)
+    refdens = refresults.get_density(grid=agrid)
+    potdens = potresults.get_density(grid=agrid)
+    denserr_adf = (refdens-potdens)['alpha'].integral(abs), (refdens-potdens)['beta'].integral(abs)
+
+    ######################################################
+    # comparison of densities (logarithmic grid)
+    ######################################################
+
+    grid = LogGrid(400, b=0.01, rmax=100.0)
+
+    coords = numpy.zeros((grid.N,3))
+    coords[:,0] = grid.r
+    loggrid = customgrid(mol, coords)
+
+    d_ref_alpha = refresults.get_density(grid=loggrid)['alpha'].get_values()
+    d_ref_beta  = refresults.get_density(grid=loggrid)['beta'].get_values()
+    d_rec_alpha = potresults.get_density(grid=loggrid)['alpha'].get_values()
+    d_rec_beta  = potresults.get_density(grid=loggrid)['beta'].get_values()
+
+    denserr_alpha = 4.0*math.pi*grid.calc_integral(grid.r*grid.r*abs(d_ref_alpha-d_rec_alpha))
+    denserr_beta  = 4.0*math.pi*grid.calc_integral(grid.r*grid.r*abs(d_ref_beta-d_rec_beta))
+    denserr = denserr_alpha, denserr_beta
+
+    ########################################################
+    # numerical density on accurate potential
+    ########################################################
+
+    startpot, fa_pot = get_startpot(refresults, loggrid)
+    startpot = startpot.get_values()
+    fa_pot = fa_pot.get_values()
+
+    dens_recpot_num_alpha = calc_density(grid, startpot+recpot_num[0], {0:2}) * 0.5
+    denserr_recpot_num_alpha = 4.0*math.pi*grid.calc_integral(grid.r*grid.r*abs(d_ref_alpha-dens_recpot_num_alpha/grid.r**2))
+
+    dens_recpot_num_beta = calc_density(grid, startpot+recpot_num[1], {0:1}) * 0.5
+    denserr_recpot_num_beta = 4.0*math.pi*grid.calc_integral(grid.r*grid.r*abs(d_ref_beta-dens_recpot_num_beta/grid.r**2))
+
+    denserr_recpot_num = denserr_recpot_num_alpha, denserr_recpot_num_beta
+
+    ########################################################
+    # numerical density on reconstructed potential
+    ########################################################
+
+    recpot_bas_alpha = potresults.get_potential(grid=loggrid, pot='reconstructed')['alpha'].get_values()
+    recpot_bas_beta  = potresults.get_potential(grid=loggrid, pot='reconstructed')['beta'].get_values()
+
+    dens_recpot_bas_alpha = calc_density(grid, startpot+recpot_bas_alpha, {0:2}) * 0.5
+    denserr_recpot_bas_alpha = 4.0*math.pi*grid.calc_integral(grid.r*grid.r*abs(d_ref_alpha-dens_recpot_bas_alpha/grid.r**2))
+
+    dens_recpot_bas_beta = calc_density(grid, startpot+recpot_bas_beta, {0:1}) * 0.5
+    denserr_recpot_bas_beta = 4.0*math.pi*grid.calc_integral(grid.r*grid.r*abs(d_ref_beta-dens_recpot_bas_beta/grid.r**2))
+
+    denserr_recpot_bas = denserr_recpot_bas_alpha, denserr_recpot_bas_beta
+
+    if plot:
+        pylab.plot(grid.r, recpot_num[0]-recpot_num[1], 'k-')
+        pylab.plot(grid.r, recpot_bas_alpha-recpot_bas_beta, color)
+
+    return denserr_adf, denserr, denserr_recpot_num, denserr_recpot_bas
+
+def main():
+
+    mol = molecule (os.path.join(pyadfenv.outdir, 'Li.xyz'))
+    mol.set_symmetry('NOSYM')
+    mol.set_charge(0)
+    mol.set_spin(1)
+
+    ###################################################################
+    # A) reference calculation (BP86 for Ar atom)
+    ###################################################################
+
+    settings = adfsettings(functional='OLYP', accint=12.0, converge=1e-04)
+    settings.set_save_tapes([21,10])
+    settings.set_ncycles(100)
+    settings.set_unrestricted(True)
+
+    refresults = adfsinglepointjob(mol, basis='TZ2P', settings=settings, options=['LINEARSCALING 100']).run()
+
+    ####################################################################
+    # potential reconstruction job (zero projection / balanced)
+    ####################################################################
+
+    potresults = run_potjob(refresults, potproj='ZERO', projchange=1e-2)
+
+    recpot_num_alpha = numpy.loadtxt(os.path.join(pyadfenv.outdir, 'recpot_num_Li_olyp_alpha.txt'))
+    recpot_num_beta  = numpy.loadtxt(os.path.join(pyadfenv.outdir, 'recpot_num_Li_olyp_beta.txt'))
+    recpot_num = recpot_num_alpha, recpot_num_beta
+
+    denserr_adf, denserr, denserr_recpot_num, denserr_recpot_bas = compare_results(refresults, potresults, recpot_num, 'r-')
+    
+    print
+    print "Ar/DZP/BP86 zero projection / balanced (sigma=1e-2):"
+    print
+    print "error in reconstructed density (ADF grid):          ", denserr_adf
+    print "error in reconstructed density (logarithmic grid):  ", denserr
+    print "numerical density error on accurate potential:      ", denserr_recpot_num
+    print "numerical density error on reconstructed potential: ", denserr_recpot_bas
+    
+    if 'unittesting' in pyadfenv.options :
+         testobj.assertAlmostEqual(denserr_adf[0], 0.000283, 4)
+         testobj.assert_(denserr_adf[1] < 1.5e-6)
+         testobj.assertAlmostEqual(denserr[0],     0.000283, 4)
+         testobj.assert_(denserr[1] < 1.5e-6)
+         testobj.assert_(denserr_recpot_num[0] < 1.0e-4)
+         testobj.assert_(denserr_recpot_num[1] < 1.0e-4)
+         testobj.assertAlmostEqual(denserr_recpot_bas[0], 0.024002, 3)
+         testobj.assertAlmostEqual(denserr_recpot_bas[1], 0.008456, 3)
+
+    ####################################################################
+    # potential reconstruction job (smooth projection, err < 1e-3)
+    ####################################################################
+
+    potresults = run_potjob(refresults, potproj='SMOOTH', projchange=1.0e-3)
+ 
+    denserr_adf, denserr, denserr_recpot_num, denserr_recpot_bas = compare_results(refresults, potresults, recpot_num, 'b-')
+    
+    print
+    print "Ar/DZP/BP86 smooth projection, err < 1.0e-3 :"
+    print
+    print "error in reconstructed density (ADF grid):          ", denserr_adf
+    print "error in reconstructed density (logarithmic grid):  ", denserr
+    print "numerical density error on accurate potential:      ", denserr_recpot_num
+    print "numerical density error on reconstructed potential: ", denserr_recpot_bas
+
+    if 'unittesting' in pyadfenv.options :
+         testobj.assertAlmostEqual(denserr_adf[0], 0.000746, 4)
+         testobj.assertAlmostEqual(denserr_adf[1], 0.000988, 4)
+         testobj.assertAlmostEqual(denserr[0],     0.000746, 4)
+         testobj.assertAlmostEqual(denserr[1],     0.000998, 4)
+         testobj.assert_(denserr_recpot_num[0] < 1.0e-4)
+         testobj.assert_(denserr_recpot_num[1] < 1.0e-4)
+         testobj.assertAlmostEqual(denserr_recpot_bas[0], 0.032591, 3)
+         testobj.assertAlmostEqual(denserr_recpot_bas[1], 0.001735, 3)
+
+    ####################################################################
+    # potential reconstruction job (full projection)
+    ####################################################################
+
+    potresults = run_potjob(refresults, potproj='VIRT', projchange=10.0)
+ 
+    denserr_adf, denserr, denserr_recpot_num, denserr_recpot_bas = compare_results(refresults, potresults, recpot_num, 'g-')
+    
+    print
+    print "Ar/DZP/BP86 full projection:"
+    print
+    print "error in reconstructed density (ADF grid):          ", denserr_adf
+    print "error in reconstructed density (logarithmic grid):  ", denserr
+    print "numerical density error on accurate potential:      ", denserr_recpot_num
+    print "numerical density error on reconstructed potential: ", denserr_recpot_bas
+    
+    if 'unittesting' in pyadfenv.options :
+         testobj.assertAlmostEqual(denserr_adf[0], 0.012055, 4)
+         testobj.assertAlmostEqual(denserr_adf[1], 0.000623, 4)
+         testobj.assertAlmostEqual(denserr[0],     0.012005, 4)
+         testobj.assertAlmostEqual(denserr[1],     0.000622, 4)
+         testobj.assert_(denserr_recpot_num[0] < 1.0e-4)
+         testobj.assert_(denserr_recpot_num[1] < 1.0e-4)
+         testobj.assertAlmostEqual(denserr_recpot_bas[0], 0.009121, 3)
+         testobj.assertAlmostEqual(denserr_recpot_bas[1], 0.000263, 3)
+
+    if plot:
+        pylab.xlim(0.0, 4.0)
+        pylab.ylim(-1.0, 1.0)    
+
+    ###################################################################
+    # B) reference calculation (HF for Ar atom)
+    ###################################################################
+
+    settings = adfsettings(functional='HARTREEFOCK', accint=12.0, converge=1e-04)
+    settings.set_save_tapes([21,10])
+    settings.set_ncycles(100)
+    settings.set_unrestricted(True)
+
+    refresults = adfsinglepointjob(mol, basis='TZ2P', settings=settings, options=['LINEARSCALING 100']).run()
+
+    ####################################################################
+    # potential reconstruction job (full projection)
+    ####################################################################
+
+    potresults = run_potjob(refresults, potproj='VIRT', projchange=10.0)
+
+    recpot_num_alpha = numpy.loadtxt(os.path.join(pyadfenv.outdir, 'recpot_num_Li_hf_alpha.txt'))
+    recpot_num_beta  = numpy.loadtxt(os.path.join(pyadfenv.outdir, 'recpot_num_Li_hf_beta.txt'))
+    recpot_num = recpot_num_alpha, recpot_num_beta
+
+    if plot:
+        pylab.figure(2)
+    
+    denserr_adf, denserr, denserr_recpot_num, denserr_recpot_bas = compare_results(refresults, potresults, recpot_num, 'g-')
+
+    if plot:
+        pylab.xlim(0.0, 4.0)
+        pylab.ylim(-1.0, 1.0)    
+
+    print
+    print "Ar/DZP/HF full projection:"
+    print
+    print "error in reconstructed density (ADF grid):          ", denserr_adf
+    print "error in reconstructed density (logarithmic grid):  ", denserr
+    print "numerical density error on accurate potential:      ", denserr_recpot_num
+    print "numerical density error on reconstructed potential: ", denserr_recpot_bas
+
+    if 'unittesting' in pyadfenv.options :
+         testobj.assertAlmostEqual(denserr_adf[0], 0.014080, 4)
+         testobj.assertAlmostEqual(denserr_adf[1], 0.000232, 4)
+         testobj.assertAlmostEqual(denserr[0],     0.014013, 4)
+         testobj.assertAlmostEqual(denserr[1],     0.000231, 4)
+         testobj.assert_(denserr_recpot_num[0] < 1.0e-4)
+         testobj.assert_(denserr_recpot_num[1] < 1.0e-4)
+         testobj.assertAlmostEqual(denserr_recpot_bas[0], 0.008088, 3)
+         testobj.assert_(denserr_recpot_bas[1] < 1e-4)
+
+main()
+if plot:
+    pylab.show()

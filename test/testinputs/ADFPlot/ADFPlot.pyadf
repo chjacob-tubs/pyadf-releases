@@ -1,0 +1,118 @@
+###################################################################
+#
+# PyADF test ADFPlot
+#
+# Test and demonstrate basis features of PyADF's Plot module
+#  - using both cube and ADF grids
+#  - export of density to different file formats
+#  - calculation of density, squared density gradient, Laplacian
+#  - integration of density
+#  - numerical calculation of dipole moment
+#
+# Test by Christoph Jacob, ETH Zurich and KIT, 2009-2010
+#
+###################################################################
+
+from pyadf.Utils import Bohr_in_Angstrom, au_in_Debye
+
+#################################################
+# single point calculation on water molecule
+#################################################
+
+h2o = molecule (os.path.join(pyadfenv.outdir, 'H2O.xyz'))
+
+settings = adfsettings()
+settings.set_save_tapes([21,10])
+
+results = adfsinglepointjob( h2o, 'SZ', settings=settings).run()
+
+#########################################################################
+# utility function for numerical calculation of dipole moment
+#
+# arguments: dens - Plot.densfresults (the density, contains the grid)
+#            m    - the molecule (needed for the nuclear contribution)
+#########################################################################
+
+def calc_dipole (dens, m):
+    import numpy
+    dipole = numpy.zeros(3)
+    for w, c, d in zip(dens.grid.weightiter(), dens.grid.coorditer(), dens.valueiter()) :
+        dipole -= w * d * (c / Bohr_in_Angstrom) 
+
+    for i in range(1, m.mol.NumAtoms()+1) :
+        at = m.mol.GetAtom(i)
+        dipole += at.GetAtomicNum() * numpy.array( [at.GetX(), at.GetY(), at.GetZ()] ) / Bohr_in_Angstrom
+    
+    return dipole
+
+###############################################################
+# First, we use a "cube gird" (evenly spaced Carthesian grid)
+###############################################################
+
+print " Using cube grid with spacing 0.1"
+
+# get the density (Plot.densfresults)
+dens = results.get_density(grid=cubegrid(results.get_molecule(), spacing=0.1))
+
+# write density in different file formats
+dens.get_cubfile(os.path.join(pyadfenv.outdir, 'H2O.cub'))
+dens.get_xsffile(os.path.join(pyadfenv.outdir, 'H2O.xsf'))
+dens.get_xyzvfile(os.path.join(pyadfenv.outdir, 'H2O.xyzv'))
+
+# calculate integral of the density
+cube_int        = dens.integral()
+
+# calculate dipole moment numerically and analytically
+# (numerical integration is not very accurate, because 
+#  the grid is not suited for this, see below) 
+cube_num_dipole = calc_dipole(dens, results.get_molecule())*au_in_Debye
+analyt_dipole   = results.get_dipole_vector()*au_in_Debye
+
+print "     Integral of the density ", cube_int 
+print "     Dipole moment [numint] (Debye): ", cube_num_dipole
+print "     Dipole moment [analyt] (Debye): ", analyt_dipole
+
+if 'unittesting' in pyadfenv.options :
+    testobj.assertAlmostEqual(cube_int, 9.9862, 3)
+    testobj.assertAlmostEqual(cube_num_dipole[0],  0.0,       4)
+    testobj.assertAlmostEqual(cube_num_dipole[1],  0.0,       4)
+    testobj.assertAlmostEqual(cube_num_dipole[2], -1.7581622, 4)
+
+# test the squared density gradient
+
+grad = results.get_sqrgradient(grid=cubegrid(results.get_molecule(), spacing=0.1))
+grad.get_cubfile(os.path.join(pyadfenv.outdir, 'H2O-SqrGrad.cub'))
+
+# test the Laplacian of the density
+
+lapl = results.get_laplacian(grid=cubegrid(results.get_molecule(), spacing=0.1))
+lapl.get_cubfile(os.path.join(pyadfenv.outdir, 'H2O-Lap.cub'))
+
+#####################################################
+# Now, we use ADF's numerical integration  grid
+#####################################################
+
+print " Using ADF grid"
+
+# get density (now on ADF grid)
+dens = results.get_density(grid=adfgrid(results))
+
+# now export is only possible in XYZV format
+dens.get_xyzvfile(os.path.join(pyadfenv.outdir, 'H2O.xyzv'))
+
+# integral of the density
+adf_int        = dens.integral()
+
+# now, the dipole moment calculated by numerical integration is accurate
+adf_num_dipole = calc_dipole(dens, results.get_molecule())*au_in_Debye
+
+print "     Integral of the density ", adf_int
+print "     Dipole moment [numint] (Debye): ", adf_num_dipole
+print "     Dipole moment [analyt] (Debye): ", analyt_dipole
+
+if 'unittesting' in pyadfenv.options :
+    testobj.assertAlmostEqual(adf_int, 10.0, 4)
+    testobj.assertAlmostEqual(adf_num_dipole[0], analyt_dipole[0], 4)
+    testobj.assertAlmostEqual(adf_num_dipole[1], analyt_dipole[1], 4)
+    testobj.assertAlmostEqual(adf_num_dipole[2], analyt_dipole[2], 4)
+

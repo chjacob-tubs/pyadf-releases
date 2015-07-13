@@ -1,0 +1,122 @@
+m_an = molecule (os.path.join(pyadfenv.startdir,  'NMR-an.xyz'))
+m_an.set_symmetry('C(S)')
+m_h2o = molecule (os.path.join(pyadfenv.startdir, 'NMR-H2O.xyz'))
+m_h2o.set_symmetry('C(S)')
+
+supermol = m_an + m_h2o
+
+nmr_nucs = [3]
+nmr_nuc_symbols = supermol.get_atom_symbols(nmr_nucs) 
+nmr_ghosts = m_an.get_coordinates(nmr_nucs)
+
+def print_shieldings (s) :
+	if len(s) != 0 :
+		print len(s)*" %6.2f " % tuple(s)
+	else:
+		print
+
+settings = adfsettings(functional='BP86')
+settings.set_save_tapes([21,10])
+settings.set_exactdensity (True)
+settings.set_integration (accint=4.0)
+
+for basisset in ['SZ'] :
+
+	shieldings_supermol = []
+	shieldings_an       = []
+	shieldings_an_gh    = []
+	shieldings_h2o      = []
+	shieldings_h2o_gh   = []
+	bsse_cor_an  = []
+	bsse_cor_h2o = []
+	bsse_cor     = []
+	shieldings_supermol_corrected = []
+
+	shifts = []
+	shifts_corrected = []
+
+	# supermolecule
+
+	scfr_supermol = adfsinglepointjob( supermol, basisset, settings=settings).run()
+	nmrr_supermol = adfnmrjob( scfr_supermol, nmr_nucs).run()
+	shieldings_supermol = [s[0] for s in nmrr_supermol.get_all_shieldings()[0]]
+
+	# acetonitrile, without ghosts
+
+	scfr_an = adfsinglepointjob( m_an, basisset, settings=settings).run()
+	nmrr_an = adfnmrjob( scfr_an, nmr_nucs).run()
+	shieldings_an = [s[0] for s in nmrr_an.get_all_shieldings()[0]]
+
+	# acetonitrile, with ghosts
+
+	scfr_an = adfsinglepointjob( m_an.add_as_ghosts(m_h2o), basisset, settings=settings).run()
+	nmrr_an = adfnmrjob( scfr_an, nmr_nucs).run()
+	shieldings_an_gh = [s[0] for s in nmrr_an.get_all_shieldings()[0]]
+
+	# water, without ghosts
+
+	scfr_h2o = adfsinglepointjob( m_h2o, basisset, settings=settings, pointcharges=nmr_ghosts).run()
+	nmrr_h2o = adfnmrjob( scfr_h2o, [], ghosts=nmr_ghosts).run()
+	shieldings_h2o = [s[0] for s in nmrr_h2o.get_all_shieldings()[1]]
+
+	# water, with ghosts
+
+	scfr_h2o = adfsinglepointjob( m_h2o.add_as_ghosts(m_an), basisset, settings=settings).run()
+	nmrr_h2o = adfnmrjob( scfr_h2o, [], ghosts=nmr_ghosts).run()
+	shieldings_h2o_gh = [s[0] for s in nmrr_h2o.get_all_shieldings()[1]]
+
+	# corrections
+
+	bsse_cor_an  = [s-t for s, t in zip(shieldings_an_gh,  shieldings_an)]
+	bsse_cor_h2o = [s-t for s, t in zip(shieldings_h2o_gh, shieldings_h2o)]
+
+	bsse_cor  = [s+t for s, t in zip(bsse_cor_an,  bsse_cor_h2o)]
+
+	shieldings_supermol_corrected = [s-t for s,t in zip(shieldings_supermol, bsse_cor)]
+
+	shifts = [s-t for s, t in zip(shieldings_supermol,shieldings_an)]
+	shifts_corrected = [s-t for s, t in zip(shifts, bsse_cor)]
+
+	print
+	print
+	print " FINAL RESULTS "
+	print "  basis: ", basisset
+	print
+	print "Shieldings acetonitrile"
+	print "without ghosts  ",
+	print_shieldings(shieldings_an)
+	print "with ghosts     ",
+	print_shieldings(shieldings_an_gh)
+	print
+	print "Shieldings h2o"
+	print "without ghosts  ",
+	print_shieldings(shieldings_h2o)
+	print "with ghosts     ",
+	print_shieldings(shieldings_h2o_gh)
+	print
+	print "Shieldings supermolecule"
+	print "                ",
+	print_shieldings(shieldings_supermol)
+	print "bsse correction ",
+	print_shieldings(bsse_cor)
+	print "corrected sh.   ",
+	print_shieldings(shieldings_supermol_corrected)
+	print
+	print "Shifts"
+	print "                ",
+	print_shieldings(shifts)
+	print "corrected       ",
+	print_shieldings(shifts_corrected)
+	print
+
+###################################################################
+
+def check_results (testobj, shieldings_supermol, shifts, shifts_corrected):
+    
+    testobj.assertAlmostEqual(shieldings_supermol[0], 74.31, 2) 
+    testobj.assertAlmostEqual(shifts[0],              17.93, 2) 
+    testobj.assertAlmostEqual(shifts_corrected[0],    13.32, 2) 
+
+if 'unittesting' in pyadfenv.options:
+    check_results(testobj, shieldings_supermol, shifts, shifts_corrected)
+

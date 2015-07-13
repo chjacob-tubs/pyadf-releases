@@ -1,0 +1,6 @@
+include INSTALL
+include COPYING
+include README
+recursive-include test *
+prune test/*.pyc
+prune test/*testdir*

@@ -1,0 +1,16 @@
+
+h2o = molecule (os.path.join(pyadfenv.outdir, 'H2O.xyz'))
+
+results = adfgradientsjob( h2o, 'TZP').run()
+
+grads = results.get_gradients ()
+
+print grads
+
+###################################################################
+
+def check_results (testobj):
+    pass
+
+if 'unittesting' in pyadfenv.options:
+    check_results(testobj)

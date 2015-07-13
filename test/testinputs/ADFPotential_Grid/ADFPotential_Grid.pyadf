@@ -1,0 +1,131 @@
+###################################################################
+#
+# PyADF test ADFPotential_Grid
+#
+# Potential reconstruction on ADF Grid (van Leeuwen-Baerends)
+#
+# This tests performs a potential reconstruction for an isolated
+# water molecule, starting from the KS potential of the first
+# SCF iteration.
+#
+# The error in the electron density (integrated and dipole moment),
+# in the potential and in the orbital energies are compared. The
+# errors in the potential and the orbital energies are quite large,
+# because there are (unphysical) oscillations in the reconstructed
+# potential. 
+#
+# Test by Christoph Jacob, ETH Zurich and KIT, 2009-2010
+#
+###################################################################
+import numpy
+
+###################################################################
+# H2O reference calculation
+###################################################################
+
+h2o = molecule (os.path.join(pyadfenv.outdir, 'H2O.xyz'))
+h2o.set_symmetry('NOSYM')
+
+settings = adfsettings()
+settings.set_save_tapes([21,10])
+settings.set_functional('BP86')
+settings.set_integration(3.0)
+
+basis = 'TZ2P'
+
+refresults = adfsinglepointjob(h2o, basis, settings=settings).run()
+reforbens = refresults.get_result_from_tape('A', 'eps_A')
+
+# check reference dipole moment
+
+dipole_vect = refresults.get_dipole_vector ()
+dipole_magn = refresults.get_dipole_magnitude ()
+
+if 'unittesting' in pyadfenv.options :
+    testobj.assertAlmostEqual(dipole_magn, 0.71293219, 6) 
+    testobj.assertAlmostEqualVectors (dipole_vect, [-0.59194682, -0.39733017, 0.0], 6)
+
+# get reference density
+
+agrid = adfgrid(refresults)
+refdens = refresults.get_density(grid=agrid)
+
+###################################################################
+# potential reconstruction job
+###################################################################
+
+settings.set_ncycles(2000)
+
+job = adfsinglepointjob(h2o, basis, settings=settings)
+potjob = adfpotentialjob(job, refdens, potoptions={'CPGRID':'', 'DAMP':0.8,'CONVERGE':5.0e-3})
+potresults = potjob.run()
+
+potorbens = potresults.get_result_from_tape('A', 'eps_A')
+
+# check dipole moment (now only 3 digits wrt reference result
+
+dipole_vect = potresults.get_dipole_vector ()
+dipole_magn = potresults.get_dipole_magnitude ()
+
+if 'unittesting' in pyadfenv.options :
+    print abs(dipole_vect[0] + 0.59194682)
+    print abs(dipole_vect[1] + 0.39733017)
+    print abs(dipole_vect[2])
+    testobj.assert_(abs(dipole_magn - 0.71293219) < 0.01)
+    testobj.assert_(abs(dipole_vect[0] + 0.59194682) < 0.007) 
+    testobj.assert_(abs(dipole_vect[1] + 0.39733017) < 0.007) 
+    testobj.assert_(abs(dipole_vect[2]) < 0.007) 
+
+# check integral of difference density
+
+dens = potresults.get_density(grid=agrid)
+diff_dens = refdens - dens
+denserror = diff_dens.integral(func=lambda x: abs(x))
+
+print "Error in density: ", denserror
+
+if 'unittesting' in pyadfenv.options :
+    testobj.assert_(denserror < 0.005) 
+
+# get the final reconstructed potential
+pot = potresults.get_final_potential()
+
+# compare final potential with reference potential
+agrid = pot.grid
+dens = potresults.get_density(grid=agrid)
+refpot = refresults.get_potential(grid=agrid, pot='total')
+
+# determine shift in reconstructed potential
+diffpot = refpot - pot
+diffpotrho = diffpot*dens
+shift = diffpotrho.integral()/dens.integral()
+
+diffpot = diffpot - shift
+diffpotrho = diffpot*dens
+
+poterror = diffpotrho.integral(func=lambda x: abs(x))
+print "Difference in Potential: ", poterror
+
+if 'unittesting' in pyadfenv.options :
+    testobj.assert_(poterror < 0.3) 
+
+# compare orbital energies
+orben_diffs = (reforbens-potorbens - shift)*au_in_eV
+
+print "Occupied orbital energy differences "
+print orben_diffs[:5]
+sum_orben_diffs = numpy.abs(orben_diffs[:5]).sum()
+print sum_orben_diffs
+
+if 'unittesting' in pyadfenv.options :
+    testobj.assert_(sum_orben_diffs < 0.12) 
+
+print "Virtual orbital energy differences "
+print orben_diffs[5:15]
+
+# output difference potential in cubefile
+
+cgrid = cubegrid(h2o, spacing=0.2)
+
+diffpot_cub = diffpot.interpolate(cgrid)
+diffpot_cub.get_cubfile(os.path.join(pyadfenv.outdir, 'diffpot.cub'))

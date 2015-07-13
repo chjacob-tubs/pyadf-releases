@@ -1,0 +1,68 @@
+
+##########################################################
+# 1) Test reading of different residues from PDB file
+
+filename = os.path.join(pyadfenv.outdir, 'an.pdb')
+m = molecule(filename, 'pdb')
+
+# get the acetonitrile molecule (labeled 'LIG')
+an = m.get_residues(restype='LIG')[0]
+
+print an
+
+an_out = molecule(os.path.join(pyadfenv.outdir, 'an_out.xyz'))
+testobj.assertAlmostEqualMolecules(an, an_out)
+
+# get all the water solute molecules
+solvent = m.get_residues(restype='TIP')
+
+for i, s in enumerate(solvent[0:5]) :
+    print s
+
+    s_out = molecule(os.path.join(pyadfenv.outdir, 's_%i.xyz'%i))
+    testobj.assertAlmostEqualMolecules(s, s_out)
+
+##########################################################
+# 2) Now the same, using the separate method
+
+mols = m.separate()
+
+print mols[0]
+
+an_out = molecule(os.path.join(pyadfenv.outdir, 'an_out.xyz'))
+testobj.assertAlmostEqualMolecules(mols[0], an_out)
+
+for i, s in enumerate(mols[1:6]) :
+    print s
+
+    s_out = molecule(os.path.join(pyadfenv.outdir, 's_%i.xyz'%i))
+    testobj.assertAlmostEqualMolecules(s, s_out)
+
+############################################################
+# remove alternate locations in pdb files 
+
+filename = os.path.join(pyadfenv.outdir, '1X3O.pdb')
+
+m = molecule(filename,'pdb')
+m.delete_residue(restype='HOH')
+
+no_atoms_old  = m.get_number_of_atoms()
+
+atomlist= m.get_alternate_locations(filename)
+lenatomlist = len(atomlist)
+print "List of atoms that represent alternate locations"
+print atomlist
+
+m.delete_atoms(atomlist)
+
+no_atoms_new  = m.get_number_of_atoms()
+
+print "old no of atoms, no of deleted atoms, new number of atoms"
+print no_atoms_old, lenatomlist, no_atoms_new
+
+m_mod = molecule(os.path.join(pyadfenv.outdir, '1X3O_mod.xyz'))
+
+testobj.assertAlmostEqualMolecules(m, m_mod)
+
+
+

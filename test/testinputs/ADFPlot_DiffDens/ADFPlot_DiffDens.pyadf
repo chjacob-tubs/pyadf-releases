@@ -1,0 +1,73 @@
+######################################################################
+#
+# PyADF test ADFPlot_DiffDens
+#
+# Test and demonstrate density addition/subtraction 
+#
+# The test performs a supermolecule calculation on a water dimer
+# as well as on the two isolated water molecules and calculates
+# the difference density (supermolecule compared to sum-of-fragments.
+# This is done both for the (evenly spaced) cube grid and for the
+# ADF grid and the integrated error is compared.
+#
+# Test by Christoph Jacob, ETH Zurich and KIT, 2009-2010
+#
+######################################################################
+
+file_h2o_1 = os.path.join (pyadfenv.outdir, 'H2O-1.xyz')
+file_h2o_2 = os.path.join (pyadfenv.outdir, 'H2O-2.xyz')
+
+m_h2o_1 = molecule(file_h2o_1)
+m_h2o_2 = molecule(file_h2o_2)
+m_tot = m_h2o_1 + m_h2o_2
+
+m_h2o_1.set_symmetry('NOSYM')
+m_h2o_2.set_symmetry('NOSYM')
+m_tot.set_symmetry('NOSYM')
+
+# Calculate first water molecule
+r_h2o_1 = adfsinglepointjob( m_h2o_1, 'SZ').run()
+
+# Calculate second water molecule
+r_h2o_2 = adfsinglepointjob( m_h2o_2, 'SZ').run()
+
+# Calculated supermolecule
+settings = adfsettings()
+settings.set_save_tapes([10,21])
+r_tot = adfsinglepointjob( m_tot, 'SZ', settings=settings).run()
+
+for name, grid in [('adfgrid', adfgrid(r_tot)), ('cubegrid', cubegrid(r_tot.get_molecule(), spacing=0.1))] :
+
+    # the three different densities
+    dens1 = r_h2o_1.get_density(grid=grid)
+    dens2 = r_h2o_2.get_density(grid=grid)
+    denstot = r_tot.get_density(grid=grid)
+
+    # export total density
+    denstot.get_xyzvfile(os.path.join(pyadfenv.outdir, 'Supermol-%s.xyzv'%name))
+    denstot.get_tape41(os.path.join(pyadfenv.outdir, 'Supermol-%s.t41'%name))
+
+    # adding a constant value to a density
+    denstot = denstot + 0.0
+    denstot.get_tape41(os.path.join(pyadfenv.outdir, 'Supermol-1-%s.t41'%name))
+
+    # the sum-of-fragments density
+    dens_sumfrag = dens1 + dens2
+    dens_sumfrag.get_xyzvfile(os.path.join(pyadfenv.outdir, 'SumFrag-%s.xyzv'%name))
+    dens_sumfrag.get_tape41(os.path.join(pyadfenv.outdir, 'SumFrag-%s.t41'%name))
+
+    # the difference density
+    diff_dens = dens_sumfrag - denstot
+    diff_dens.get_xyzvfile(os.path.join(pyadfenv.outdir, 'Diff-%s.xyzv'%name))
+    diff_dens.get_tape41(os.path.join(pyadfenv.outdir, 'Diff-%s.t41'%name))
+
+    # integrate the absolute value of the density
+    int_diff = diff_dens.integral(func=lambda x: abs(x))
+    print "Integral of difference density: ", int_diff
+
+    if 'unittesting' in pyadfenv.options:
+        if name == 'adfgrid':
+            testobj.assertAlmostEqual(int_diff, 0.13820, 4)
+        else :
+            testobj.assertAlmostEqual(int_diff, 0.13680, 4)
+

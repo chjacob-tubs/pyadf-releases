@@ -1,0 +1,80 @@
+###################################################################
+#
+# PyADF test ADFPlot_Spin
+#
+# Test by Christoph Jacob, KIT, 2012
+#
+###################################################################
+
+o2 = molecule (os.path.join(pyadfenv.outdir, 'O2.xyz'))
+o2.set_spin(2)
+
+settings = adfsettings(functional='BP86', accint=6.0)
+settings.set_save_tapes([21,10])
+settings.set_unrestricted(True)
+
+results = adfsinglepointjob(o2, 'DZP', settings=settings).run()
+
+agrid = adfgrid(results)
+cgrid = cubegrid(results.get_molecule(), spacing=0.1)
+
+for name, grid in [('agrid', agrid), ('cgrid', cgrid)] :
+    dens = results.get_density(grid=grid)
+
+    densint_a = dens['alpha'].integral()
+    densint_b = dens['beta'].integral()
+    densint_tot = dens['tot'].integral()
+    densint_spin = dens['spin'].integral()
+
+    print "Integral of the alpha density:", densint_a
+    print "Integral of the beta  density:", densint_b
+    print "Integral of the total density:", densint_tot
+    print "Integral of the spin  density:", densint_spin
+
+    if 'unittesting' in pyadfenv.options:
+         if name == 'agrid' :
+             testobj.assertAlmostEqual(densint_a, 9.0, 4)
+             testobj.assertAlmostEqual(densint_b, 7.0, 4)
+             testobj.assertAlmostEqual(densint_tot, 16.0, 4)
+             testobj.assertAlmostEqual(densint_spin, 2.0, 4)
+         else:
+             testobj.assertAlmostEqual(densint_a, 9.4872982, 4)
+             testobj.assertAlmostEqual(densint_b, 7.5696267, 4)
+             testobj.assertAlmostEqual(densint_tot, 17.0569249, 4)
+             testobj.assertAlmostEqual(densint_spin, 1.9176715, 4)
+
+    pot_tot = results.get_potential(grid=grid, pot='total')
+
+    en_a = (dens['alpha']*pot_tot['alpha']).integral()
+    en_b = (dens['beta']*pot_tot['beta']).integral()
+
+    print "Numerically integrated alpha energy: ", en_a
+    print "Numerically integrated beta  energy: ", en_b
+
+    if 'unittesting' in pyadfenv.options:
+         if name == 'agrid' :
+             testobj.assertAlmostEqual(en_a, -120.100655274, 6)
+             testobj.assertAlmostEqual(en_b, -112.706598753, 6)
+         else:
+             testobj.assertAlmostEqual(en_a, -686.969070604, 6)
+             testobj.assertAlmostEqual(en_b, -679.703787098, 6)
+
+    pot_nuc  = results.get_potential(grid=grid, pot='nuc')
+    pot_coul = results.get_potential(grid=grid, pot='coul')
+    pot_xc   = results.get_potential(grid=grid, pot='xc')
+
+    pot_tot = pot_nuc + pot_coul + pot_xc
+
+    en_a = (dens['alpha']*pot_tot['alpha']).integral()
+    en_b = (dens['beta']*pot_tot['beta']).integral()
+
+    print "Numerically integrated alpha energy: ", en_a
+    print "Numerically integrated beta  energy: ", en_b
+
+    if 'unittesting' in pyadfenv.options:
+         if name == 'agrid' :
+             testobj.assertAlmostEqual(en_a, -120.100655274, 6)
+             testobj.assertAlmostEqual(en_b, -112.706598753, 6)
+         else:
+             testobj.assertAlmostEqual(en_a, -686.969070604, 6)
+             testobj.assertAlmostEqual(en_b, -679.703787098, 6)

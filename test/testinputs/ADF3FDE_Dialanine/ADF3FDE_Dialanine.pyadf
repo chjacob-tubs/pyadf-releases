@@ -1,0 +1,63 @@
+import math
+import numpy
+import copy
+
+supermol = molecule (os.path.join(pyadfenv.outdir, 'dialanine.xyz'))
+
+settings = adfsettings ()
+settings.set_functional('BP86')
+settings.set_integration(accint=2.0)
+
+supermol_results = adfsinglepointjob( supermol, 'SZ', core='Large', settings=settings).run()
+
+supermol_dipole = supermol_results.get_dipole_vector()
+
+frags = cappedfragmentlist()
+frags.partition_protein(supermol)
+
+mfcc_results = adfmfccjob( frags, 'SZ', core='Large', settings=settings).run()
+
+mfcc_dipole = mfcc_results.get_dipole_vector()
+frags       = mfcc_results.get_fragmentlist()
+
+fde_results = adf3fdejob( frags, 'SZ', core='Large', settings=settings,
+                         fde={'RHO1FITTED':'','CapDensConv':1e-3},
+                         fdeoptions={'DENSTYPE':'SCFfitted'}).run()
+
+fde_dipole = fde_results.get_dipole_vector()
+fde_dens = fde_results.get_density(spacing=0.2, fit=True)
+
+supermol_dens = supermol_results.get_density(grid=fde_dens.grid, fit=True)
+
+diff_dens = fde_dens - supermol_dens
+diff_dens.get_cubfile(os.path.join(pyadfenv.outdir, 'diff-dens.cub'))
+
+print "Dipole moment: "
+print "    Supermolecule:  ", supermol_dipole
+print "    MFCC:           ", mfcc_dipole
+print "    3-FDE:          ", fde_dipole
+
+sqrt_error = math.sqrt(diff_dens.integral(func=lambda x: x*x))
+abs_error  = diff_dens.integral(func=lambda x: abs(x))
+
+print " Diff Dens Int        : ", diff_dens.integral()
+print " Diff Dens Int (Sqr.) : ", sqrt_error
+print " Diff Dens Int (Abs.) : ", abs_error
+
+testobj.assertAlmostEqual (sqrt_error, 0.00721257, 5)
+testobj.assertAlmostEqual (abs_error,  0.07041649, 5)
+
+def check_dipole (testobj, dipole_vect_ref, dipole_vect):
+
+    testobj.assertAlmostEqual(dipole_vect[0], dipole_vect_ref[0], 4) 
+    testobj.assertAlmostEqual(dipole_vect[1], dipole_vect_ref[1], 4) 
+    testobj.assertAlmostEqual(dipole_vect[2], dipole_vect_ref[2], 4) 
+
+print supermol_dipole
+print mfcc_dipole
+print fde_dipole
+
+check_dipole (testobj, [ 0.56269604, -0.69415351, -0.73474538], supermol_dipole)
+check_dipole (testobj, [ 0.56452353, -0.69343547, -0.71273127], mfcc_dipole)
+check_dipole (testobj, [ 0.58089887, -0.6926366 , -0.71824228], fde_dipole)
+

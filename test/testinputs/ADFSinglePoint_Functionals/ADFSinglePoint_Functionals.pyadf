@@ -1,0 +1,45 @@
+def check_results (fun, testobj, dipole_vect, dipole_magn):
+    if fun == 'LDA':
+       magn = 1.68498037 
+       vect = [0.0, 0.0, -1.68498037]
+    if fun == 'PW91':
+       magn = 1.61555689
+       vect = [0.0, 0.0, -1.61555689]
+    if fun == 'PBE0':
+       magn = 1.65754074
+       vect = [0.0, 0.0, -1.65754074]
+    if fun == 'M06L':
+       magn = 1.66846818
+       vect = [0.0, 0.0, -1.66846818]
+    if fun == 'M06-2X':
+       magn = 1.68265741
+       vect = [0.0, 0.0, -1.68265741]
+
+    testobj.assertAlmostEqual(dipole_magn,     magn, 6) 
+    testobj.assertAlmostEqualVectors(dipole_vect, vect, 6)
+
+##########################################################
+
+h2o = molecule (os.path.join(pyadfenv.outdir, 'H2O.xyz'))
+
+settings = adfsettings()
+
+for fun in ['LDA', 'PW91', 'PBE0', 'M06L', 'M06-2X']: 
+
+    settings.set_functional(fun)
+    settings.set_integration(4.0)
+
+    results = adfsinglepointjob(h2o, 'SZ', settings=settings).run()
+
+    dipole_vect = results.get_dipole_vector ()
+    dipole_magn = results.get_dipole_magnitude ()
+
+#   convert do debye
+    dipole_vect = dipole_vect * au_in_Debye 
+    dipole_magn = dipole_magn * au_in_Debye
+
+    print dipole_vect,'  ',dipole_magn
+    check_results (fun, testobj, dipole_vect, dipole_magn)
+        
+
+        

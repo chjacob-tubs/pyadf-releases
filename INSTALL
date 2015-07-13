@@ -1,0 +1,63 @@
+
+Installation Notes for PyADF
+============================
+
+There are to ways of installing PyADF:
+a) by using the SVN version locally (for developers)
+b) as a package using setup.py (for users)
+
+
+In both cases, you have to make sure the required
+packages are installed and working on your system.
+This are:
+
+- Python >= 2.4
+  (on most machines this is preinstalled)
+
+- pyKF (by Drew McCormack)
+  (this is preinstalled on the TC cluster)
+
+- a working installation of ADF
+  (in particular, ADFHOME and friends have to be defined)
+  PyADF requires a recent trunk version of ADF (Feb 2007 or newer)
+
+- openbabel, including Python wrapper
+  On the TC cluster, include this in your .bashrc (or whatever shell you are using) :
+     
+     export MODULEPATH=$MODULEPATH:/home4/cjacob/share/modules
+     module load openbabel
+
+- for generating documentation, epydoc v2.1 is needed
+  On the TC cluster, include this in your .bashrc (or whatever shell you are using) :
+     
+     export MODULEPATH=$MODULEPATH:/home4/cjacob/share/modules
+     module load epydoc
+
+
+a) use the SVN version
+----------------------
+
+1. check out pyadf from SVN:
+
+   svn co svn+ssh://user@radon.chem.vu.nl/users/svn/repositories/seamless/trunk pyadf
+
+2. set the following environment variables in your .bashrc
+
+   export PYADFHOME=((path-to-pyadf))
+
+   export PATH=$PATH:((path-to-pyadf))/src/scripts
+   export PYTHONPATH=$PYTHONPATH:((path-to-pyadf))/src
+
+   (if you want to use a module for this, on the TC cluster have a look at
+    /home4/cjacob/share/modules/pyadf)
+
+3. That should be it - your are ready to enjoy PyADF.
+
+   On the TC cluster, you can submit PyADF input files to the 
+   queueing system using the option "-a pyadf"
+
+
+b) as a package using setup.py
+------------------------------
+
+This is not completly working yet

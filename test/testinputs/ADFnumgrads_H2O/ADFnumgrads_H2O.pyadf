@@ -1,0 +1,46 @@
+# pyadfenv
+pyadfenv.options['save_results']  = True
+
+# molecules
+f_h2o = os.path.join (pyadfenv.startdir, 'h2o.xyz')
+
+m_h2o = molecule(f_h2o)
+m_h2o.set_symmetry('NOSYM')
+m_h2o.set_charge(0)
+m_h2o.set_spin(0)
+
+# ADF settings
+s_adf = adfsettings()
+s_adf.set_functional('LDA')
+s_adf.set_integration(4.0)
+s_adf.set_save_tapes([21])
+s_adf.set_exactdensity(True)
+basis = 'SZ'
+core  = None
+o_scf=[]
+
+s_scf = adfscfsettings(basis=basis, core=core, settings=s_adf, options=o_scf)
+
+job = adfnumgradsjob( molecule=m_h2o, settings=None, scfsettings=s_scf)
+results = job.run()
+numgrad = results.get_gradients()
+
+for i in range(3):
+    for j in range(3):
+        print "%13.6e" % numgrad[i][j]
+
+##############################################################################
+def check_results (testobj, numgrad) :
+    testobj.assertAlmostEqual (numgrad[0][0], -8.691433e-01, 2)
+    testobj.assertAlmostEqual (numgrad[0][1],  1.222361e-01, 2)
+    testobj.assertAlmostEqual (numgrad[0][2], -5.095738e-03, 2)
+    testobj.assertAlmostEqual (numgrad[1][0],  9.031754e-01, 2)
+    testobj.assertAlmostEqual (numgrad[1][1], -1.831273e-01, 2)
+    testobj.assertAlmostEqual (numgrad[1][2],  4.135070e-03, 2)
+    testobj.assertAlmostEqual (numgrad[2][0], -3.557280e-02, 2)
+    testobj.assertAlmostEqual (numgrad[2][1],  6.107186e-02, 2)
+    testobj.assertAlmostEqual (numgrad[2][2],  8.776214e-04, 2)
+
+if 'unittesting' in pyadfenv.options:
+    check_results(testobj, numgrad)
+

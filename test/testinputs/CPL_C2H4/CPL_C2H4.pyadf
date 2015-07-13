@@ -1,0 +1,80 @@
+#-----------------------------------------------------------------------------
+# molecule object
+#-----------------------------------------------------------------------------
+ethene = molecule(os.path.join(pyadfenv.startdir,  'ethene.xyz'), inputformat='xyz')
+ethene.set_symmetry('NOSYM')
+ethene.set_charge(0)
+ethene.set_spin(0)
+
+#-----------------------------------------------------------------------------
+# pyadfenv environment 
+# (is initialized by the pyadf script)
+#-----------------------------------------------------------------------------
+# save TAPE files
+pyadfenv.options['save_results']  = True
+
+#-----------------------------------------------------------------------------
+# ADF settings
+#-----------------------------------------------------------------------------
+settings = adfsettings()
+settings.set_save_tapes([21])
+settings.set_functional('LDA')
+settings.set_integration(accint=2.0)
+basis = 'SZ'
+core = None
+
+#-----------------------------------------------------------------------------
+# ADF single point job
+#-----------------------------------------------------------------------------
+scf_results = adfsinglepointjob( mol=ethene, basis=basis, core=core, settings=settings).run()
+
+#-----------------------------------------------------------------------------
+# CPL job
+#-----------------------------------------------------------------------------
+cpl_settings = cplsettings()
+cpl_settings.set_operators(['fc','dso','pso'])
+atompert = [1]
+atomresp = [2, 3]
+cpl_settings.set_atompert(atompert)
+cpl_settings.set_atomresp(atomresp)
+cpl_results = adfcpljob( adfres=scf_results, settings=cpl_settings).run()
+ 
+
+print ' +--------------+'
+print ' |   Results:   |'
+print ' +--------------+\n'
+
+j12 = cpl_results.get_coupling([1,2])
+print ' J(1,2) = %7.2f' % j12
+
+all_j = cpl_results.get_all_couplings()
+all_k = cpl_results.get_all_couplings('K')
+for j, k in zip(all_j, all_k) :
+    line  = ' J(%i,%i) = %7.2f,   ' % j
+    line += ' K(%i,%i) = %7.2f' % k
+    print line
+print '\n'
+
+
+##############################################################################
+def check_results (testobj, j12, all_j, all_k) :
+    testobj.assertAlmostEqual(j12, 164.86, 2) 
+
+    testobj.assertEqual       (all_j[0][0], 2) 
+    testobj.assertEqual       (all_j[0][1], 1) 
+    testobj.assertAlmostEqual (all_j[0][2], 164.86, 2) 
+    testobj.assertEqual       (all_j[1][0], 3) 
+    testobj.assertEqual       (all_j[1][1], 1) 
+    testobj.assertAlmostEqual (all_j[1][2], 342.04, 2)
+    
+    testobj.assertEqual       (all_k[0][0], 2) 
+    testobj.assertEqual       (all_k[0][1], 1) 
+    testobj.assertAlmostEqual (all_k[0][2], 216.98, 2) 
+    testobj.assertEqual       (all_k[1][0], 3) 
+    testobj.assertEqual       (all_k[1][1], 1) 
+    testobj.assertAlmostEqual (all_k[1][2], 113.22, 2)
+
+
+if 'unittesting' in pyadfenv.options:
+    check_results(testobj, j12, all_j, all_k)
+

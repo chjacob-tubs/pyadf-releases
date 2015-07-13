@@ -1,0 +1,67 @@
+
+filename = os.path.join(pyadfenv.outdir, 'an.pdb')
+
+m = molecule (filename, inputformat='pdb')
+
+an = m.get_residues(restype='LIG')[0]
+an.set_symmetry('NOSYM')
+
+print "Acetonitrile"
+print an.print_coordinates()
+
+solvent = m.get_residues(restype='TIP')
+
+print "Solvent"
+for f in solvent :
+    print "New fragment"
+    print f.print_coordinates()
+
+m_h2o = solvent[0]
+m_h2o.set_symmetry('NOSYM')
+
+# Prepare isolated water density
+r_h2o = adfsinglepointjob( m_h2o, 'DZP').run()
+
+# some settings, SAVE TAPE10 is important for FDE + NMR
+fde_settings = adfsettings()
+fde_settings.set_save_tapes([21,10])
+fde_settings.set_functional('BP86')
+fde_settings.set_integration(accint=4.0)
+
+# isolated acetonitrile molecules
+r_an = adfsinglepointjob( an, 'DZP', settings=fde_settings).run()
+nmr_results = adfnmrjob( r_an, [2]).run()
+
+shielding_isolated = nmr_results.get_shielding(nuc=2)[0]
+print "Shielding (isolated) : ", shielding_isolated
+
+# 2 H2O molecule are relaxed, 10 more frozen
+frags = [ fragment(None, [an]),
+          fragment(r_h2o, solvent[0],    isfrozen=True, fdeoptions={"RELAX":""}),
+          fragment(r_h2o, solvent[1],    isfrozen=True, fdeoptions={"RELAX":""}),
+          fragment(r_h2o, solvent[2:12], isfrozen=True)
+        ]
+    
+fde_results = adffragmentsjob( frags, basis="DZP",
+                              settings=fde_settings, fde={'RELAXCYCLES':1}).run()
+nmr_results = adfnmrjob( fde_results, [2]).run()
+
+shielding_solution = nmr_results.get_shielding(nuc=2)[0]
+
+print "Shielding (isolated)  : ", shielding_isolated
+print "Shielding (solution)  : ", shielding_solution
+
+shift = shielding_solution - shielding_isolated
+
+print "Solvent Shift : ", shift
+
+
+###################################################################
+
+def check_results (testobj, shift):
+    testobj.assertAlmostEqual(shift, 36.44 - 20.59, 2) 
+
+if 'unittesting' in pyadfenv.options:
+    check_results(testobj, shift)
+
+
