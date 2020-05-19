@@ -50,7 +50,7 @@ class KFType:
     def stringForData(self, data)  : 
         import string
         try:
-            s = string.join( map(str, data), ' ')
+            s = string.join( list(map(str, data)), ' ')
         except: 
             raise PyADFException('Failed to convert data to string')
         return s
@@ -68,7 +68,7 @@ class KFType:
 
         # Convert elements to appropriate python types
         convertFunc = self.stringToDataConversionFunc()
-        if convertFunc: elements = map( convertFunc, elements )
+        if convertFunc: elements = list(map( convertFunc, elements ))
         
         return elements
 
@@ -221,7 +221,7 @@ class kffile:
     def sections(self):
         "Returns array of strings containing all section names."
         if not self._contentsdict: self._contentsdict = self._readcontents()
-        sortedKeys = self._contentsdict.keys()
+        sortedKeys = list(self._contentsdict.keys())
         sortedKeys.sort()
         return sortedKeys
         
@@ -288,7 +288,7 @@ class kffile:
         if not match: return None
         intStringArray = re.split( r'\s+', match.group(1) )
         intStringArray.pop(0)
-        memory, numElements, dataEnum = map( int, intStringArray )
+        memory, numElements, dataEnum = list(map( int, intStringArray ))
         dataStartIndex = match.end()
 
         # Extract and return data, converting to numpy array if numpy is present
@@ -444,9 +444,9 @@ class KFFileTests (TestCase):
     def testDeleteFile(self):
         import os
         self.kf.writechars ('Test', 'string', "Hello World")
-        self.failUnless (os.path.isfile(self.kfPath))
+        self.assertTrue (os.path.isfile(self.kfPath))
         self.kf.delete()
-        self.failIf (os.path.isfile(self.kfPath))
+        self.assertFalse (os.path.isfile(self.kfPath))
         
  
 def runTests():

@@ -32,20 +32,21 @@
 """
 #pylint: disable=E1103
 
-from ADFBase import adfjob, adfresults
-from Plot.Grids import cubegrid, adfgrid
-from ADF_Densf import densfjob
+from .ADFBase import adfjob, adfresults
+from .Plot.Grids import cubegrid, adfgrid
+from .ADF_Densf import densfjob
 
-from Plot.Properties import PlotPropertyFactory
-from Plot.GridFunctions import GridFunctionFactory, GridFunctionDensityWithDerivatives
-from Plot.FileWriters import GridWriter
+from .Plot.Properties import PlotPropertyFactory
+from .Plot.GridFunctions import GridFunctionFactory, GridFunctionDensityWithDerivatives
+from .Plot.FileWriters import GridWriter
 
-from Errors import PyAdfError
-from Molecule import molecule
-from Utils import au_in_eV
+from .Errors import PyAdfError
+from .Molecule import molecule
+from .Utils import au_in_eV
 import os
 import re
 import shutil
+from functools import reduce
 
 
 class adfsettings(object):
@@ -405,7 +406,7 @@ class adfsettings(object):
         self.printcharge = printcharge
         self.printfit = printfit
 
-        keys = printeig.keys()  
+        keys = list(printeig.keys())  
         if 'occ' in keys:
             self.printeig['occ'] = printeig['occ']  
         else: 
@@ -961,7 +962,7 @@ class adfsinglepointresults(adfresults):
 
         @rtype: bool
         """
-        from ADFFragments import adffragmentsjob
+        from .ADFFragments import adffragmentsjob
 
         if isinstance(self.job, adffragmentsjob):
             return self.job.is_fde_job()
@@ -1015,7 +1016,7 @@ class adfsinglepointresults(adfresults):
 
         @rtype: L{GridFunctionDensity}
         """
-        if (orbs is not None) and (not 'Loc' in orbs.keys()):
+        if (orbs is not None) and (not 'Loc' in list(orbs.keys())):
             if (order is not None) and (order > 1):
                 raise PyAdfError("Derivatives not implemented for orbital densities.")
             return self.get_orbital_density(grid, orbs)
@@ -1089,7 +1090,7 @@ class adfsinglepointresults(adfresults):
 
         @rtype: L{GridFunctionDensity}
         '''
-        if orbs.keys() == ['A']:
+        if list(orbs.keys()) == ['A']:
             prop = PlotPropertyFactory.newDensity('dens', orbs=orbs)
             res = densfjob(self, prop, grid=grid).run()
             orbdens = res.get_gridfunction()
@@ -1326,7 +1327,7 @@ class adfsinglepointresults(adfresults):
         '''
 
         import numpy
-        from Utils import Bohr_in_Angstrom
+        from .Utils import Bohr_in_Angstrom
 
         # get density on ADF grid
         dens = self.get_density(grid=self.grid, orbs={'Loc': orbs})
@@ -1342,17 +1343,17 @@ class adfsinglepointresults(adfresults):
 
         densval = dens.get_values().flat
 
-        print "Densint: ", (weights * densval).sum()
+        print("Densint: ", (weights * densval).sum())
 
         # now calculate Coulomb potential on requested grid
         coulpot = numpy.zeros(grid.npoints)
         p = numpy.empty_like(coords)
 
-        print "Number of points to calculate: ", grid.npoints
+        print("Number of points to calculate: ", grid.npoints)
 
         for i, point in enumerate(grid.coorditer()):
             if i % 500 == 0:
-                print "Calculating potential for point %i of %i " % (i, grid.npoints)
+                print("Calculating potential for point %i of %i " % (i, grid.npoints))
 
             p[:, 0] = point[0] / Bohr_in_Angstrom
             p[:, 1] = point[1] / Bohr_in_Angstrom
@@ -1365,12 +1366,12 @@ class adfsinglepointresults(adfresults):
 
         import md5
         m = md5.new()
-        m.update("Numerically calculated Coulomb potential from :\n")
+        m.update("Numerically calculated Coulomb potential from :\n".encode("utf-8"))
         m.update(self.get_checksum())
-        m.update("using localized orbitals:")
-        m.update(repr(orbs))
-        m.update("on grid :\n")
-        m.update(grid.get_grid_block(True))
+        m.update("using localized orbitals:".encode("utf-8"))
+        m.update(repr(orbs).encode("utf-8"))
+        m.update("on grid :\n".encode("utf-8"))
+        m.update(grid.get_grid_block(True).encode("utf-8"))
 
         return GridFunctionFactory.newGridFunction(self.grid, coulpot, m.digest(), 'potential')
 
@@ -1385,7 +1386,7 @@ class adfsinglepointresults(adfresults):
         """
         import hashlib
         m = hashlib.md5()
-        m.update("Total potential from ADF job :\n")
+        m.update("Total potential from ADF job :\n".encode("utf-8"))
         m.update(self.get_checksum())
 
         values = self.get_result_from_tape('Total Potential', 'vtot', tape=10)
@@ -1647,7 +1648,7 @@ class adfsinglepointjob(adfjob):
                 basisdict['default'] = "ZORA/" + basisdict["default"]
 
             if isinstance(self.core, dict):
-                atoms = atoms.union(self.core.keys())
+                atoms = atoms.union(list(self.core.keys()))
                 coredict = self.core
             else:
                 coredict = {}
@@ -1741,37 +1742,37 @@ class adfsinglepointjob(adfjob):
 
     def print_molecule(self):
 
-        print "   Molecule"
-        print "   ========"
-        print
-        print self.get_molecule()
-        print
+        print("   Molecule")
+        print("   ========")
+        print()
+        print(self.get_molecule())
+        print()
 
     def print_settings(self):
 
-        print "   Settings"
-        print "   ========"
-        print
-        print self.settings
-        print
+        print("   Settings")
+        print("   ========")
+        print()
+        print(self.settings)
+        print()
 
     def print_extras(self):
 
         if self._options != []:
-            print "   Options"
-            print "   ======="
-            print
+            print("   Options")
+            print("   =======")
+            print()
             for opt in self._options:
-                print "   " + opt
-            print
+                print("   " + opt)
+            print()
 
         if not self.restart == None:
-            print " Using restart file " + self.restart.get_tape_filename(21)
+            print(" Using restart file " + self.restart.get_tape_filename(21))
 
     def print_jobinfo(self):
-        print " " + 50 * "-"
-        print " Running " + self.print_jobtype()
-        print
+        print(" " + 50 * "-")
+        print(" Running " + self.print_jobtype())
+        print()
 
         self.print_molecule()
 

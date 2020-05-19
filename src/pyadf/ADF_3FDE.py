@@ -25,13 +25,14 @@
 
 """
 
-from Errors import PyAdfError
-from Molecule.OBMolecule import OBMolecule
-from BaseJob import metajob, results
-from ADFFragments import fragment, fragmentlist, adffragmentsjob
+from .Errors import PyAdfError
+from .Molecule.OBMolecule import OBMolecule
+from .BaseJob import metajob, results
+from .ADFFragments import fragment, fragmentlist, adffragmentsjob
 # pylint: disable-msg=W0611
-from ADFSinglePoint import adfsinglepointjob, adfsinglepointresults
-from Plot.Grids import cubegrid
+from .ADFSinglePoint import adfsinglepointjob, adfsinglepointresults
+from .Plot.Grids import cubegrid
+from functools import reduce
 
 
 class capmolecule (OBMolecule):
@@ -122,7 +123,7 @@ class capmolecule (OBMolecule):
         """
 
         if atoms == None:
-            atoms = range(1, self.mol.NumAtoms() + 1)
+            atoms = list(range(1, self.mol.NumAtoms() + 1))
             if ghosts == False:
                 atoms = [i for i in atoms if not self.is_ghost[i - 1]]
 
@@ -243,7 +244,7 @@ class cappedfragment (fragment):
         i2 = i1 + m_cap.get_number_of_atoms()
 
         self._mols[0] = self._mols[0] + m_cap
-        self._mols[0].set_residue('CAP', resnum, atoms=range(i1, i2))
+        self._mols[0].set_residue('CAP', resnum, atoms=list(range(i1, i2)))
 
     def add_scap(self, cap, cap_id):
         """
@@ -269,7 +270,7 @@ class cappedfragment (fragment):
         i2 = i1 + m_cap.get_number_of_atoms()
 
         self._mols[0] = self._mols[0] + m_cap
-        self._mols[0].set_residue('SCP', resnum, atoms=range(i1, i2))
+        self._mols[0].set_residue('SCP', resnum, atoms=list(range(i1, i2)))
 
     def get_type(self):
 
@@ -292,12 +293,12 @@ class cappedfragment (fragment):
 
     def print_fragment_options(self):
         if self.iscap:
-            print " type: frozen FDE cap fragment"
+            print(" type: frozen FDE cap fragment")
             if (len(self._fdeoptions) > 0):
-                print "        FDE options: "
-            for opt, value in self._fdeoptions.iteritems():
-                print "           ", opt, "  ", value
-            print
+                print("        FDE options: ")
+            for opt, value in self._fdeoptions.items():
+                print("           ", opt, "  ", value)
+            print()
         else:
             fragment.print_fragment_options(self)
 
@@ -623,8 +624,8 @@ class cappedfragmentlist (fragmentlist):
                 cap_n = mp[3:5] + mol.find_adjacent_hydrogens(mp[3:5])
                 m_cap = mol.get_fragment(cap_o + cap_n)
                 m_cap.set_spin(0)
-                m_cap.set_residue('CAP', 1, atoms=range(1, len(cap_o) + 1))
-                m_cap.set_residue('CAP', 2, atoms=range(len(cap_o) + 1, len(cap_o + cap_n) + 1))
+                m_cap.set_residue('CAP', 1, atoms=list(range(1, len(cap_o) + 1)))
+                m_cap.set_residue('CAP', 2, atoms=list(range(len(cap_o) + 1, len(cap_o + cap_n) + 1)))
                 m_cap.add_hydrogens()
 
             # find the capped fragments
@@ -659,8 +660,8 @@ class cappedfragmentlist (fragmentlist):
                 cap_s2 = mps[2:] + mol.find_adjacent_hydrogens(mps[2:])
                 m_cap_s = mol.get_fragment(cap_s1 + cap_s2)
                 m_cap_s.set_spin(0)
-                m_cap_s.set_residue('SCP', 1, atoms=range(1, len(cap_s1) + 1))
-                m_cap_s.set_residue('SCP', 2, atoms=range(len(cap_s1) + 1, len(cap_s1 + cap_s2) + 1))
+                m_cap_s.set_residue('SCP', 1, atoms=list(range(1, len(cap_s1) + 1)))
+                m_cap_s.set_residue('SCP', 2, atoms=list(range(len(cap_s1) + 1, len(cap_s1 + cap_s2) + 1)))
                 m_cap_s.add_hydrogens()
 
                 fi1 = frag_indices[res_of_atoms[mps[2] - 1]]
@@ -684,11 +685,11 @@ class cappedfragmentlist (fragmentlist):
                         and not set([res_of_atoms[b[0] - 1], res_of_atoms[b[1] - 1]]).issubset(special_reslists):
 
                     num_uncapped_bonds += 1
-                    print "Bond between atoms ", b[0], " and ", b[1], "not capped."
-                    print "Bond between res ", res_of_atoms[b[0] - 1], " and ", res_of_atoms[b[1] - 1], "not capped."
+                    print("Bond between atoms ", b[0], " and ", b[1], "not capped.")
+                    print("Bond between res ", res_of_atoms[b[0] - 1], " and ", res_of_atoms[b[1] - 1], "not capped.")
 
         if num_uncapped_bonds > 0:
-            print num_uncapped_bonds, " bonds not capped. "
+            print(num_uncapped_bonds, " bonds not capped. ")
             raise PyAdfError('Not all bonds capped in partition_protein')
 
 
@@ -781,9 +782,9 @@ class mfccresults (results):
         for i, line in enumerate(atomsblock.splitlines()):
             if (nocap):
                 if line.find('cap') < 0:
-                    print "%s     %+2.3f" % (line.split('fs')[0].rstrip(), mulliken_charges[i])
+                    print("%s     %+2.3f" % (line.split('fs')[0].rstrip(), mulliken_charges[i]))
             else:
-                print "%s     %+2.3f" % (line.split('fs')[0].rstrip(), mulliken_charges[i])
+                print("%s     %+2.3f" % (line.split('fs')[0].rstrip(), mulliken_charges[i]))
         # what can one do to prevent the return value None from being printed?
         return ''
 
@@ -887,8 +888,8 @@ class adf3fdejob (adfmfccjob):
         frags_old = copy.deepcopy(self._frags)
         for i in range(self._cycles):
 
-            print "-" * 50
-            print "Beginning 3-FDE cycle (parallel FT)", i
+            print("-" * 50)
+            print("Beginning 3-FDE cycle (parallel FT)", i)
 
             frags_new = copy.deepcopy(frags_old)
 
@@ -947,8 +948,8 @@ class adf3fdejob (adfmfccjob):
         frags_new = copy.deepcopy(self._frags)
         for i in range(self._cycles):
 
-            print "-" * 50
-            print "Beginning 3-FDE cycle (normal FT)", i
+            print("-" * 50)
+            print("Beginning 3-FDE cycle (normal FT)", i)
 
             for f_new in frags_new.fragiter():
                 f_new.isfrozen = False
@@ -971,8 +972,8 @@ class adf3fdejob (adfmfccjob):
         frags_old = copy.deepcopy(self._frags)
         for i in range(self._cycles):
 
-            print "-" * 50
-            print "Beginning 3-FDE cycle (mixed FT)", i
+            print("-" * 50)
+            print("Beginning 3-FDE cycle (mixed FT)", i)
 
             frags_new = copy.deepcopy(frags_old)
 

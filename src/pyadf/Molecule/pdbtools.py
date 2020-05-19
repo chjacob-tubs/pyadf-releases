@@ -110,7 +110,7 @@ class PDBHandler(object):
     def calc_master(self):
         def total(key):
             if key in _multiline:
-                return sum(map(lambda x: len(x.value), self.records[key]))
+                return sum([len(x.value) for x in self.records[key]])
             else:
                 return len(self.records[key])
 
@@ -149,7 +149,7 @@ class PDBHandler(object):
         if self.singlemodel():
             return [self.records['_model'].model]
         else:
-            return map(lambda x: x.model, self.records['MODEL '])
+            return [x.model for x in self.records['MODEL ']]
 
     def add_record(self, record):
         if record.name in self.records:

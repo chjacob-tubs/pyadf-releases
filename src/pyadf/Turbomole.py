@@ -45,11 +45,11 @@ Support for various flavours of I{Turbomole} computations.
 
 """
 
-from Errors import PyAdfError
-from BaseJob import results, job
-from Utils import newjobmarker, f2f
+from .Errors import PyAdfError
+from .BaseJob import results, job
+from .Utils import newjobmarker, f2f
 
-from TurboDefinition import *
+from .TurboDefinition import *
 
 
 _nan = float('NaN')
@@ -103,7 +103,7 @@ class TurbomoleResults(results):
 
         import os
         import sys
-        from Molecule import molecule
+        from .Molecule import molecule
 
         mol = None
         try:
@@ -334,7 +334,7 @@ class _TurbomoleDensityResults(TurbomoleResults):
                         elif words[0] == 'z':
                             dipole_vector[2] = words[3]
                             attention += 1
-            for i in xrange(0, len(dipole_vector)):
+            for i in range(0, len(dipole_vector)):
                 dipole_vector[i] = f2f(dipole_vector[i])
             self.dipole_vector = dipole_vector
 
@@ -688,7 +688,7 @@ class _TurbomoleForceResults(TurbomoleResults):
             self.gradients = self.get_gradients()
             self.gradient = self.gradients[-1]
         except Exception as e:
-            print e
+            print(e)
             pass
         return self.gradient
 
@@ -1423,26 +1423,26 @@ class TurbomoleJob(job):
 
         """
 
-        print ' ' + '-' * 50
-        print " Running " + self.jobtype
+        print(' ' + '-' * 50)
+        print(" Running " + self.jobtype)
         if self.restart:
-            print (" (Restarted using `mos' from job "
-                   + str(self.restart_id) + ".)")
-        print
-        print "  MOLECULE:"
-        print
+            print((" (Restarted using `mos' from job "
+                   + str(self.restart_id) + ".)"))
+        print()
+        print("  MOLECULE:")
+        print()
         self.print_molecule()
-        print
-        print "  SETTINGS:"
-        print
+        print()
+        print("  SETTINGS:")
+        print()
         self.print_settings()
-        print
-        print "  EXTRAS:"
-        print
+        print()
+        print("  EXTRAS:")
+        print()
         self.print_extras()
-        print
-        print ' ' + '-' * 50
-        print
+        print()
+        print(' ' + '-' * 50)
+        print()
 
     def print_molecule(self):
         """
@@ -1450,8 +1450,8 @@ class TurbomoleJob(job):
 
         """
 
-        print self.get_molecule()
-        print "  charge: {Q}".format(Q=self.mol.get_charge())
+        print(self.get_molecule())
+        print("  charge: {Q}".format(Q=self.mol.get_charge()))
 
     def print_settings(self):
         """
@@ -1459,7 +1459,7 @@ class TurbomoleJob(job):
 
         """
 
-        print self.settings
+        print(self.settings)
 
     def print_extras(self):
         """
@@ -1468,7 +1468,7 @@ class TurbomoleJob(job):
 
         """
 
-        print "  There are no extras."
+        print("  There are no extras.")
 
     def print_jobtype(self):
         """
@@ -1564,7 +1564,7 @@ class TurbomoleJob(job):
             tmp.file.close()
 
             m = hashlib.md5()
-            m.update(str(type(self)))
+            m.update(str(type(self)).encode("utf-8"))
 
             # In case  pickeling should  fail, we might  re-read an empty  file and
             # generate  a  checksum  that  isn't  representative.  We  detect  this
@@ -1575,7 +1575,7 @@ class TurbomoleJob(job):
 
             with open(tmp.name, 'rb') as picklefile:
                 for line in picklefile:
-                    m.update(line)
+                    m.update(line.encode("utf-8"))
 
             settings_hash = m.hexdigest()
 

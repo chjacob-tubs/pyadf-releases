@@ -25,18 +25,19 @@
 
 """
 
-from ADFSinglePoint import adfsinglepointjob, adfsinglepointresults
-from ADFSinglePoint import use_default_grid
-from ADF_Densf import densfjob
-from Errors import PyAdfError
+from .ADFSinglePoint import adfsinglepointjob, adfsinglepointresults
+from .ADFSinglePoint import use_default_grid
+from .ADF_Densf import densfjob
+from .Errors import PyAdfError
 
-from Plot.Properties import PlotPropertyFactory
-from Plot.GridFunctions import GridFunctionFactory, GridFunctionDensityWithDerivatives
-from Plot.FileWriters import GridWriter
+from .Plot.Properties import PlotPropertyFactory
+from .Plot.GridFunctions import GridFunctionFactory, GridFunctionDensityWithDerivatives
+from .Plot.FileWriters import GridWriter
 
 
 import copy
 import os.path
+from functools import reduce
 
 
 class fragment(object):
@@ -110,7 +111,7 @@ class fragment(object):
             self._fdeoptions = {}
         else:
             self._fdeoptions = {}
-            for k, v in fdeoptions.iteritems():
+            for k, v in fdeoptions.items():
                 if k.upper() in ['REALX', 'USEBASIS', 'XC', 'DENSTYPE']:
                     # these options should always be uppercase
                     self._fdeoptions[k.upper()] = v
@@ -127,7 +128,7 @@ class fragment(object):
             self._fragoptions = {}
         else:
             self._fragoptions = {}
-            for k, v in fragoptions.iteritems():
+            for k, v in fragoptions.items():
                 self._fragoptions[k.lower()] = v
 
         # the name use for this fragment. This is assigned by fragmentlist
@@ -242,7 +243,7 @@ class fragment(object):
             return False
 
     def set_fdeoptions(self, opts):
-        for k, v in opts.iteritems():
+        for k, v in opts.items():
             if k.upper() in ['REALX', 'USEBASIS', 'XC', 'DENSTYPE']:
                 self._fdeoptions[k.upper()] = v
             else:
@@ -269,7 +270,7 @@ class fragment(object):
             self._fdeoptions[opt] = val
 
     def set_fragoptions(self, opts):
-        for k, v in fragoptions.iteritems():
+        for k, v in fragoptions.items():
             self._fragoptions[k.lower()] = v
 
     def has_fragoption(self, opt):
@@ -290,21 +291,21 @@ class fragment(object):
         Print information about the options used for this fragment.
         """
         if self.isfrozen:
-            print " type: frozen FDE fragment"
+            print(" type: frozen FDE fragment")
 
             FrozenFDEOptions = ""
 
-            for opt, value in self._fdeoptions.iteritems():
+            for opt, value in self._fdeoptions.items():
                 if (opt not in ['LBdamp', 'CapRadius', 'ScfConvThresh', 'NoCapSepConv', 'LBmaxStep', 'FullGrid']):
                     if isinstance(value, float):
                         FrozenFDEOptions += "           " + opt + "    " + "%.2f \n" % (value)
                     if isinstance(value, str):
                         FrozenFDEOptions += "           " + opt + "    " + "%s \n" % (value)
             if FrozenFDEOptions != "":
-                print "        FDE options: "
-                print FrozenFDEOptions
+                print("        FDE options: ")
+                print(FrozenFDEOptions)
         else:
-            print " type: nonfrozen fragment"
+            print(" type: nonfrozen fragment")
 
             NonFrozenFDEOptions = ""
             for fdeoption in ['LBdamp', 'CapRadius', 'ScfConvThresh', 'NoCapSepConv', 'LBmaxStep', 'FullGrid']:
@@ -314,14 +315,14 @@ class fragment(object):
                     if isinstance(self._fdeoptions[fdeoption], str):
                         NonFrozenFDEOptions += "           " + fdeoption + "    " + "%s   \n" % (self._fdeoptions[fdeoption])
             if NonFrozenFDEOptions != "":
-                print "        FDE options: "
-                print NonFrozenFDEOptions
+                print("        FDE options: ")
+                print(NonFrozenFDEOptions)
 
             if (len(self._fragoptions) > 0):
-                print "        Fragment settings : "
-            for opt, value in self._fragoptions.iteritems():
-                print "           ", opt, "  ", value
-        print
+                print("        Fragment settings : ")
+            for opt, value in self._fragoptions.items():
+                print("           ", opt, "  ", value)
+        print()
 
     def get_atoms_block(self):
         """
@@ -367,7 +368,7 @@ class fragment(object):
             block += "  " + self.fragname + "  "
 
             if checksumonly:
-                block += self._frag_results.get_checksum()
+                block += str(self._frag_results.get_checksum())
             else:
                 block += self.get_fragment_filename()
 
@@ -796,7 +797,7 @@ class adffragmentsresults (adfsinglepointresults):
 #   @use_default_grid
     def get_fragment_density(self, grid=None, fit=False, orbs=None, order=None, frag=None):
 
-        if (orbs is not None) and (not 'Loc' in orbs.keys()):
+        if (orbs is not None) and (not 'Loc' in list(orbs.keys())):
             if (order is not None) and (order > 1):
                 raise PyAdfError("Derivatives not implemented for orbital densities.")
             if (frag is not None) and not (frag == 'active') :
@@ -1001,7 +1002,7 @@ class adffragmentsjob (adfsinglepointjob):
             self._fde = {}
         else:
             self._fde = {}
-            for k, v in fde.iteritems():
+            for k, v in fde.items():
                 self._fde[k.upper()] = v
 
         adfsinglepointjob.__init__(self, None, basis, core=core, settings=settings,
@@ -1046,49 +1047,49 @@ class adffragmentsjob (adfsinglepointjob):
 
     def print_molecule(self):
 
-        print "   Total Molecule"
-        print "   =============="
-        print
-        print self.get_molecule()
-        print
-        print "   Fragments "
-        print "   =========="
-        print
+        print("   Total Molecule")
+        print("   ==============")
+        print()
+        print(self.get_molecule())
+        print()
+        print("   Fragments ")
+        print("   ==========")
+        print()
         for num_ftyp, frag in enumerate(self._fragments):
-            print "     Fragment Typ ", num_ftyp + 1, "  ",
+            print("     Fragment Typ ", num_ftyp + 1, "  ", end=' ')
             frag.print_fragment_options()
             for num_frag, m in enumerate(frag.get_molecules()):
-                print "     Fragment Typ ", num_ftyp + 1, ", Fragment ", num_frag + 1
-                print m
-        print
+                print("     Fragment Typ ", num_ftyp + 1, ", Fragment ", num_frag + 1)
+                print(m)
+        print()
 
-        print "   Fragment Files "
-        print "   ============== "
-        print
+        print("   Fragment Files ")
+        print("   ============== ")
+        print()
         for num_ftyp, frag in enumerate(self._fragments):
             filename = frag.get_fragment_filename()
             if filename:
-                print "     Fragment Typ ", num_ftyp + 1, ": ", filename
+                print("     Fragment Typ ", num_ftyp + 1, ": ", filename)
 
-        print
+        print()
 
     def print_settings(self):
 
-        print "   Settings"
-        print "   ========"
-        print
-        print self.settings
-        print
+        print("   Settings")
+        print("   ========")
+        print()
+        print(self.settings)
+        print()
 
         if self.is_fde_job():
-            print "   FDE settings"
-            print "   ============"
-            print
+            print("   FDE settings")
+            print("   ============")
+            print()
             if not 'TNAD' in self._fde:
-                print '   TNAD  PW91k'
-            for k, v in self._fde.iteritems():
-                print '   %s  %s' % (k, v)
-            print
+                print('   TNAD  PW91k')
+            for k, v in self._fde.items():
+                print('   %s  %s' % (k, v))
+            print()
 
     def get_atoms_block(self):
         """
@@ -1138,7 +1139,7 @@ class adffragmentsjob (adfsinglepointjob):
             block += '   ' + self._fde['TNAD'] + '\n'
         else:
             block += "   PW91k\n"
-        for opt, val in self._fde.iteritems():
+        for opt, val in self._fde.items():
             if opt == 'TNAD':
                 continue
             block += "   " + opt + " " + str(val) + "\n"

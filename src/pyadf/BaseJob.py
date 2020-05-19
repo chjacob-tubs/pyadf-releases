@@ -67,7 +67,7 @@ class results (object):
         """
         import copy
 
-        from Files import adf_filemanager
+        from .Files import adf_filemanager
         self.files = adf_filemanager()
 
         if j == None:
@@ -227,7 +227,7 @@ class job (object):
         """
 
         if job_runner is None:
-            from JobRunner import DefaultJobRunner
+            from .JobRunner import DefaultJobRunner
             res = DefaultJobRunner().run_job(self)
         else:
             res = job_runner.run_job(self)

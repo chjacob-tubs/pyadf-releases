@@ -36,9 +36,9 @@
 
 """
 
-from Utils import Bohr_in_Angstrom
-from BaseJob import results, metajob
-from Errors import PyAdfError
+from .Utils import Bohr_in_Angstrom
+from .BaseJob import results, metajob
+from .Errors import PyAdfError
 
 
 class numdiffsettings(object):
@@ -291,7 +291,7 @@ class numdiffjob(metajob):
            Can be overriden by child classes
         @type settings: numdiffsettings
         """
-        from Molecule import OBMolecule, OBFreeMolecule
+        from .Molecule import OBMolecule, OBFreeMolecule
         metajob.__init__(self)
 
         if not (isinstance(mol, OBFreeMolecule.Molecule) or isinstance(mol, OBMolecule.OBMolecule)):
@@ -370,7 +370,7 @@ class numgradjob(numdiffjob):
         string = "\nNumerical gradient job\n\n"
         string += " >> Atom %3i (%s), %s-coordinate <<\n" % (self.atom, atom_symbol, self.coordinate)
         string += self.settings.get_info()
-        print string
+        print(string)
 
     def get_displacements(self):
         """
@@ -447,7 +447,7 @@ class adfnumgradjob(numgradjob):
         for the other parameters see class numgradjob
 
         """
-        import ADFSinglePoint
+        from . import ADFSinglePoint
         import copy
 
         numgradjob.__init__(self, mol, atom, coordinate, settings)
@@ -461,7 +461,7 @@ class adfnumgradjob(numgradjob):
     def create_job(self, mol, s_scf):
         """
         """
-        from ADFSinglePoint import adfsinglepointjob
+        from .ADFSinglePoint import adfsinglepointjob
 
         if s_scf.create_job is None:
             job = adfsinglepointjob(mol=mol, basis=s_scf.basis, core=s_scf.core,
@@ -475,7 +475,7 @@ class adfnumgradjob(numgradjob):
     def create_job(self, mol, s_scf):
         """
         """
-        from ADFSinglePoint import adfsinglepointjob
+        from .ADFSinglePoint import adfsinglepointjob
 
         if s_scf.create_job is None:
             job = adfsinglepointjob(mol=mol, basis=s_scf.basis, core=s_scf.core,
@@ -495,7 +495,7 @@ class adfnumgradjob(numgradjob):
 
         """
 
-        print "-" * 50
+        print("-" * 50)
         self.print_jobtype()
 
         # determine displacements
@@ -580,8 +580,8 @@ class adfnumgradsjob(metajob):
         @type coordinates: str or list of str
 
         """
-        from Molecule import OBMolecule, OBFreeMolecule
-        import ADFSinglePoint
+        from .Molecule import OBMolecule, OBFreeMolecule
+        from . import ADFSinglePoint
 
         metajob.__init__(self)
 
@@ -639,7 +639,7 @@ class adfnumgradsjob(metajob):
                 string += " >> %3i (%s) <<\n" % (at, at_symbol)
         string += self.settings.get_info()
 
-        print string
+        print(string)
 
     def metarun(self):
         """
@@ -650,7 +650,7 @@ class adfnumgradsjob(metajob):
 
         mapping = {'x': 0, 'y': 1, 'z': 2}
 
-        print "-" * 50
+        print("-" * 50)
         self.print_jobtype()
 
         natoms = self.molecule.get_number_of_atoms()
@@ -658,7 +658,7 @@ class adfnumgradsjob(metajob):
         self.gradients = numpy.zeros((natoms, 3))
 
         if self.atoms == 'all':
-            atomlist = range(1, natoms + 1)
+            atomlist = list(range(1, natoms + 1))
         else:
             atomlist = self.atoms
 

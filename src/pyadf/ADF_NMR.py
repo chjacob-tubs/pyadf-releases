@@ -32,8 +32,8 @@
 import os
 import re
 
-from Errors import PyAdfError
-from ADFBase import adfjob, adfresults
+from .Errors import PyAdfError
+from .ADFBase import adfjob, adfresults
 
 
 class adfnmrresults (adfresults):
@@ -256,44 +256,44 @@ class adfnmrjob (adfjob):
         return "NMR job"
 
     def print_jobinfo(self):
-        print " " + 50 * "-"
-        print " Running " + self.print_jobtype()
-        print
-        print "   SCF taken from ADF job ", self.adfresults.fileid, " (results id)"
-        print
-        print "   Shielding will be calculated for nuclei : "
-        print self.adfresults.get_molecule().print_coordinates(self.nucs)
-        print
+        print(" " + 50 * "-")
+        print(" Running " + self.print_jobtype())
+        print()
+        print("   SCF taken from ADF job ", self.adfresults.fileid, " (results id)")
+        print()
+        print("   Shielding will be calculated for nuclei : ")
+        print(self.adfresults.get_molecule().print_coordinates(self.nucs))
+        print()
 
         if self.u1k is not None:
-            print "   U1K  set to : ", self.u1k
+            print("   U1K  set to : ", self.u1k)
             if self.u1k.lower() == 'all':
-                print "     Note: setting U1K to All is not recommended if with ZORA." 
+                print("     Note: setting U1K to All is not recommended if with ZORA.") 
         else:
-            print "   U1K  set to :  none"
-            print "     Note: verify whether this is recommended for the Hamiltonian in use."
+            print("   U1K  set to :  none")
+            print("     Note: verify whether this is recommended for the Hamiltonian in use.")
 
         if self.out is not None:
-            print "   OUT  set to : ", self.out
+            print("   OUT  set to : ", self.out)
         else:
-            print "   OUT  set to :  iso"
+            print("   OUT  set to :  iso")
 
         if self.calc is not None:
-            print "   Calc set to : ", self.out
+            print("   Calc set to : ", self.out)
         else:
-            print "   Calc set to :  All"
+            print("   Calc set to :  All")
 
         if self.ghosts is not None:
-            print "   Shielding will be calculated for ghost sites : "
+            print("   Shielding will be calculated for ghost sites : ")
             for i, g in enumerate(self.ghosts):
-                print "   %3i) %14.5f %14.5f %14.5f" % (i + 1, g[0], g[1], g[2])
-            print
+                print("   %3i) %14.5f %14.5f %14.5f" % (i + 1, g[0], g[1], g[2]))
+            print()
 
         if self.analysis is not None:
-            print "   Analysis is set to : ", self.analysis
+            print("   Analysis is set to : ", self.analysis)
 
     def before_run(self):
         self.adfresults.get_tapes_copy()
 
         if not os.path.exists('TAPE10'):
-            print "   WARNING: TAPE10 was not saved in SCF job"
+            print("   WARNING: TAPE10 was not saved in SCF job")

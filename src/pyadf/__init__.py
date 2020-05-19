@@ -200,35 +200,35 @@
 
 import kf
 
-from Utils import pse, Bohr_in_Angstrom, au_in_eV, au_in_Debye, conversion
+from .Utils import pse, Bohr_in_Angstrom, au_in_eV, au_in_Debye, conversion
 
-from Molecule import molecule, MoleculeFactory
+from .Molecule import molecule, MoleculeFactory
 
-from Files import adf_filemanager
-from JobRunner import DefaultJobRunner, SerialJobRunner
-from BaseJob import job, results
-from ADFBase import adfjob, adfresults
+from .Files import adf_filemanager
+from .JobRunner import DefaultJobRunner, SerialJobRunner
+from .BaseJob import job, results
+from .ADFBase import adfjob, adfresults
 
-from ADFSinglePoint import adfsettings, adfscfsettings, adfsinglepointjob, \
+from .ADFSinglePoint import adfsettings, adfscfsettings, adfsinglepointjob, \
     adfsinglepointresults, adfspjobdecorator
-from ADFFragments import fragment, fragmentlist, adffragmentsjob
-from ADFGeometry import adfgeometrysettings, adfgeometryjob, adfgradientsjob, adfgradientsresults
-from ADFFrequencies import adffreqjob
-from ADF_NMR import adfnmrjob, adfnmrresults
-from ADF_CPL import cplsettings, adfcpljob, adfcplresults
-from ADF_DFTB import dftbsettings, dftbsinglepointjob, dftbgeometryjob, dftbfreqjob
-from ADFNumDiff import numgradsettings, adfnumgradjob, adfnumgradsjob
+from .ADFFragments import fragment, fragmentlist, adffragmentsjob
+from .ADFGeometry import adfgeometrysettings, adfgeometryjob, adfgradientsjob, adfgradientsresults
+from .ADFFrequencies import adffreqjob
+from .ADF_NMR import adfnmrjob, adfnmrresults
+from .ADF_CPL import cplsettings, adfcpljob, adfcplresults
+from .ADF_DFTB import dftbsettings, dftbsinglepointjob, dftbgeometryjob, dftbfreqjob
+from .ADFNumDiff import numgradsettings, adfnumgradjob, adfnumgradsjob
 
-from DaltonSinglePoint import daltonsettings, daltonsinglepointjob
-from DaltonCC2 import daltonCC2settings, daltonCC2job
+from .DaltonSinglePoint import daltonsettings, daltonsinglepointjob
+from .DaltonCC2 import daltonCC2settings, daltonCC2job
 
 
-from Dirac import diracsettings, diracjob, diracsinglepointjob
+from .Dirac import diracsettings, diracjob, diracsinglepointjob
 
-from NWChem import nwchemsettings, nwchemjob, nwchemsinglepointjob
-from NWChemCC2 import nwchemCC2job
+from .NWChem import nwchemsettings, nwchemjob, nwchemsinglepointjob
+from .NWChemCC2 import nwchemCC2job
 
-from Turbomole import TurbomoleSinglePointSettings, TurbomoleGeometryOptimizationSettings, \
+from .Turbomole import TurbomoleSinglePointSettings, TurbomoleGeometryOptimizationSettings, \
     TurbomoleGradientSettings, TurbomoleForceFieldSettings, \
     TurbomoleSinglePointJob, \
     TurbomoleGeometryOptimizationJob, TurbomoleGradientJob, \
@@ -236,27 +236,27 @@ from Turbomole import TurbomoleSinglePointSettings, TurbomoleGeometryOptimizatio
 
 #from SNF               import SNFJob
 
-from ADF_FDE import adffdejob, adffderesults, adffdesettings
+from .ADF_FDE import adffdejob, adffderesults, adffdesettings
 
 try:
-    from ADF_3FDE import cappedfragment, cappedfragmentlist, capmolecule, \
+    from .ADF_3FDE import cappedfragment, cappedfragmentlist, capmolecule, \
         adfmfccjob, mfccresults, adf3fdejob
 except ImportError:
     pass
 
-from ADF_FDE_AccurateEmbedding import adfaccurateembeddingjob
+from .ADF_FDE_AccurateEmbedding import adfaccurateembeddingjob
 
-from ADF_Densf import densfjob
-from Plot.Grids import cubegrid, adfgrid, customgrid
+from .ADF_Densf import densfjob
+from .Plot.Grids import cubegrid, adfgrid, customgrid
 
-from WFTinDFT import diracfragment, wftindftjob
+from .WFTinDFT import diracfragment, wftindftjob
 
-from ADF_FDE_Analysis import adffdeanalysisjob, adffdeanalysissettings, datasetjob
+from .ADF_FDE_Analysis import adffdeanalysisjob, adffdeanalysissettings, datasetjob
 
-from ADFPotential import adfimportgridjob, adfpotentialjob, adfimportembpotjob
+from .ADFPotential import adfimportgridjob, adfpotentialjob, adfimportembpotjob
 
 try:
     import xcfun
-    from PyEmbed import *
+    from .PyEmbed import *
 except ImportError:
     pass

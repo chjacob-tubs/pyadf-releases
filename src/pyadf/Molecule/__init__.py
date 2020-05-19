@@ -34,16 +34,14 @@
 
 from .. import PatternsLib
 
-import OBFreeMolecule
+from . import OBFreeMolecule
 try:
-    import OBMolecule
+    from . import OBMolecule
 except ImportError:
     OBMolecule = None
 
 
-class MoleculeFactory(object):
-    __metaclass__ = PatternsLib.Singleton
-
+class MoleculeFactory(object, metaclass=PatternsLib.Singleton):
     def __init__(self):
         self.openbabel = (OBMolecule is not None)
 

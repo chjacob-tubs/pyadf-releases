@@ -22,7 +22,7 @@
  @author:       Christoph Jacob and Michal Hanzlik
 """
 
-from Errors import PTError, UnitsError
+from .Errors import PTError, UnitsError
 
 import math
 
@@ -385,7 +385,7 @@ class Units (object):
     @classmethod
     def conversion(cls, inp, out):
         for d in cls.dicts:
-            if inp in d.keys() and out in d.keys():
+            if inp in list(d.keys()) and out in list(d.keys()):
                 return d[out] / d[inp]
         raise UnitsError('Invalid conversion call: unsupported units')
 
@@ -399,16 +399,16 @@ class Units (object):
 
     @classmethod
     def printinfo(cls, values=False):
-        print 'Units supported for conversion:'
+        print('Units supported for conversion:')
         for i in cls.dicts:
-            print i['__'] + ':',
-            for j in i.keys():
+            print(i['__'] + ':', end=' ')
+            for j in list(i.keys()):
                 if j != '__':
                     if values:
-                        print j + '=' + str(i[j]) + ',',
+                        print(j + '=' + str(i[j]) + ',', end=' ')
                     else:
-                        print j + ',',
-            print ''
+                        print(j + ',', end=' ')
+            print('')
 
 
 def f2f(literal):

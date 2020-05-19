@@ -41,7 +41,7 @@ class GridWriter(object):
         else:
             dummypoints = lblock - (grid.npoints % lblock)
         npoints_total = grid.npoints + dummypoints
-        nblock = npoints_total / lblock
+        nblock = int(npoints_total / lblock)
 
         f.writeints('General', 'nspin', 1)
 
@@ -117,7 +117,7 @@ class GridFunctionWriter(object):
         Decorator to ensure that write_* class method is applied to 1D grid function.
         """
         def _wrapper(cls, gf, *args, **kwargs):
-            from GridFunctions import GridFunction1D
+            from .GridFunctions import GridFunction1D
             if not isinstance(gf, GridFunction1D):
                 raise PyAdfError("%s is only applicable for 1D grid functions" % func.__name__)
             #pylint: disable=E1102
@@ -130,7 +130,7 @@ class GridFunctionWriter(object):
         Decorator to ensure that write_* class method is applied for a cube grid function.
         """
         def _wrapper(cls, gf, *args, **kwargs):
-            from Grids import cubegrid
+            from .Grids import cubegrid
             if not isinstance(gf.grid, cubegrid):
                 raise PyAdfError('%s only possible if cubegrid has been used' % func.__name__)
             #pylint: disable=E1102
@@ -235,7 +235,7 @@ class GridFunctionWriter(object):
         for ix in range(gf.grid.shape[0]):
             for iy in range(gf.grid.shape[1]):
                 for iz in range(gf.grid.shape[2]):
-                    f.write('%13.5e' % values[ix, iy, iz])
+                    f.write(' %15.5e ' % values[ix, iy, iz])
                     if (iz % 6 == 5):
                         f.write('\n')
                 f.write('\n')

@@ -31,7 +31,7 @@
 
 from ..Utils import Units
 from ..Errors import PyAdfError
-from FileWriters import GridWriter
+from .FileWriters import GridWriter
 
 import numpy
 import math
@@ -117,7 +117,7 @@ class grid(object):
         if self._checksum is None:
             import hashlib
             m = hashlib.md5()
-            m.update(self.get_grid_block(True))
+            m.update(self.get_grid_block(True).encode("utf-8"))
             self._checksum = m.digest()
 
         return self._checksum
@@ -469,14 +469,14 @@ class adfgrid(grid):
     def get_grid_block(self, checksumonly):
         block = " GRID IMPORT TAPE10 \n"
         if checksumonly:
-            block += self.checksum
+            block += str(self.checksum)
         return block
 
     def get_checksum(self):
         if self._checksum is None:
             import hashlib
             m = hashlib.md5()
-            m.update('ADF Grid from Job:')
+            m.update('ADF Grid from Job:'.encode("utf-8"))
             m.update(self._adfres.get_checksum())
             self._checksum = m.digest()
 
@@ -619,10 +619,10 @@ class customgrid(grid):
         if self._checksum is None:
             import hashlib
             m = hashlib.md5()
-            m.update('Custom Grid with data:')
+            m.update('Custom Grid with data:'.encode("utf-8"))
             m.update(self._coords.data)
             if self._weights is None:
-                m.update('Weights: None')
+                m.update('Weights: None'.encode("utf-8"))
             else:
                 m.update(self._weights.data)
             self._checksum = m.hexdigest()

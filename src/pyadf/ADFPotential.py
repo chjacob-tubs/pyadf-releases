@@ -25,9 +25,9 @@
 
 """
 
-from ADFSinglePoint import adfspjobdecorator
-from Plot.Grids import adfgrid
-from Errors import PyAdfError
+from .ADFSinglePoint import adfspjobdecorator
+from .Plot.Grids import adfgrid
+from .Errors import PyAdfError
 
 import os
 
@@ -158,7 +158,7 @@ class adfimportembpotjob (adfimportgridjob):
         block = adfimportgridjob.get_other_blocks(self)
         block += " IMPORTEMBPOT embpot.t41 \n"
         if self._checksum_only:
-            block += self._embpot.get_checksum()
+            block += str(self._embpot.get_checksum())
         return block
 
     def before_run(self):

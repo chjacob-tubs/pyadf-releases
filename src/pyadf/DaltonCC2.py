@@ -31,7 +31,7 @@
     daltonCC2results
 """
 
-from DaltonSinglePoint import daltonjob, daltonsinglepointjob, daltonresults, \
+from .DaltonSinglePoint import daltonjob, daltonsinglepointjob, daltonresults, \
                               daltonsinglepointresults, daltonsettings
 
 import re

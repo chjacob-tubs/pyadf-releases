@@ -317,10 +317,10 @@ class OneDimSolver (object) :
 
         dens = numpy.zeros_like(self.grid.r)
 
-        for l, norbs in occs.iteritems() :
+        for l, norbs in occs.items() :
             evals, evecs = self.calc_orbitals(pot, l, norbs)
             if output:
-                print "Eigenvalues for l=%2i : " % l, evals
+                print("Eigenvalues for l=%2i : " % l, evals)
 
             for i in range(norbs) :
                 if ons is None :
@@ -335,10 +335,10 @@ class OneDimSolver (object) :
         dens = numpy.zeros_like(self.grid.r)
         e_tot = 0.0
 
-        for l, norbs in occs.iteritems() :
+        for l, norbs in occs.items() :
             evals, evecs = self.calc_orbitals(pot, l, norbs)
             if output:
-                print "Eigenvalues for l=%2i : " % l, evals
+                print("Eigenvalues for l=%2i : " % l, evals)
 
             for i in range(norbs) :
                 if ons is None :
@@ -373,7 +373,7 @@ def reconstruct_potential(grid, refdens, startpot, occs, denserr=1e-4) :
         it = it + 1
         dens = calc_density(grid, startpot+recpot, occs, output=False)
         err = 4.0*math.pi*grid.calc_integral(abs(dens-refdens))
-        print "Iteration %4i: error=%14.6e " % (it, err)
+        print("Iteration %4i: error=%14.6e " % (it, err))
 
         recpot = recpot - (refdens-dens)/ grid.r
 
@@ -427,7 +427,7 @@ class CalcFuncGrad(object):
         maxl = max(self.occs.keys()) 
 
         for l in range(maxl+1) :
-            print "Constructing Hessian for l = ", l
+            print("Constructing Hessian for l = ", l)
 
             ens, orbs = OneDimSolver(self.grid).calc_orbitals(pot/self.grid.r, l, self.grid.N)
 
@@ -482,7 +482,7 @@ class CalcFuncGrad(object):
         abserr, maxdens = self.error()
         gradnorm = numpy.linalg.norm(self.grad)
 
-        print "BFGS Iteration %4i: ncomp=%4i     abserr=%14.6e maxdens=%14.6e norm=%14.6e" % (self.nit, self.ncomp, abserr, maxdens, gradnorm)
+        print("BFGS Iteration %4i: ncomp=%4i     abserr=%14.6e maxdens=%14.6e norm=%14.6e" % (self.nit, self.ncomp, abserr, maxdens, gradnorm))
 
 class CalcFuncGradSpin (object):
 
@@ -542,8 +542,8 @@ class CalcFuncGradSpin (object):
         abserr_beta, maxdens_beta = self.func_beta.error()
         gradnorm = numpy.linalg.norm(self.grad)
 
-        print "BFGS Iteration %4i:  ALPHA: abserr=%14.6e maxdens=%14.6e     BETA: abserr=%14.6e maxdens=%14.6e     GRADNORM=%14.6e" % \
-                                    (self.nit, abserr_alpha, maxdens_alpha, abserr_beta, maxdens_beta, gradnorm)
+        print("BFGS Iteration %4i:  ALPHA: abserr=%14.6e maxdens=%14.6e     BETA: abserr=%14.6e maxdens=%14.6e     GRADNORM=%14.6e" % \
+                                    (self.nit, abserr_alpha, maxdens_alpha, abserr_beta, maxdens_beta, gradnorm))
 
 
 def reconstruct_potential_sd(grid_in, refdens_in, startpot_in, occs_in, denserr=1e-4, method=None) :

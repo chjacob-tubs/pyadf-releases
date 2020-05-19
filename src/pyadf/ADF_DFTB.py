@@ -29,8 +29,8 @@
     dftbresults
 """
 
-from Errors import PyAdfError
-from ADFBase import amssettings, amsresults, amsjob
+from .Errors import PyAdfError
+from .ADFBase import amssettings, amsresults, amsjob
 
 
 class dftbsettings(amssettings):
@@ -79,30 +79,30 @@ class dftbsinglepointjob(amsjob):
 
     def print_molecule(self):
 
-        print "   Molecule"
-        print "   ========"
-        print
-        print self.mol
-        print
+        print("   Molecule")
+        print("   ========")
+        print()
+        print(self.mol)
+        print()
 
     def print_settings(self):
 
-        print "   Settings"
-        print "   ========"
-        print
-        print "   Model: %s" % self.model
-        print "   DFTB Parameters: %s" % self.parameters
-        print
-        print self.settings
-        print
+        print("   Settings")
+        print("   ========")
+        print()
+        print("   Model: %s" % self.model)
+        print("   DFTB Parameters: %s" % self.parameters)
+        print()
+        print(self.settings)
+        print()
 
     def print_extras(self):
         pass
 
     def print_jobinfo(self):
-        print " " + 50 * "-"
-        print " Running " + self.print_jobtype()
-        print
+        print(" " + 50 * "-")
+        print(" Running " + self.print_jobtype())
+        print()
 
         self.print_molecule()
 

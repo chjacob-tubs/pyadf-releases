@@ -159,7 +159,7 @@ class PlotProperty(object):
         if 'orbs' in self.opts:
             orbs = self.opts['orbs']
             orbs_temp = {}
-            for k, v in orbs.iteritems():
+            for k, v in orbs.items():
                 if not isinstance(v, list):
                     orbs_temp[k] = [v]
                 else:

@@ -766,7 +766,7 @@ class OBMolecule (BaseMolecule):
         """
 
         if atoms == None:
-            atoms = range(1, self.mol.NumAtoms() + 1)
+            atoms = list(range(1, self.mol.NumAtoms() + 1))
             if ghosts == False:
                 atoms = [i for i in atoms if not self.is_ghost[i - 1]]
 
@@ -837,7 +837,7 @@ class OBMolecule (BaseMolecule):
         """
 
         if atoms == None:
-            atoms = range(1, self.mol.NumAtoms() + 1)
+            atoms = list(range(1, self.mol.NumAtoms() + 1))
             if ghosts == False:
                 atoms = [i for i in atoms if not self.is_ghost[i - 1]]
 
@@ -872,7 +872,7 @@ class OBMolecule (BaseMolecule):
         """
 
         if atoms == None:
-            atoms = range(1, self.mol.NumAtoms() + 1)
+            atoms = list(range(1, self.mol.NumAtoms() + 1))
             if ghosts == False:
                 atoms = [i for i in atoms if not self.is_ghost[i - 1]]
 
@@ -910,7 +910,7 @@ class OBMolecule (BaseMolecule):
         printsum = False
 
         if atoms is None:
-            atoms = range(1, self.mol.NumAtoms() + 1)
+            atoms = list(range(1, self.mol.NumAtoms() + 1))
             printsum = True
 
         for coord, atomNum in zip(self.get_coordinates(atoms=atoms),
@@ -1302,7 +1302,7 @@ class OBMolecule (BaseMolecule):
         """
 
         if not atoms:
-            atoms = range(1, self.mol.NumAtoms() + 1)
+            atoms = list(range(1, self.mol.NumAtoms() + 1))
 
         res = self.mol.NewResidue()
         res.SetName(restype)
@@ -1524,7 +1524,7 @@ class OBMolecule (BaseMolecule):
 
         lines = ""
         if atoms == None:
-            atoms = range(1, self.mol.NumAtoms() + 1)
+            atoms = list(range(1, self.mol.NumAtoms() + 1))
 
         coords = self.get_coordinates(atoms)
         symbs = self.get_atom_symbols(atoms, prefix_ghosts=True)
@@ -1720,7 +1720,7 @@ class OBMolecule (BaseMolecule):
         """
         header = ""
 
-        atoms = range(1, self.mol.NumAtoms() + 1)
+        atoms = list(range(1, self.mol.NumAtoms() + 1))
         atoms = [i for i in atoms if not self.is_ghost[i - 1]]
 
         for i in atoms:
@@ -1780,7 +1780,7 @@ class OBMolecule (BaseMolecule):
 
         with open(tmp.name, 'r') as infile:
             for line in infile:
-                m.update(line)
+                m.update(line.encode("utf-8"))
 
         molhash = m.hexdigest()
         if molhash == emptyhash:

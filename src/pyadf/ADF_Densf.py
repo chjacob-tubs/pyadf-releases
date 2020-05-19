@@ -97,12 +97,12 @@
 
 import numpy
 
-from ADFBase import adfjob, adfresults
-from Errors import PyAdfError
+from .ADFBase import adfjob, adfresults
+from .Errors import PyAdfError
 
-from Plot.Grids import cubegrid
-from Plot.Properties import PlotProperty
-from Plot.GridFunctions import GridFunctionFactory
+from .Plot.Grids import cubegrid
+from .Plot.Properties import PlotProperty
+from .Plot.GridFunctions import GridFunctionFactory
 
 
 class densfresults(adfresults):
@@ -287,7 +287,7 @@ class densfjob(adfjob):
 
         if 'orbs' in self.prop.opts:
             if ('Loc' not in self.prop.opts['orbs']) and \
-                    not (self.prop.opts['orbs'].keys() == ['A']):
+                    not (list(self.prop.opts['orbs'].keys()) == ['A']):
                 raise PyAdfError('CJDENSF only working for NSYM=1 (irrep A) orbitals')
 
         if self.prop.pclass == 'potential':
@@ -385,7 +385,7 @@ class densfjob(adfjob):
         inp += "END INPUT\n"
 
         if self._checksum_only:
-            inp += self._adfresults.get_checksum()
+            inp += str(self._adfresults.get_checksum())
 
         return inp
 
@@ -393,15 +393,15 @@ class densfjob(adfjob):
         return "DENSF job"
 
     def print_jobinfo(self):
-        print " " + 50 * "-"
-        print " Running " + self.print_jobtype()
-        print
-        print "   SCF taken from ADF job ", self._adfresults.fileid, " (results id)"
-        print
-        print "   Fragment used: ", self._frag
-        print
-        print "   Calculated property : ", self.prop.str
-        print
+        print(" " + 50 * "-")
+        print(" Running " + self.print_jobtype())
+        print()
+        print("   SCF taken from ADF job ", self._adfresults.fileid, " (results id)")
+        print()
+        print("   Fragment used: ", self._frag)
+        print()
+        print("   Calculated property : ", self.prop.str)
+        print()
 
     def before_run(self):
         self._adfresults.link_tape(21)

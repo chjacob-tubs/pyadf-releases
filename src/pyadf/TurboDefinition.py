@@ -38,7 +38,7 @@ import os
 import re
 from subprocess import Popen, PIPE
 
-from Errors import PyAdfError
+from .Errors import PyAdfError
 
 
 class TurboObject(object):
@@ -111,7 +111,7 @@ class TurboObject(object):
 
         """
 
-        print message
+        print(message)
 
     def _reportBadNews(self, message):
         """

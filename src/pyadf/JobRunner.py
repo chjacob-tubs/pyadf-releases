@@ -25,16 +25,15 @@
 
 """
 
-from PatternsLib import Singleton
-from Errors import PyAdfError
+from .PatternsLib import Singleton
+from .Errors import PyAdfError
 
 
-class JobRunner (object):
+class JobRunner (object, metaclass=Singleton):
 
     """
     Abstract base class for job runners.
     """
-    __metaclass__ = Singleton
 
     def __init__(self):
         pass
@@ -54,7 +53,7 @@ class SerialJobRunner (JobRunner):
     def __init__(self):
         JobRunner.__init__(self)
 
-        from Files import adf_filemanager
+        from .Files import adf_filemanager
         self._files = adf_filemanager()
 
     def write_runscript_and_execute(self, job):
@@ -62,7 +61,7 @@ class SerialJobRunner (JobRunner):
         import os
         import stat
         import subprocess
-        from Utils import newjobmarker
+        from .Utils import newjobmarker
 
         job.before_run()
 
@@ -103,15 +102,15 @@ class SerialJobRunner (JobRunner):
 
         job.print_jobinfo()
 
-        print "   Output will be written to : ", \
-            os.path.basename(self._files.outputfilename)
-        print
+        print("   Output will be written to : ", \
+            os.path.basename(self._files.outputfilename))
+        print()
 
         checksum = job.get_checksum()
         fileid = self._files.get_id(checksum)
 
         if (fileid is None):
-            print " Running main job ..."
+            print(" Running main job ...")
 
             cwd = os.getcwd()
             os.mkdir('jobtempdir')
@@ -135,17 +134,17 @@ class SerialJobRunner (JobRunner):
             os.system('rm -rf jobtempdir')
 
         else:
-            print "Job was found in results archive - not running it again"
+            print("Job was found in results archive - not running it again")
 
             r = job.create_results_instance()
             r.fileid = fileid
 
         r._checksum = checksum
 
-        print " Done with " + job.print_jobtype()
-        print
-        print " Results file id is ", r.fileid
-        print
+        print(" Done with " + job.print_jobtype())
+        print()
+        print(" Results file id is ", r.fileid)
+        print()
 
         return r
 

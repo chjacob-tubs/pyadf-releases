@@ -31,16 +31,17 @@
 
 """
 
-from Errors import PyAdfError
-from Molecule import molecule
-from BaseJob import metajob
-from ADFSinglePoint import adfsinglepointjob
-from ADFFragments import adffragmentsjob, fragment
-from ADF_FDE import adffdejob
-from Plot.Grids import adfgrid
+from .Errors import PyAdfError
+from .Molecule import molecule
+from .BaseJob import metajob
+from .ADFSinglePoint import adfsinglepointjob
+from .ADFFragments import adffragmentsjob, fragment
+from .ADF_FDE import adffdejob
+from .Plot.Grids import adfgrid
 
 import os
 import glob
+from functools import reduce
 
 
 class adffdeanalysissettings (object):
@@ -213,7 +214,7 @@ class adffdeanalysisjob (metajob):
         # difference density and integrals
         dens_diff = dens_ref - dens_test
         numElectrons = dens_ref.integral()
-        print '-' * 50
+        print('-' * 50)
         err_dens_diff = dens_diff.integral()
         abserr_dens_diff = dens_diff.integral(abs) / numElectrons
         rmserr_dens_diff = sqrt(dens_diff.integral(lambda x: x * x)) / numElectrons
@@ -279,8 +280,8 @@ class adffdeanalysisjob (metajob):
             options = None
 
         if self.settings.usebasis == 'True':
-            print '-' * 50
-            print 'USEBASIS: Basis functions of frozen fragments will be included in the non-frozen system'
+            print('-' * 50)
+            print('USEBASIS: Basis functions of frozen fragments will be included in the non-frozen system')
 
         for t in self.settings.tnad:
             if self.settings.cjcorr == 'True':
@@ -288,9 +289,9 @@ class adffdeanalysisjob (metajob):
             else:
                 fde = {'TNAD': t}
             if self.settings.runtype == ['parallelFt']:
-                print '\n'
-                print 'Testing the functional ', t
-                print '\n'
+                print('\n')
+                print('Testing the functional ', t)
+                print('\n')
                 jobParallelFt = adffdejob(frags, basis=self.basis, core=self.core,
                                           settings=self.adfsettings, options=options, fde=fde,
                                           adffdesettings=self.adffdesettings).parallel_ft_run()
@@ -300,9 +301,9 @@ class adffdeanalysisjob (metajob):
                     results[t][i + 1][0] = self.norm(results[t][i + 1][0])
 
             elif self.settings.runtype == ['normalFt']:
-                print '\n'
-                print 'Testing the functional ', t
-                print '\n'
+                print('\n')
+                print('Testing the functional ', t)
+                print('\n')
 
                 fde['NORMALFT'] = ''
 
@@ -318,9 +319,9 @@ class adffdeanalysisjob (metajob):
                 results[t][1][0] = self.norm(results[t][1][0])
 
             else:
-                print '\n'
-                print 'Testing the functional ', t
-                print '\n'
+                print('\n')
+                print('Testing the functional ', t)
+                print('\n')
                 jobParallelFt = adffdejob(frags, basis=self.basis, core=self.core,
                                           settings=self.adfsettings, options=options, fde=fde,
                                           adffdesettings=self.adffdesettings).parallel_ft_run()
@@ -346,25 +347,25 @@ class adffdeanalysisjob (metajob):
 
         results = self.run()
 
-        print '\n'
-        print '+' + 70 * '-' + '+'
-        print '|' + 'FINAL RESULTS'.center(70) + '|'
-        print '+' + 70 * '-' + '+'
-        print ' Basis set: ' + self.basis
+        print('\n')
+        print('+' + 70 * '-' + '+')
+        print('|' + 'FINAL RESULTS'.center(70) + '|')
+        print('+' + 70 * '-' + '+')
+        print(' Basis set: ' + self.basis)
 
         for kin in results:
-            print ' NADKIN: ' + kin
+            print(' NADKIN: ' + kin)
             string = ' ' * 20
             string += '|dmu|(D)'.center(14)
             string += 'dabs'.center(14)
             string += 'drms'.center(14)
-            print string
+            print(string)
 
             string = 'Sum of Fragments'.ljust(20)
             string += '  %12.6f' % results[kin][0][0]
             string += '  %12.6f' % results[kin][0][2]
             string += '  %12.6f' % results[kin][0][3]
-            print string
+            print(string)
 
             if self.settings.runtype == ['normalFt']:
                 string = 'FDE(%i)' % self.settings.ncycle
@@ -372,14 +373,14 @@ class adffdeanalysisjob (metajob):
                 string += '  %12.6f' % results[kin][1][0]
                 string += '  %12.6f' % results[kin][1][2]
                 string += '  %12.6f' % results[kin][1][3]
-                print string
+                print(string)
 
             if not self.settings.runtype == ['normalFt']:
                 string = 'FDE(0)'.ljust(20)
                 string += '  %12.6f' % results[kin][1][0]
                 string += '  %12.6f' % results[kin][1][2]
                 string += '  %12.6f' % results[kin][1][3]
-                print string
+                print(string)
 
             if self.settings.runtype == ['parallelFt', 'normalFt']:
                 for i in range(1, self.settings.ncycle + 1):
@@ -387,7 +388,7 @@ class adffdeanalysisjob (metajob):
                     string += '  %12.6f' % results[kin][i + 1][0]
                     string += '  %12.6f' % results[kin][i + 1][2]
                     string += '  %12.6f' % results[kin][i + 1][3]
-                    print string
+                    print(string)
 
 
 class datasetjob(metajob):
@@ -463,7 +464,7 @@ class datasetjob(metajob):
             dataSetJobResults.append(dataSetJob)
 
         dictTmp = []
-        for key, value1 in dataSetJobResults[0].iteritems():
+        for key, value1 in dataSetJobResults[0].items():
             value2 = dataSetJobResults[1][key]
             dictTmp.append((key, self.add_lists(value1, value2)))
         dictTmp = dict(dictTmp)
@@ -471,7 +472,7 @@ class datasetjob(metajob):
         if len(dataSetJobResults) >= 3:
             for i in range(2, len(dataSetJobResults)):
                 tmpAvrg = []
-                for key, value1 in dictTmp.iteritems():
+                for key, value1 in dictTmp.items():
                     value2 = dataSetJobResults[i][key]
                     tmpAvrg.append((key, self.add_lists(value1, value2)))
                 tmpAvrg = dict(tmpAvrg)
@@ -481,7 +482,7 @@ class datasetjob(metajob):
             tmpAvrg = dictTmp
         AvrgResults = []
         number = len(dataSetJobResults)
-        for key, value in tmpAvrg.iteritems():
+        for key, value in tmpAvrg.items():
             AvrgResults.append((key, self.divide_by_number(value, number)))
         AvrgResults = dict(AvrgResults)
 
@@ -492,21 +493,21 @@ class datasetjob(metajob):
         (avrg, dataSetJobResults) = self.run()
 
         for results, p in zip(dataSetJobResults, self.pathNames):
-            print '\n'
-            print 'Molecule Name: ', p
-            print 'Basis Set: ', self.basis
-            print '+' + 70 * '-' + '+'
-            print '|' + 'FINAL RESULTS'.center(70) + '|'
-            print '+' + 70 * '-' + '+'
+            print('\n')
+            print('Molecule Name: ', p)
+            print('Basis Set: ', self.basis)
+            print('+' + 70 * '-' + '+')
+            print('|' + 'FINAL RESULTS'.center(70) + '|')
+            print('+' + 70 * '-' + '+')
 
             for kin in results:
-                print ' NADKIN: ' + kin
-                print ' ' * 20 + '|dmu|(D)'.center(14) + 'dabs'.center(14) + 'drms'.center(14)
+                print(' NADKIN: ' + kin)
+                print(' ' * 20 + '|dmu|(D)'.center(14) + 'dabs'.center(14) + 'drms'.center(14))
                 string = 'Sum of Fragments'.ljust(20)
                 string += '  %12.6f' % results[kin][0][0]
                 string += '  %12.6f' % results[kin][0][2]
                 string += '  %12.6f' % results[kin][0][3]
-                print string
+                print(string)
 
                 if self.settings.runtype == ['normalFt']:
                     string = 'FDE(%i)' % self.settings.ncycle
@@ -514,14 +515,14 @@ class datasetjob(metajob):
                     string += '  %12.6f' % results[kin][1][0]
                     string += '  %12.6f' % results[kin][1][2]
                     string += '  %12.6f' % results[kin][1][3]
-                    print string
+                    print(string)
 
                 if not self.settings.runtype == ['normalFt']:
                     string = 'FDE(0)'.ljust(20)
                     string += '  %12.6f' % results[kin][1][0]
                     string += '  %12.6f' % results[kin][1][2]
                     string += '  %12.6f' % results[kin][1][3]
-                    print string
+                    print(string)
 
                 if self.settings.runtype == ['parallelFt', 'normalFt']:
                     for i in range(1, self.settings.ncycle + 1):
@@ -530,25 +531,25 @@ class datasetjob(metajob):
                         string += '  %12.6f' % results[kin][i + 1][0]
                         string += '  %12.6f' % results[kin][i + 1][2]
                         string += '  %12.6f' % results[kin][i + 1][3]
-                        print string
-        print '\n'
-        print '\n'
-        print '+' + 70 * '-' + '+'
-        print '|' + 'AVERAGE OF FINAL RESULTS'.center(70) + '|'
-        print '+' + 70 * '-' + '+'
+                        print(string)
+        print('\n')
+        print('\n')
+        print('+' + 70 * '-' + '+')
+        print('|' + 'AVERAGE OF FINAL RESULTS'.center(70) + '|')
+        print('+' + 70 * '-' + '+')
 
-        for kin in avrg.keys():
-            print ' NADKIN: ' + kin
-            print '|dmu|(D)'.rjust(19) + 'dabs'.rjust(13) + 'drms'.rjust(13)
-            print '' + 'Sum of Fragments'.center(70) + ''
-            print '%12.6f   %12.6f   %12.6f' % (avrg[kin][0][0], avrg[kin][0][2], avrg[kin][0][3])
+        for kin in list(avrg.keys()):
+            print(' NADKIN: ' + kin)
+            print('|dmu|(D)'.rjust(19) + 'dabs'.rjust(13) + 'drms'.rjust(13))
+            print('' + 'Sum of Fragments'.center(70) + '')
+            print('%12.6f   %12.6f   %12.6f' % (avrg[kin][0][0], avrg[kin][0][2], avrg[kin][0][3]))
             if self.settings.runtype == ['normalFt']:
-                print '' + 'FDE%i'.center(70) % (self.settings.ncycle) + ''
-                print '%12.6f   %12.6f   %12.6f' % (avrg[kin][1][0], avrg[kin][1][2], avrg[kin][1][3])
+                print('' + 'FDE%i'.center(70) % (self.settings.ncycle) + '')
+                print('%12.6f   %12.6f   %12.6f' % (avrg[kin][1][0], avrg[kin][1][2], avrg[kin][1][3]))
             if not self.settings.runtype == ['normalFt']:
-                print '' + 'FDE0'.center(70) + ''
-                print '%12.6f   %12.6f   %12.6f' % (avrg[kin][1][0], avrg[kin][1][2], avrg[kin][1][3])
+                print('' + 'FDE0'.center(70) + '')
+                print('%12.6f   %12.6f   %12.6f' % (avrg[kin][1][0], avrg[kin][1][2], avrg[kin][1][3]))
             if self.settings.runtype == ['parallelFt', 'normalFt']:
                 for i in range(1, self.settings.ncycle + 1):
-                    print '' + 'FDE%i'.center(70) % (i) + ''
-                    print '%12.6f   %12.6f   %12.6f' % (avrg[kin][i + 1][0], avrg[kin][i + 1][2], avrg[kin][i + 1][3])
+                    print('' + 'FDE%i'.center(70) % (i) + '')
+                    print('%12.6f   %12.6f   %12.6f' % (avrg[kin][i + 1][0], avrg[kin][i + 1][2], avrg[kin][i + 1][3]))

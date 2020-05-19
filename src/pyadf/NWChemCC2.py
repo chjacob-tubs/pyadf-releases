@@ -31,7 +31,7 @@
     nwchemCC2results
 """
 
-from NWChem import nwchemsinglepointjob, nwchemsinglepointresults, nwchemsettings
+from .NWChem import nwchemsinglepointjob, nwchemsinglepointresults, nwchemsettings
 
 import re
 

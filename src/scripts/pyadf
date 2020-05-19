@@ -47,59 +47,59 @@ if not 'interactive' in pyadfenv.options:
     sys.stdout = file(pyadfenv.pyadfout, 'w', 0)
     sys.stderr = sys.stdout
 
-print
-print " " + 50 * "*"
-print " *                                          "
-print " *  PyADF v0.9                              "
-print " *                                          "
-print " *  PyADF - A Scripting Framework for Multiscale Quantum Chemistry. "
-print " *  Copyright (C) 2006-2014 by Christoph R. Jacob, S. Maya Beyhan,  "
-print " *  Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Michal Handzlik, "
-print " *  Karin Kiewisch, Moritz Klammler, Jetze Sikkema, and Lucas Visscher "
-print " * "
-print " *     PyADF is free software: you can redistribute it and/or modify         "
-print " *     it under the terms of the GNU General Public License as published by  "
-print " *     the Free Software Foundation, either version 3 of the License, or     "
-print " *     (at your option) any later version. "
-print " * "
-print " *     PyADF is distributed in the hope that it will be useful,        "
-print " *     but WITHOUT ANY WARRANTY; without even the implied warranty of  "
-print " *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the   "
-print " *     GNU General Public License for more details. "
-print " * "
-print " *     You should have received a copy of the GNU General Public License "
-print " *     along with PyADF.  If not, see <http://www.gnu.org/licenses/>.    "
-print " * "
-print " " + 50 * "*"
-print
+print()
+print(" " + 50 * "*")
+print(" *                                          ")
+print(" *  PyADF v0.9                              ")
+print(" *                                          ")
+print(" *  PyADF - A Scripting Framework for Multiscale Quantum Chemistry. ")
+print(" *  Copyright (C) 2006-2014 by Christoph R. Jacob, S. Maya Beyhan,  ")
+print(" *  Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Michal Handzlik, ")
+print(" *  Karin Kiewisch, Moritz Klammler, Jetze Sikkema, and Lucas Visscher ")
+print(" * ")
+print(" *     PyADF is free software: you can redistribute it and/or modify         ")
+print(" *     it under the terms of the GNU General Public License as published by  ")
+print(" *     the Free Software Foundation, either version 3 of the License, or     ")
+print(" *     (at your option) any later version. ")
+print(" * ")
+print(" *     PyADF is distributed in the hope that it will be useful,        ")
+print(" *     but WITHOUT ANY WARRANTY; without even the implied warranty of  ")
+print(" *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the   ")
+print(" *     GNU General Public License for more details. ")
+print(" * ")
+print(" *     You should have received a copy of the GNU General Public License ")
+print(" *     along with PyADF.  If not, see <http://www.gnu.org/licenses/>.    ")
+print(" * ")
+print(" " + 50 * "*")
+print()
 
 # directory where the pyadf source is
-print " Directory of PyADF source:"
-print "     ", os.environ['PYADFHOME']
-print
+print(" Directory of PyADF source:")
+print("     ", os.environ['PYADFHOME'])
+print()
 
 # directory pyadf was started from (where the input is)
-print " Directory of input file:"
-print "     ", pyadfenv.startdir
-print
+print(" Directory of input file:")
+print("     ", pyadfenv.startdir)
+print()
 
 # directory where the output goes
-print " Directory of output files:"
-print "     ", pyadfenv.outdir
-print
+print(" Directory of output files:")
+print("     ", pyadfenv.outdir)
+print()
 
 # name of the input file
-print " " + 40 * "-"
-print " PyADF input file: ", os.path.basename(pyadfenv.inputname)
-print
+print(" " + 40 * "-")
+print(" PyADF input file: ", os.path.basename(pyadfenv.inputname))
+print()
 
 # print the input file
 f = file(pyadfenv.inputname, 'r')
 for l in f.readlines():
     if l.strip(' \n\r') != "":
-        print l,
-print " " + 40 * "-"
-print
+        print(l, end=' ')
+print(" " + 40 * "-")
+print()
 f.close()
 
 # initialize file manager
@@ -113,27 +113,27 @@ else:
     MoleculeFactory().use_openbabel(pyadfenv.options['openbabel'])
 
 if "restartdir" in pyadfenv.options:
-    print " Using restart directory: ", pyadfenv.options["restartdir"]
+    print(" Using restart directory: ", pyadfenv.options["restartdir"])
     myfiles.import_resultsdir(pyadfenv.options["restartdir"])
 
-print " " + 50 * "*"
-print " Executing PyADF input ..."
-print
+print(" " + 50 * "*")
+print(" Executing PyADF input ...")
+print()
 
 try:
     globs = globals().copy()
     globs.update(locals())
     if not "profile" in pyadfenv.options:
-        execfile(pyadfenv.inputname, globs)
+        exec(compile(open(pyadfenv.inputname, "rb").read(), pyadfenv.inputname, 'exec'), globs)
     else:
         profout = os.path.join(pyadfenv.outdir, "pyadf.profile")
-        print "Profile will be written to: ", profout
+        print("Profile will be written to: ", profout)
         cProfile.runctx("execfile(pyadfenv.inputname, globs)", globals(), locals(), profout)
 
-    print " " + 50 * "*"
-    print " Finished Execution of PyADF input"
+    print(" " + 50 * "*")
+    print(" Finished Execution of PyADF input")
 
-except Exception, e:
+except Exception as e:
 
     if 'unittesting' in pyadfenv.options:
         myfiles.cleanup()
@@ -142,16 +142,16 @@ except Exception, e:
         del pyadfenv
         raise
 
-    print " Error termination in PyADF"
-    print
+    print(" Error termination in PyADF")
+    print()
     traceback.print_exception(*sys.exc_info())
-    print
+    print()
     if myfiles.have_results():
         crashdir = os.path.join(pyadfenv.outdir, "pyadf_crashed." + pyadfenv.jobid)
         os.mkdir(crashdir)
         myfiles.copy_all_results_to_dir(crashdir)
-        print " Results were saved to: ", "pyadf_crashed." + pyadfenv.jobid
-        print
+        print(" Results were saved to: ", "pyadf_crashed." + pyadfenv.jobid)
+        print()
 
 else:
 
@@ -159,8 +159,8 @@ else:
         savedir = os.path.join(pyadfenv.outdir, "pyadf_results." + pyadfenv.jobid)
         os.mkdir(savedir)
         myfiles.copy_all_results_to_dir(savedir)
-        print " Results were saved to: ", "pyadf_results." + pyadfenv.jobid
-        print
+        print(" Results were saved to: ", "pyadf_results." + pyadfenv.jobid)
+        print()
 
 myfiles.cleanup()
 sys.stdout = stdout_save

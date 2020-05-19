@@ -43,25 +43,25 @@ class EmbedXCFunSettings(object):
         pass
 
     def show_xcfun_info(self):
-        print "Using the XCFun library, version ", xcfun.xcfun_version()
-        print xcfun.xcfun_splash()
+        print("Using the XCFun library, version ", xcfun.xcfun_version())
+        print(xcfun.xcfun_splash())
 
     def embed_xcfun_splash(self):
-        print "\nEmbed_xcfun: a module to calculate FDE embedding potentials" \
-              "with density functionals\n"
+        print("\nEmbed_xcfun: a module to calculate FDE embedding potentials" \
+              "with density functionals\n")
         self.show_xcfun_info()
 
     def show_functionals(self):
 
-        print "\nCurrently defined kinetic energy functional:"
-        for (name, weight) in self.nad_kin.iteritems():
-            print "%15s with weight %4f" % (name, weight)
+        print("\nCurrently defined kinetic energy functional:")
+        for (name, weight) in self.nad_kin.items():
+            print("%15s with weight %4f" % (name, weight))
 
-        print "\nCurrently defined exchange-correlation functional:"
-        for (name, weight) in self.nad_xc.iteritems():
-            print "%15s with weight %4f" % (name, weight)
+        print("\nCurrently defined exchange-correlation functional:")
+        for (name, weight) in self.nad_xc.items():
+            print("%15s with weight %4f" % (name, weight))
 
-        print "\n"
+        print("\n")
 
     def show_available_functionals(self):
         pass
@@ -110,7 +110,7 @@ class EmbedXCFunEvaluator (object):
             self.isgga = False
             self.ismgga = True
 
-        print "functional is of ", fun_class, " class"
+        print("functional is of ", fun_class, " class")
 
     def set_fun_nad_kin(self):
         self.fun_nad_kin = xcfun.Functional(self.settings.nad_kin)
@@ -144,12 +144,12 @@ class EmbedXCFunEvaluator (object):
 
         import hashlib
         m = hashlib.md5()
-        m.update("Potential calculated in EmbedXCFunEvaluator._get_TA_difference :\n")
+        m.update("Potential calculated in EmbedXCFunEvaluator._get_TA_difference :\n".encode("utf-8"))
         m.update(density_T.get_checksum())
         m.update(density_A.get_checksum())
-        m.update("with functional:\n")
-        m.update(repr(fun))
-        m.update("order: %i\n" % order)
+        m.update("with functional:\n".encode("utf-8"))
+        m.update(repr(fun).encode("utf-8"))
+        m.update(("order: %i\n" % order).encode("utf-8"))
 
         gf = GridFunctionFactory.newGridFunction(density_T.grid, diff_ta, m.digest(), 'potential')
 

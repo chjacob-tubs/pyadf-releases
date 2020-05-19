@@ -26,8 +26,8 @@ import os.path
 import numpy
 
 from ..Errors import PyAdfError
-import Grids
-from GridFunctions import GridFunctionFactory, GridFunctionContainer
+from . import Grids
+from .GridFunctions import GridFunctionFactory, GridFunctionContainer
 
 
 class GridFunctionReader(object):
@@ -60,8 +60,8 @@ class GridFunctionReader(object):
 
         import hashlib
         m = hashlib.md5()
-        m.update("Gridfunction read from file:")
-        m.update(os.path.abspath(filename_full))
+        m.update("Gridfunction read from file:".encode("utf-8"))
+        m.update(os.path.abspath(filename_full).encode("utf-8"))
 
         gf = GridFunctionFactory.newGridFunction(grid, v, checksum=m.digest(), gf_type=gf_type)
 
@@ -123,29 +123,29 @@ class GridFunctionReader(object):
 
         import hashlib
         m = hashlib.md5()
-        m.update("Electrostatic potential read from file:")
-        m.update(os.path.abspath(filename_full))
+        m.update("Electrostatic potential read from file:".encode("utf-8"))
+        m.update(os.path.abspath(filename_full).encode("utf-8"))
 
         pot_gf = GridFunctionFactory.newGridFunction(grid, elpot, checksum=m.digest(),
                                                      gf_type="potential")
 
         m = hashlib.md5()
-        m.update("Density read from file:")
-        m.update(filename_full)
+        m.update("Density read from file:".encode("utf-8"))
+        m.update(filename_full.encode("utf-8"))
 
         dens_gf = GridFunctionFactory.newGridFunction(grid, numpy.ascontiguousarray(rho[:, 0]),
                                                       checksum=m.digest(), gf_type="density")
 
         m = hashlib.md5()
-        m.update("Density gradient read from file:")
-        m.update(filename_full)
+        m.update("Density gradient read from file:".encode("utf-8"))
+        m.update(filename_full.encode("utf-8"))
 
         densgrad = GridFunctionFactory.newGridFunction(grid, numpy.ascontiguousarray(rho[:, 1:4]),
                                                        checksum=m.digest())
 
         m = hashlib.md5()
-        m.update("Density Hessian read from file:")
-        m.update(filename_full)
+        m.update("Density Hessian read from file:".encode("utf-8"))
+        m.update(filename_full.encode("utf-8"))
 
         denshess = GridFunctionFactory.newGridFunction(grid, numpy.ascontiguousarray(rho[:, 4:10]),
                                                        checksum=m.digest())

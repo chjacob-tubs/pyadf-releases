@@ -30,8 +30,8 @@
     nwchemresults, nwchemsinglepointresults
 """
 
-from Errors import PyAdfError
-from BaseJob import results, job
+from .Errors import PyAdfError
+from .BaseJob import results, job
 import os
 import re
 
@@ -171,7 +171,7 @@ class nwchemjob (job):
         m = hashlib.md5()
 
         self._checksum_only = True
-        m.update(self.get_nwchemfile())
+        m.update(self.get_nwchemfile().encode("utf-8"))
         self._checksum_only = False
 
         return m.digest()
@@ -198,7 +198,7 @@ class nwchemjob (job):
         runscript += "rm NWCHEM.INP \n"
         runscript += "exit $retcode \n"
 
-        print runscript
+        print(runscript)
 
         return runscript
 
@@ -524,27 +524,27 @@ class nwchemsinglepointjob (nwchemjob):
 
     def print_molecule(self):
 
-        print "   Molecule"
-        print "   ========"
-        print
-        print self.get_molecule()
-        print
+        print("   Molecule")
+        print("   ========")
+        print()
+        print(self.get_molecule())
+        print()
 
     def print_settings(self):
 
-        print "   Settings"
-        print "   ========"
-        print
-        print self.settings
-        print
+        print("   Settings")
+        print("   ========")
+        print()
+        print(self.settings)
+        print()
 
     def print_extras(self):
         pass
 
     def print_jobinfo(self):
-        print " " + 50 * "-"
-        print " Running " + self.print_jobtype()
-        print
+        print(" " + 50 * "-")
+        print(" Running " + self.print_jobtype())
+        print()
 
         self.print_molecule()
 

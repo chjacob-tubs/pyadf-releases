@@ -32,9 +32,9 @@
 import kf
 import os
 
-from Errors import PyAdfError
-from Molecule import molecule
-from BaseJob import results, job
+from .Errors import PyAdfError
+from .Molecule import molecule
+from .BaseJob import results, job
 
 
 class amssettings(object):
@@ -87,7 +87,7 @@ class adfresults (results):
         @type  tape_list: list of int
         """
 
-        from Files import adf_filemanager
+        from .Files import adf_filemanager
         self.files = adf_filemanager()
 
         name = ''
@@ -291,7 +291,7 @@ class adfjob (job):
         if inp is not None:
             import hashlib
             m = hashlib.md5()
-            m.update(inp)
+            m.update(inp.encode("utf-8"))
             return m.digest()
         else:
             return None
@@ -347,11 +347,11 @@ class adfjob (job):
         f = open(logfilename, 'r')
         for line in f.readlines():
             if line.find('WARNING') >= 0:
-                print " Found WARNING in ADF logfile:"
+                print(" Found WARNING in ADF logfile:")
                 warning = line.split()
-                print ' '.join(warning[3:])
+                print(' '.join(warning[3:]))
         f.close()
-        print
+        print()
 
         os.remove(logfilename)
 

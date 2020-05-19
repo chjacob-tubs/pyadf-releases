@@ -1,1 +1,1 @@
-from EmbPot import EmbedXCFunSettings, EmbedXCFunEvaluator
+from .EmbPot import EmbedXCFunSettings, EmbedXCFunEvaluator

@@ -31,9 +31,9 @@
     daltonresults, daltonsinglepointresults
 """
 
-from Errors import PyAdfError
-from BaseJob import results, job
-from Utils import newjobmarker
+from .Errors import PyAdfError
+from .BaseJob import results, job
+from .Utils import newjobmarker
 import os
 import re
 
@@ -166,8 +166,8 @@ class daltonjob (job):
         m = hashlib.md5()
 
         self._checksum_only = True
-        m.update(self.get_daltonfile())
-        m.update(self.get_moleculefile())
+        m.update(self.get_daltonfile().encode("utf-8"))
+        m.update(self.get_moleculefile().encode("utf-8"))
         self._checksum_only = False
 
         return m.digest()
@@ -501,27 +501,27 @@ class daltonsinglepointjob (daltonjob):
 
     def print_molecule(self):
 
-        print "   Molecule"
-        print "   ========"
-        print
-        print self.get_molecule()
-        print
+        print("   Molecule")
+        print("   ========")
+        print()
+        print(self.get_molecule())
+        print()
 
     def print_settings(self):
 
-        print "   Settings"
-        print "   ========"
-        print
-        print self.settings
-        print
+        print("   Settings")
+        print("   ========")
+        print()
+        print(self.settings)
+        print()
 
     def print_extras(self):
         pass
 
     def print_jobinfo(self):
-        print " " + 50 * "-"
-        print " Running " + self.print_jobtype()
-        print
+        print(" " + 50 * "-")
+        print(" Running " + self.print_jobtype())
+        print()
 
         self.print_molecule()
 

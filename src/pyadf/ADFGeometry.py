@@ -31,8 +31,8 @@
     adfgradientsresults
 """
 
-from Errors import PyAdfError
-from ADFSinglePoint import adfsettings, \
+from .Errors import PyAdfError
+from .ADFSinglePoint import adfsettings, \
     adfsinglepointjob, \
     adfsinglepointresults
 
@@ -121,7 +121,7 @@ class adfgeometrysettings(object):
             s += 'ADF default\n'
         else:
             s += '\n'
-            for k, v in self.converge.iteritems():
+            for k, v in self.converge.items():
                 s += 16 * ' ' + k + ': ' + str(v) + '\n'
         return s
 
@@ -134,7 +134,7 @@ class adfgeometrysettings(object):
     def set_converge(self, converge):
         self.converge = {}
         if converge is not None:
-            for k, v in converge.iteritems():
+            for k, v in converge.items():
                 if k not in ('E', 'Grad', 'Rad', 'Angle'):
                     raise PyAdfError('Wrong key for converge in adgeometrysettings.set_converge()')
                 self.converge[k] = v
@@ -233,7 +233,7 @@ class adfgeometryjob (adfsinglepointjob):
             block += "   Iterations " + str(gs.iterations) + "\n"
         if gs.converge != {}:
             conv = "   Converge "
-            for k, v in gs.converge.iteritems():
+            for k, v in gs.converge.items():
                 conv += k + "=" + str(v)
             block += conv + "\n"
         block += " END\n\n"
@@ -265,11 +265,11 @@ class adfgeometryjob (adfsinglepointjob):
         self.print_geometrysettings()
 
     def print_geometrysettings(self):
-        print "   Geometry optimization settings"
-        print "   =============================="
-        print
-        print self.geometrysettings
-        print
+        print("   Geometry optimization settings")
+        print("   ==============================")
+        print()
+        print(self.geometrysettings)
+        print()
 
 
 class adfgradientsjob (adfsinglepointjob):

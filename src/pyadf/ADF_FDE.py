@@ -27,11 +27,12 @@
 
 """
 
-from Errors import PyAdfError
+from .Errors import PyAdfError
 
-from BaseJob import metajob, results
-from ADFFragments import fragmentlist, adffragmentsjob
-from Plot.Grids import cubegrid
+from .BaseJob import metajob, results
+from .ADFFragments import fragmentlist, adffragmentsjob
+from .Plot.Grids import cubegrid
+from functools import reduce
 
 
 class adffdesettings (object):
@@ -185,8 +186,8 @@ class adffdejob (metajob):
         frags_old = copy.deepcopy(self._frags)
         for i in range(self._cycles):
 
-            print "-" * 50
-            print "Beginning FDE cycle (parallel FT)", i
+            print("-" * 50)
+            print("Beginning FDE cycle (parallel FT)", i)
 
             frags_new = copy.deepcopy(frags_old)
 
@@ -234,8 +235,8 @@ class adffdejob (metajob):
         frags_new = copy.deepcopy(self._frags)
         for i in range(self._cycles):
 
-            print "-" * 50
-            print "Beginning FDE cycle (normal FT)", i
+            print("-" * 50)
+            print("Beginning FDE cycle (normal FT)", i)
 
             if not self._adffdesettings == None:
                 self._settings.set_lshift(self._adffdesettings.vshift)

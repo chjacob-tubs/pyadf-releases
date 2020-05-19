@@ -30,9 +30,9 @@
  @group Results:
     diracresults, diracsinglepointresults
 """
-from Errors import PyAdfError
-from BaseJob import results, job
-from Utils import newjobmarker
+from .Errors import PyAdfError
+from .BaseJob import results, job
+from .Utils import newjobmarker
 from xml.dom.minidom import parse
 import os
 import re
@@ -186,14 +186,14 @@ class diracsinglepointresults (diracresults):
         @returns: the dipole moment vector, in atomic units
         @rtype: float[3]
         """
-        from Utils import au_in_Debye
+        from .Utils import au_in_Debye
         import numpy
 
         dipole = numpy.zeros((3,))
 
         output = self.get_output()
 
-        print "\n\nNote: extracting dipole vector for " + level + " level of theory\n"
+        print("\n\nNote: extracting dipole vector for " + level + " level of theory\n")
 
         headerline = 1
         start0 = re.compile(".+Properties\s+for\s+([A-Z0-9]+)")
@@ -290,8 +290,8 @@ class diracjob (job):
         m = hashlib.md5()
 
         self._checksum_only = True
-        m.update(self.get_diracfile())
-        m.update(str(self.get_molecule()))
+        m.update(self.get_diracfile().encode("utf-8"))
+        m.update(str(self.get_molecule()).encode("utf-8"))
         self._checksum_only = False
 
         return m.digest()
@@ -475,12 +475,12 @@ class diracsettings (object):
                                   'Levy': 'Levy-Leblond (NR limit of Dirac equation)',
                                   'Nonr': 'Non-relativistic (true 1 component) Hamiltonian'}
 
-        valid_input = supported_hamiltonians.keys()
+        valid_input = list(supported_hamiltonians.keys())
 
         if hamiltonian not in valid_input:
-            print "Invalid choice of Hamiltonian. Choose among:\n"
+            print("Invalid choice of Hamiltonian. Choose among:\n")
             for k in valid_input:
-                print k, "  ", supported_hamiltonians[k]
+                print(k, "  ", supported_hamiltonians[k])
             raise PyAdfError("Invalid Hamiltonian in Dirac settings")
         else:
             self.hamiltonian = hamiltonian
@@ -920,27 +920,27 @@ class diracsinglepointjob (diracjob):
 
     def print_molecule(self):
 
-        print "   Molecule"
-        print "   ========"
-        print
-        print self.get_molecule()
-        print
+        print("   Molecule")
+        print("   ========")
+        print()
+        print(self.get_molecule())
+        print()
 
     def print_settings(self):
 
-        print "   Settings"
-        print "   ========"
-        print
-        print self.settings
-        print
+        print("   Settings")
+        print("   ========")
+        print()
+        print(self.settings)
+        print()
 
     def print_extras(self):
         pass
 
     def print_jobinfo(self):
-        print " " + 50 * "-"
-        print " Running " + self.print_jobtype()
-        print
+        print(" " + 50 * "-")
+        print(" Running " + self.print_jobtype())
+        print()
 
         self.print_molecule()
 

@@ -31,8 +31,8 @@
  @undocumented: operatorname
 """
 
-from Errors import PyAdfError
-from ADFBase import adfjob, adfresults
+from .Errors import PyAdfError
+from .ADFBase import adfjob, adfresults
 
 
 class cplsettings (object):
@@ -265,15 +265,15 @@ class cplsettings (object):
                      'dso': 'Diamagnetic Spin-Orbit',
                      'pso': 'Paramagnetic Spin-Orbit'}
 
-        print '   Nuclear spin-spin coupling constants calculation:'
-        print '   (nuclei in INPUT ORDER)\n'
-        print '   >> Perturbing nuclei <<'
-        print mol.print_coordinates(pnuc)
-        print '   >> Responding nuclei <<'
-        print mol.print_coordinates(rnuc)
-        print '   Operators included in the calculation:'
+        print('   Nuclear spin-spin coupling constants calculation:')
+        print('   (nuclei in INPUT ORDER)\n')
+        print('   >> Perturbing nuclei <<')
+        print(mol.print_coordinates(pnuc))
+        print('   >> Responding nuclei <<')
+        print(mol.print_coordinates(rnuc))
+        print('   Operators included in the calculation:')
         for op in self.operators:
-            print '   - ' + operators[op]
+            print('   - ' + operators[op])
 
     def get_settings_block(self):
         """
@@ -530,17 +530,17 @@ class adfcpljob (adfjob):
         return "CPL job"
 
     def print_jobinfo(self):
-        print ' ' + 50 * '-'
-        print ' Running ' + self.print_jobtype()
-        print
-        print '   SCF taken from ADF job ', self.adfresults.fileid, ' (results id)'
-        print
+        print(' ' + 50 * '-')
+        print(' Running ' + self.print_jobtype())
+        print()
+        print('   SCF taken from ADF job ', self.adfresults.fileid, ' (results id)')
+        print()
         self.settings.print_settings(self.adfresults.get_molecule())
-        print
-        print '   Options :'
+        print()
+        print('   Options :')
         for opt in self.options:
-            print opt
-        print
+            print(opt)
+        print()
 
     def before_run(self):
         self.adfresults.get_tapes_copy()
@@ -595,7 +595,7 @@ class couplings(object):
 
     def compute_sd(self):
         if (self.fcsd == None) or (self.fc == None):
-            print 'Cannot compute sd: fcsd or fc missing!'
+            print('Cannot compute sd: fcsd or fc missing!')
         else:
             self.sd = self.fcsd - self.fc
 
@@ -605,7 +605,7 @@ class couplings(object):
         (Requires that fc+sd, dso and pso terms have been computed before)
         """
         if (self.fcsd == None) or (self.dso == None) or (self.pso == None):
-            print 'Cannot compute total: fcsd or dso or pso missing!'
+            print('Cannot compute total: fcsd or dso or pso missing!')
         else:
             self.total = self.fcsd + self.dso + self.pso
 
@@ -627,7 +627,7 @@ class couplings(object):
         @type operators: list of str
         """
         if (operators is None) or (operators == []):
-            print 'Cannot set coupling, operator list empty'
+            print('Cannot set coupling, operator list empty')
         if ('fc' in operators) and ('sd' in operators) and ('dso' in operators) and ('pso' in operators):
             self.set_total(coupling)
         elif ('fc' in operators) and ('sd' in operators):
@@ -641,7 +641,7 @@ class couplings(object):
         elif ('pso' in operators):
             self.set_pso(coupling)
         else:
-            print 'Unsupported operator list in set_coupling!'
+            print('Unsupported operator list in set_coupling!')
 
     def get_coupling(self, operators=None):
         """
@@ -656,7 +656,7 @@ class couplings(object):
         @type operators: list of str
         """
         if (operators is None) or (operators == []):
-            print 'Cannot get coupling, operator list empty'
+            print('Cannot get coupling, operator list empty')
         if ('fc' in operators) and ('sd' in operators) and ('dso' in operators) and ('pso' in operators):
             return self.get_total()
         elif ('fc' in operators) and ('sd' in operators):
@@ -670,7 +670,7 @@ class couplings(object):
         elif ('pso' in operators):
             return self.get_pso()
         else:
-            print 'Unsupported operator list in get_coupling!'
+            print('Unsupported operator list in get_coupling!')
 
     def set_fcsd(self, fcsd=None):
         self.fcsd = fcsd

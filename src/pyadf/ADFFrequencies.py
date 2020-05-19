@@ -27,7 +27,7 @@
     adffreqjob
 """
 
-from ADFGeometry import adfgeometryjob
+from .ADFGeometry import adfgeometryjob
 
 
 class adffreqjob(adfgeometryjob):

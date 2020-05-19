@@ -29,15 +29,15 @@
 
 __all__ = ['filemanager', 'adf_filemanager']
 
-from Errors import PyAdfError
-from Utils import newjobmarker
-from PatternsLib import Singleton
+from .Errors import PyAdfError
+from .Utils import newjobmarker
+from .PatternsLib import Singleton
 import os
 import shutil
 import pickle
 
 
-class filemanager (object):
+class filemanager (object, metaclass=Singleton):
 
     """
     Base class for file managers.
@@ -67,7 +67,6 @@ class filemanager (object):
     @undocumented: __delattr__, __getattribute__, __hash__, __new__, __reduce__,
                    __reduce_ex__, __repr__, __str__, __setattr__
     """
-    __metaclass__ = Singleton
 
     def __init__(self, outdir=None, jobid=os.getpid()):
         """
@@ -147,7 +146,7 @@ class filemanager (object):
         if not os.path.exists(filename):
             raise PyAdfError("file " + filename + " not found")
         if not (os.getcwd() == self._cwd):
-            print os.getcwd(), self._cwd
+            print(os.getcwd(), self._cwd)
             raise PyAdfError("add_file not called in base working directory")
         self._files.add(os.path.abspath(filename))
 
@@ -505,15 +504,15 @@ class adf_filemanager (filemanager):
 
         Based on the type of the results argument, ADF, Dalton, or Dirac results are added
         """
-        from ADFBase import adfresults, amsresults
-        from ADFSinglePoint import adfsinglepointresults
-        from ADF_Densf import densfresults
-        from ADF_NMR import adfnmrresults
-        from ADF_CPL import adfcplresults
-        from DaltonSinglePoint import daltonresults
-        from Dirac import diracresults
-        from NWChem import nwchemresults
-        from Turbomole import TurbomoleResults
+        from .ADFBase import adfresults, amsresults
+        from .ADFSinglePoint import adfsinglepointresults
+        from .ADF_Densf import densfresults
+        from .ADF_NMR import adfnmrresults
+        from .ADF_CPL import adfcplresults
+        from .DaltonSinglePoint import daltonresults
+        from .Dirac import diracresults
+        from .NWChem import nwchemresults
+        from .Turbomole import TurbomoleResults
 
         if isinstance(results, adfsinglepointresults):
             self.add_adf_results(results)

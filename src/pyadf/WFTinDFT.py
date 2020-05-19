@@ -25,9 +25,9 @@
 
 """
 
-from ADFFragments import fragment, fragmentlist, adffragmentsjob
-from BaseJob import metajob
-from Dirac import diracsinglepointjob
+from .ADFFragments import fragment, fragmentlist, adffragmentsjob
+from .BaseJob import metajob
+from .Dirac import diracsinglepointjob
 
 import os
 
@@ -79,10 +79,10 @@ class diracfragment (fragment):
         Print information about the options used for this fragment.
         """
         if self.isfrozen:
-            print " type: frozen Dirac fragment"
+            print(" type: frozen Dirac fragment")
         else:
-            print " type: nonfrozen Dirac fragment"
-        print
+            print(" type: nonfrozen Dirac fragment")
+        print()
 
     def get_fragments_block(self, checksumonly):
         """
@@ -122,11 +122,11 @@ class wftindftjob (metajob):
 
         import copy
 
-        print "-" * 50
-        print "Beginning WFT-in-DFT embedding calculation "
-        print
-        print "Performing %i RELAX-cycles" % self._cycles
-        print
+        print("-" * 50)
+        print("Beginning WFT-in-DFT embedding calculation ")
+        print()
+        print("Performing %i RELAX-cycles" % self._cycles)
+        print()
 
         # first we do a normal DFT-in-DFT run
         initial_frags = copy.deepcopy(self._frags)
@@ -163,9 +163,9 @@ class wftindftjob (metajob):
 
         for i in range(self._cycles):
 
-            print "-" * 50
-            print "Performing cycle ", i + 1
-            print
+            print("-" * 50)
+            print("Performing cycle ", i + 1)
+            print()
 
             # do the Dirac calculation
             # pylint: disable-msg=W0142
@@ -196,9 +196,9 @@ class wftindftjob (metajob):
             #        Instead, the rho1 calculated by Dirac should be used
             dftindft_res = adffragmentsjob(initial_frags, **self._adfoptions).run()
 
-        print "-" * 50
-        print "Performing final DIRAC calculation "
-        print
+        print("-" * 50)
+        print("Performing final DIRAC calculation ")
+        print()
 
         dirac_res = diracsinglepointjob(dirac_mol, fdein=dftindft_res, fdeout=outgrid_res, **self._diracoptions).run()
 

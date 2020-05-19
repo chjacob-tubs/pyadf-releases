@@ -28,12 +28,12 @@
 
 """
 
-from BaseJob import metajob
-from ADFSinglePoint import adfsinglepointjob
-from ADFFragments import fragment, adffragmentsjob
-from ADFPotential import adfpotentialjob
-from Plot.Grids import adfgrid
-from Utils import Bohr_in_Angstrom
+from .BaseJob import metajob
+from .ADFSinglePoint import adfsinglepointjob
+from .ADFFragments import fragment, adffragmentsjob
+from .ADFPotential import adfpotentialjob
+from .Plot.Grids import adfgrid
+from .Utils import Bohr_in_Angstrom
 from pyadf.Errors import PyAdfError
 
 import os.path
@@ -158,12 +158,12 @@ class adfaccurateembeddingjob (metajob):
         for i in range(1, number_of_locorbs + 1):
             locorb_dens = results.super.get_locorb_density(grid=adfGrid, orbs=[i])
             center_of_density = calc_center_of_density(locorb_dens)
-            print "center of density of localized orbital nr. ", i, "  : ", center_of_density
+            print("center of density of localized orbital nr. ", i, "  : ", center_of_density)
 
             dist1 = self.frag1.distance_to_point(center_of_density, ghosts=False)
             dist2 = self.frag2.distance_to_point(center_of_density, ghosts=False)
-            print "distance to subsystem 1: ", dist1
-            print "distance to subsystem 2: ", dist2
+            print("distance to subsystem 1: ", dist1)
+            print("distance to subsystem 2: ", dist2)
             if dist1 < dist2 - 1e-4:
                 results.locorb_set1.append(i)
             elif dist1 > dist2 + 1e-4:
@@ -176,8 +176,8 @@ class adfaccurateembeddingjob (metajob):
                 else:
                     raise PyAdfError('localized orbital can not be assigned clearly to one of the subsystems')
 
-        print "locorb_set1 :", results.locorb_set1
-        print "locorb_set2 :", results.locorb_set2
+        print("locorb_set1 :", results.locorb_set1)
+        print("locorb_set2 :", results.locorb_set2)
 
         if not (len(results.locorb_set1) == number_of_locorbs_1):
             raise PyAdfError('wrong number of localized orbitals for subsystem 1')
@@ -214,7 +214,7 @@ class adfaccurateembeddingjob (metajob):
         #results.sys2_dens = results.super.get_locorb_density(grid=adfGrid, orbs=results.locorb_set2)
         #results.sys2_dens.prop = 'density scf'
 
-        print 'reference calculations finished'
+        print('reference calculations finished')
 
         #  Now comes the potential reconstruction:
 
@@ -223,7 +223,7 @@ class adfaccurateembeddingjob (metajob):
         job = adffragmentsjob([fragment(results.frag1, [self.frag1])], self.basis, settings=self.settings)
         potjob = adfpotentialjob(job, sys1_dens, potoptions=self.potoptions)
 
-        print 'Running potential reconstruction job ... '
+        print('Running potential reconstruction job ... ')
         results.pot = potjob.run()
 
         # Calculate the error in the density

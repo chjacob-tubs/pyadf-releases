@@ -1,5 +1,5 @@
 from ..Utils import Units, PT
-from pdbtools import PDBHandler, PDBRecord
+from .pdbtools import PDBHandler, PDBRecord
 from ..Errors import AtomError, BondError, MoleculeError, PTError, FileError
 import copy
 
@@ -33,6 +33,9 @@ class Atom(object):
         if self.ghost:
             symbol = 'Gh.' + symbol
         return '%5s %14.5f %14.5f %14.5f' % (symbol, self.x, self.y, self.z)
+
+    def __lt__ (self, other):
+        return self.atnum < other.atnum
 
     def _setx(self, value):
         self.coords = (float(value), self.coords[1], self.coords[2])
@@ -360,14 +363,14 @@ class Molecule (object):
             raise MoleculeError('readmol: .mol files do not support multiple geometries')
 
         comment = []
-        for i in xrange(4):
+        for i in range(4):
             line = f.readline().rstrip()
             if line:
                 spl = line.split()
                 if spl[len(spl) - 1] == 'V2000':
                     natom = int(spl[0])
                     nbond = int(spl[1])
-                    for j in xrange(natom):
+                    for j in range(natom):
                         atomline = f.readline().split()
                         crd = tuple(map(float, atomline[0:3]))
                         symb = atomline[3]
@@ -376,7 +379,7 @@ class Molecule (object):
                         except PTError:
                             num = 0
                         self.add_atom(Atom(atnum=num, coords=crd))
-                    for j in xrange(nbond):
+                    for j in range(nbond):
                         bondline = f.readline().split()
                         at1 = self.atoms[int(bondline[0]) - 1]
                         at2 = self.atoms[int(bondline[1]) - 1]
@@ -607,7 +610,7 @@ class Molecule (object):
 
     def get_geovar_block(self, geovar):
         lines = 'GEOVAR\n'
-        geovar = zip(geovar, self._get_atoms(geovar))
+        geovar = list(zip(geovar, self._get_atoms(geovar)))
         for i, at in geovar:
             lines += '  atom%ix  %14.5f\n  atom%iy  %14.5f\n  atom%iz  %14.5f\n' % (i, at.x, i, at.y, i, at.z)
         lines += 'END\n\n'
@@ -861,7 +864,7 @@ class Molecule (object):
         for i, at in enumerate(self.atoms):
             at.id = i + 1
             at.free = at.connectors
-            at.cube = tuple(map(lambda x: int(floor(x / cubesize)), at.coords))
+            at.cube = tuple([int(floor(x / cubesize)) for x in at.coords])
             if at.cube in cubes:
                 cubes[at.cube].append(at)
             else:
@@ -895,7 +898,7 @@ class Molecule (object):
                                 at2.free += 1
         heapq.heapify(heap)
 
-        for at in filter(lambda x: x.atnum == 7, self.atoms):
+        for at in [x for x in self.atoms if x.atnum == 7]:
             if at.free > 6:
                 at.free = 4
             else:
@@ -936,7 +939,7 @@ class Molecule (object):
                         return True
 
         for at in self.atoms:
-            at.arom = len(filter(Bond.is_aromatic, at.bonds))
+            at.arom = len(list(filter(Bond.is_aromatic, at.bonds)))
 
         for at in self.atoms:
             if at.arom == 1:
