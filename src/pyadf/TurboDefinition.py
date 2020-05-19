@@ -195,7 +195,7 @@ class TurboDefinition(TurboObject):
             returncode = self._tmdefine()
             tmdefine_status = (returncode == 0)
             if not tmdefine_status:
-                info = "`define' quit on error. Skipping sanitization."
+                info = "ERROR: `define' quit on error. Skipping output check."
                 self._report(info, -2)
                 raise PyAdfError(info)
 
@@ -229,18 +229,18 @@ class TurboDefinition(TurboObject):
                                  + "did the right thing. If I were able to check "
                                  + "this, I needn't even call it.", 2)
                 else:
-                    self._report("I've checked the results and they don't "
+                    self._report("ERROR: I've checked the results and they don't "
                                  + "seem quite okay. I'll refuse "
                                  + "accepting this as a success.", -2)
             else:
-                self._report("`define' quit on exit status `"
+                self._report("ERROR: `define' quit on exit status `"
                              + str(returncode) + "'. I didn't even look at "
                              + "the results.", -2)
 
             if (tmdefine_status and sanitize_status):
                 return returncode
             else:
-                message = ("Unable to run `define'. There is no point "
+                message = ("ERROR: Some checks of the output of `define' were not successful. There is no point "
                            + "in starting a computation.")
                 if self.verbose_level <= 1:
                     message += ('\n' + "Consider looking at the file `{log}' "
@@ -271,6 +271,7 @@ class TurboDefinition(TurboObject):
 
             # Pass it the input and wait for it to finish.
             self.define_stdout, self.define_stderr = D.communicate(input=self.define_stdin)
+            self._report("Successfully started  a `define' subprocess. ", 2)
         except OSError:
             self._report("Couldn't start a `define' subprocess. "
                          + "Have you even installed it?", -2)
@@ -337,7 +338,7 @@ class TurboDefinition(TurboObject):
 
         try:
             # We print a promt in front of every line for the verbose output.
-            sanitizeprompt = "sanitize: "
+            sanitizeprompt = "checking output: "
 
             # The very  first thing  to do is  to look  at the finaly  words of
             # `define'.  I have no clue why, but `define' ALWAYS writes them to
@@ -348,7 +349,7 @@ class TurboDefinition(TurboObject):
                              + "normally.", 3)
             else:
                 success = False
-                self._report(sanitizeprompt + "`define' says he ended "
+                self._report(sanitizeprompt + "ERROR: `define' says he ended "
                              + "abnormally.", -3)
 
             # Next we see if the  standard files `control', `coord' and `basis'
@@ -391,7 +392,7 @@ class TurboDefinition(TurboObject):
                                 pass
                             else:
                                 success = False
-                                self._report(sanitizeprompt + "File `"
+                                self._report(sanitizeprompt + "ERROR: File `"
                                              + checkfilename
                                              + "' doesn't look as I "
                                              + "expected it to.", -3)
@@ -401,7 +402,7 @@ class TurboDefinition(TurboObject):
                                      + str(keywords[checkfilename]) + ".)", 3)
                 else:
                     success = False
-                    self._report(sanitizeprompt + "File `" + checkfilename +
+                    self._report(sanitizeprompt + "ERROR: File `" + checkfilename +
                                  "' doesn't " + "exists.", -3)
 
             # We  will spend  more time  investigating the  standard  output of
@@ -437,9 +438,9 @@ class TurboDefinition(TurboObject):
                 self._report(sanitizeprompt + "Found `turbomole 6.3' as "
                              + "expected.", 3)
             else:
-                self._report(sanitizeprompt + "Found wrong " + "`turbomole' "
-                             + "version (expecting 6.3.x). But I don't "
-                             + "mind.", -3)
+                self._report(sanitizeprompt + "Found different " + "`turbomole' "
+                             + "version (expecting 6.3.x). Check output if "
+                             + "everything still works.", -3)
 
             # See if `define' states to have added the correct number of atoms:
             if self._checkfor("CARTESIAN COORDINATES FOR "
@@ -449,7 +450,7 @@ class TurboDefinition(TurboObject):
                              + str(self.atom_checksum) + " atoms as expected.", 3)
             else:
                 success = False
-                self._report(sanitizeprompt + "I expected `define' to add "
+                self._report(sanitizeprompt + "ERROR: I expected `define' to add "
                              + str(self.atom_checksum)
                              + " atoms but he didn't.", -3)
 
@@ -462,7 +463,7 @@ class TurboDefinition(TurboObject):
                                  + "accept `ired' as input.", 3)
                 else:
                     success = False
-                    self._report(sanitizeprompt + "`define's menu might have "
+                    self._report(sanitizeprompt + "ERROR: `define's menu might have "
                                  + "changed. I can't find an explanation for "
                                  + "`ired' but I have used it.", -3)
 
@@ -478,9 +479,10 @@ class TurboDefinition(TurboObject):
                     self._report(sanitizeprompt + "`define' says, he wrote "
                                  + "user-defined bonds to the `coord' file.", 3)
                 else:
-                    success = False
-                    self._report(sanitizeprompt + "Strange, `define' says "
-                                 + "nothing about user-defined bonds.", -3)
+                    #success = False
+                    self._report(sanitizeprompt + "`define' says "
+                                 + "nothing about user-defined bonds, this "
+                                 + "should be okay in versions >6.3.x.", 3)
 
             # To my  tired ears it would  sound more logical  to say "supplying
             # basis sets _for_ N atoms" so we'll also accept that. Even though,
@@ -492,7 +494,7 @@ class TurboDefinition(TurboObject):
                              + "expected.", 3)
             else:
                 success = False
-                self._report(sanitizeprompt + "`define' doesn't say anything "
+                self._report(sanitizeprompt + "ERROR: `define' doesn't say anything "
                              + "about supplying basis sets for our number of "
                              + "atoms.", -3)
 
@@ -505,7 +507,7 @@ class TurboDefinition(TurboObject):
                              + "as input to assign atomic basis sets.", 3)
             else:
                 success = False
-                self._report(sanitizeprompt + "`define's menu might have "
+                self._report(sanitizeprompt + "ERROR: `define's menu might have "
                              + "changed. I can't find an explanation for `b' "
                              + "but I have used it.", -3)
 
@@ -517,7 +519,7 @@ class TurboDefinition(TurboObject):
             if self._checkfor("THERE ARE NO DATA SETS CATALOGUED IN "
                               + "FILE.*CORRESPONDING TO NICKNAME"):
                 success = False
-                self._report(sanitizeprompt + "`define' didn't know the basis "
+                self._report(sanitizeprompt + "ERROR: `define' didn't know the basis "
                              + "set `" + str(self.settings.basis_set_all) + "' I wanted "
                              + "to assign to all atoms.", -3)
             else:
@@ -534,7 +536,7 @@ class TurboDefinition(TurboObject):
                              + "sets to `basis' as I expected him to.", 3)
             else:
                 success = False
-                self._report(sanitizeprompt + "`define' doesn't say anything "
+                self._report(sanitizeprompt + "ERROR: `define' doesn't say anything "
                              + "about writing basis sets to `basis'.", -3)
 
             # The  next check makes  ony sense  if we  are actually  using EHT.
@@ -548,17 +550,17 @@ class TurboDefinition(TurboObject):
                                  + "initial guess.", 3)
                 else:
                     success = False
-                    self._report(sanitizeprompt + "`define's menu might have "
+                    self._report(sanitizeprompt + "ERROR: `define's menu might have "
                                  + "changed. I can't find an explanation for "
                                  + "`eht' but I have used it.", -3)
 
                 # Note that we have to escape the parenthesis.
                 if self._checkfor("ENTER THE MOLECULAR CHARGE \(DEFAULT=0\)"):
-                    self._report(sanitizeprompt + "`define' asked for the chagre "
+                    self._report(sanitizeprompt + "`define' asked for the charge "
                                  + "as I expected.", 3)
                 else:
                     success = False
-                    self._report(sanitizeprompt + "`define's menu might have "
+                    self._report(sanitizeprompt + "ERROR: `define's menu might have "
                                  + "changed. I wasn't asked for the molecules "
                                  + "charge.", -3)
 
@@ -568,7 +570,7 @@ class TurboDefinition(TurboObject):
                                  + "initial guess for the occupation.", 3)
                 else:
                     success = False
-                    self._report(sanitizeprompt + "`define' doesn't say anything "
+                    self._report(sanitizeprompt + "ERROR: `define' doesn't say anything "
                                  + "about successfully determined occupation.", -3)
 
                 # The default value is not arethesized here (as commonly done).
@@ -579,7 +581,7 @@ class TurboDefinition(TurboObject):
                                  + "accept the occupation just as expected.", 3)
                 else:
                     success = False
-                    self._report(sanitizeprompt + "`define' didn't ask me to "
+                    self._report(sanitizeprompt + "ERROR: `define' didn't ask me to "
                                  + "accept the occupation but I said blindly "
                                  + "`yes'!", -3)
 
@@ -589,7 +591,7 @@ class TurboDefinition(TurboObject):
                 self._report(sanitizeprompt + "`define' is making true "
                              + "statements about beer and people.", 3)
 
-            # The following checks only appply if we are using DFT.
+            # The following checks only apply if we are using DFT.
             if self.settings.dft:
                 # See in `define' still accepts the `dft' keyword.
                 if self._checkfor("dft : DFT Parameters"):
@@ -597,7 +599,7 @@ class TurboDefinition(TurboObject):
                                  + " accept `dft' as input.", 3)
                 else:
                     success = False
-                    self._report(sanitizeprompt + "`define's menu might have "
+                    self._report(sanitizeprompt + "ERROR: `define's menu might have "
                                  + "changed. I can't find an explanation for "
                                  + "`dft' but I have used it.", -3)
 
@@ -606,7 +608,7 @@ class TurboDefinition(TurboObject):
                                  + "accept `on' (for DFT) as input.", 3)
                 else:
                     success = False
-                    self._report(sanitizeprompt + "`define's menu might have "
+                    self._report(sanitizeprompt + "ERROR: `define's menu might have "
                                  + "changed. I can't find an explanation for "
                                  + "`on' (with DFT) but I have used it.", -3)
 
@@ -616,7 +618,7 @@ class TurboDefinition(TurboObject):
                                  + " functional as input.", 3)
                 else:
                     success = False
-                    self._report(sanitizeprompt + "`define's menu might have "
+                    self._report(sanitizeprompt + "ERROR: `define's menu might have "
                                  + "changed. I can't find an explanation for "
                                  + "`func' (to select the DFT functional) but "
                                  + "I have used it.", -3)
@@ -632,7 +634,7 @@ class TurboDefinition(TurboObject):
                                      + self.settings.dft_functional + "'.", 3)
                     else:
                         success = False
-                        self._report(sanitizeprompt + "`define's menu might "
+                        self._report(sanitizeprompt + "ERROR: `define's menu might "
                                      + "have changed. I said `func "
                                      + self.settings.dft_functional + "'. But he "
                                      + "just didn't care.", -3)
@@ -645,7 +647,7 @@ class TurboDefinition(TurboObject):
                                  + "accept `ri' as input.", 3)
                 else:
                     success = False
-                    self._report(sanitizeprompt + "`define's menu might have "
+                    self._report(sanitizeprompt + "ERROR: `define's menu might have "
                                  + "changed. I can't find an explanation for "
                                  + "`ri' but I have used it.", -3)
 
@@ -654,7 +656,7 @@ class TurboDefinition(TurboObject):
                                  + "accept `on' (for RI) as input.", 3)
                 else:
                     success = False
-                    self._report(sanitizeprompt + "`define's menu might have "
+                    self._report(sanitizeprompt + "ERROR: `define's menu might have "
                                  + "changed. I can't find an explanation for "
                                  + "`on' (with RI) but I have used it.", -3)
 
@@ -663,7 +665,7 @@ class TurboDefinition(TurboObject):
                                  + "accept `m' (for RI) as input.", 3)
                 else:
                     success = False
-                    self._report(sanitizeprompt + "`define's menu might have "
+                    self._report(sanitizeprompt + "ERROR: `define's menu might have "
                                  + "changed. I can't find an explanation for "
                                  + "`m' (with RI) but I have used it.", -3)
 
@@ -675,7 +677,7 @@ class TurboDefinition(TurboObject):
                                  + "expected.", 3)
                 else:
                     success = False
-                    self._report(sanitizeprompt + "`define' never confirmed my "
+                    self._report(sanitizeprompt + "ERROR: `define' never confirmed my "
                                  + "settings for the RI memory.", -3)
 
             # The following checks only apply if we are running on MP2 level.
@@ -687,7 +689,7 @@ class TurboDefinition(TurboObject):
                                  + "`ricc2' menu.", 3)
                 else:
                     success = False
-                    self._report(sanitizeprompt + "`define's menu might have "
+                    self._report(sanitizeprompt + "ERROR: `define's menu might have "
                                  + "changed. I couldn't enter the `ricc2' "
                                  + "menu.", -3)
                 # Note the escape of `(' and `)'.
@@ -698,7 +700,7 @@ class TurboDefinition(TurboObject):
                                  + "basis sets", 3)
                 else:
                     success = False
-                    self._report(sanitizeprompt + "`define's menu might have "
+                    self._report(sanitizeprompt + "ERROR: `define's menu might have "
                                  + "changed. I couldn't enter the `cbas' "
                                  + "menu.", -3)
                 # Note the escape of `(' and `)'.
@@ -709,7 +711,7 @@ class TurboDefinition(TurboObject):
                                  + "menu to specify the memory for MP2.", 3)
                 else:
                     success = False
-                    self._report(sanitizeprompt + "`define's menu might have "
+                    self._report(sanitizeprompt + "ERROR: `define's menu might have "
                                  + "changed. I couldn't enter the menu to "
                                  + "set the memory for MP2.", -3)
                 # Note the escape of `$', `(' and `)'.
@@ -720,7 +722,7 @@ class TurboDefinition(TurboObject):
                                  + "menu for `ricc2' models and global options.", 3)
                 else:
                     success = False
-                    self._report(sanitizeprompt + "`define's menu might have "
+                    self._report(sanitizeprompt + "ERROR: `define's menu might have "
                                  + "changed. I couldn't enter the menu to "
                                  + "specify `riccs's models and global options.", -3)
 
@@ -731,14 +733,14 @@ class TurboDefinition(TurboObject):
                              + "`**** define : all done ****' statement.", 3)
             else:
                 success = False
-                self._report(sanitizeprompt + "I'm missing the familiar "
+                self._report(sanitizeprompt + "ERROR: I'm missing the familiar "
                              + "`**** define : all done ****' statement.", -3)
 
         except Exception as e:
             # Make any exception during the process of sanitization a reason to
             #  return `False'.
-            self._report("There was an unexpected exception caught "
-                         + "while sanitizing `define's output. It says: "
+            self._report("ERROR: There was an unexpected exception caught "
+                         + "while checking `define's output. It says: "
                          + str(e), -2)
             success = False
 

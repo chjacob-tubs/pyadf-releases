@@ -36,7 +36,6 @@ from Plot.FileWriters import GridWriter
 
 
 import copy
-import kf
 import os.path
 
 
@@ -691,16 +690,13 @@ class adffragmentsresults (adfsinglepointresults):
         if (not self.job.is_fde_job()):
             raise PyAdfError('export_embedding_data called, but calculation is no FDE job')
 
-        t10 = kf.kffile(self.get_tape_filename(10))
-        t21 = kf.kffile(self.get_tape_filename(21))
-        nspin = t21.read('General', 'nspin')
-        t21.close()
+        nspin = self.get_result_from_tape('General', 'nspin')
 
         vemb_outfile = open(filename_potential, 'w')
         dens_outfile = open(filename_density, 'w')
 
-        nblock = t10.read('Points', 'nblock')
-        npoints = t10.read('Points', 'lblock')
+        nblock = self.get_result_from_tape('Points', 'nblock', tape=10)
+        npoints = self.get_result_from_tape('Points', 'lblock', tape=10)
 
         vemb_outfile.write("%d \n" % (nblock * npoints))
 
@@ -721,14 +717,15 @@ class adffragmentsresults (adfsinglepointresults):
 
         dens_outfile.write("%d     %d\n" % (nblock * npoints, exported_properties))
 
-        PointsData = t10.read('Points', 'Data')
-        elpotFD = t10.read('FrozenDensityElpot', 'ElpotFD')  # andre: as far as i see, v_nuc is always together with v_H
-        efieldpot = t10.read('Efield', 'Efield')
-        xckinpotFD = t10.read('FrozenDensityXcKinpot', 'XcKinPotFD')
+        PointsData = self.get_result_from_tape('Points', 'Data', tape=10, always_array=True)
+         # andre: as far as i see, v_nuc is always together with v_H
+        elpotFD = self.get_result_from_tape('FrozenDensityElpot', 'ElpotFD', tape=10, always_array=True)  
+        efieldpot = self.get_result_from_tape('Efield', 'Efield', tape=10, always_array=True)
+        xckinpotFD = self.get_result_from_tape('FrozenDensityXcKinpot', 'XcKinPotFD', tape=10, always_array=True)
 
-        frzdens = t10.read('FrozenDensity', 'rhoffd')
-        frzdensgrd = t10.read('FrozenDensityFirstDer', 'drhoffd')
-        frzdenshes = t10.read('FrozenDensitySecondDer', 'd2rhoffd')
+        frzdens = self.get_result_from_tape('FrozenDensity', 'rhoffd', tape=10, always_array=True)
+        frzdensgrd = self.get_result_from_tape('FrozenDensityFirstDer', 'drhoffd', tape=10, always_array=True)
+        frzdenshes = self.get_result_from_tape('FrozenDensitySecondDer', 'd2rhoffd', tape=10, always_array=True)
 
         vemb_points_written = 0
         dens_points_written = 0
@@ -789,7 +786,6 @@ class adffragmentsresults (adfsinglepointresults):
 
         vemb_outfile.close()
         dens_outfile.close()
-        t10.close()
 
     def get_nonfrozen_molecule(self):
         return self.job.get_nonfrozen_molecule()
@@ -1107,7 +1103,7 @@ class adffragmentsjob (adfsinglepointjob):
 
     def get_charge_block(self):
         block = ""
-        if self._fragments.get_nonfrozen_molecule().has_spin_assigned():
+        if self._fragments.get_nonfrozen_molecule().get_spin() > 0:
             block += " CHARGE %2i %2i \n\n" % (self._fragments.get_nonfrozen_molecule().get_charge(),
                                                self._fragments.get_nonfrozen_molecule().get_spin())
         else:

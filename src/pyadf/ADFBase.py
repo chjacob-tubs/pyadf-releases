@@ -29,10 +29,22 @@
     adfresults
 """
 
-from Errors import PyAdfError
-from BaseJob import results, job
 import kf
 import os
+
+from Errors import PyAdfError
+from Molecule import molecule
+from BaseJob import results, job
+
+
+class amssettings(object):
+
+    def __init__(self):
+        pass
+
+    def __str__(self):
+        ss = ''
+        return ss
 
 
 class adfresults (results):
@@ -128,7 +140,7 @@ class adfresults (results):
         """
         self.files.pack_results(self.fileid)
 
-    def get_result_from_tape(self, section, variable, tape=21):
+    def get_result_from_tape(self, section, variable, tape=21, always_array=False):
         """
         Get a specific variable from a tape.
 
@@ -141,6 +153,9 @@ class adfresults (results):
         @param tape: the number of the tape to use, default is 21
         @type  tape: int
 
+        @param always_array: always return a numpy array, even if these have only one element
+        @type  always_array: bool
+
         @returns: the contents of the variable as read.
         @rtype:   depends on the variable to be read
         """
@@ -152,10 +167,80 @@ class adfresults (results):
         if result is None:
             raise PyAdfError("Variable " + section + "%" + variable + " not found in tape file")
 
-        if len(result) == 1:
+        if (not always_array) and (len(result) == 1):
             result = result[0]
 
         return result
+
+
+class amsresults(adfresults):
+
+    def __init__(self, j=None):
+        """
+        Constructor for amsresults.
+        """
+        adfresults.__init__(self, j)
+
+    def get_molecule(self):
+        """
+        Return the molecular geometry after the ADF job.
+
+        This can be changes with respect to the input geometry
+        because it was optimized in the calculation.
+
+        @returns: The molecular geometry.
+        @rtype:   L{molecule}
+        """
+        nnuc = self.get_result_from_tape('Molecule', 'nAtoms')
+
+        atnums = self.get_result_from_tape('Molecule', 'AtomicNumbers')
+        xyz = self.get_result_from_tape('Molecule', 'Coords')
+        xyznuc = xyz.reshape(nnuc, 3)
+
+        m = molecule()
+        m.add_atoms(atnums, xyznuc, atomicunits=True)
+
+        return m
+
+    def get_dipole_vector(self):
+        """
+        Return the dipole moment vector.
+
+        @returns: the dipole moment vector, in atomic units
+        @rtype: float[3]
+        """
+        return self.get_result_from_tape('AMSResults', 'DipoleMoment')
+
+    def get_energy(self):
+        """
+        Return the bond energy.
+
+        @returns: the bond energy in atomic units
+        @rtype: float
+        """
+        return self.get_result_from_tape('AMSResults', 'Energy')
+
+    def get_frequencies(self):
+        """
+        Return the vibrational frequencies
+        """
+        return self.get_result_from_tape('Vibrations', 'Frequencies[cm-1]')
+
+    def get_normalmodes_c(self):
+        """
+        Return the normal modes (not normalized, not mass-weighted)
+        """
+        import numpy
+
+        natoms = self.get_result_from_tape('Molecule', 'nAtoms')
+        nmodes = self.get_result_from_tape('Vibrations', 'nNormalModes')
+
+        modes_c = numpy.zeros((nmodes, 3*natoms))
+        for i in range(nmodes):
+            modes_c[i, :] = self.get_result_from_tape('Vibrations',
+                                                      'NoWeightNormalMode(%i)' % (i+1))
+
+        return modes_c
 
 
 class adfjob (job):
@@ -225,7 +310,7 @@ class adfjob (job):
         @param inputfile: The input file to use. If None (default), L{get_input} is called.
         @type  inputfile: str or C{None}
         """
-        if inputfile == None:
+        if inputfile is None:
             inp = "<<eor"
         else:
             inp = "<" + inputfile
@@ -233,19 +318,24 @@ class adfjob (job):
         runscript += 'if [ -e ../FOCKMATRIX ]; then \n'
         runscript += '  cp ../FOCKMATRIX . \n'
         runscript += 'fi \n'
-        if serial == True:
+        if serial:
             runscript += "$ADFBIN/" + program + " -n1 " + inp + " || exit $? \n"
         else:
             runscript += "$ADFBIN/" + program + " " + inp + " || exit $? \n"
-        if inputfile == None:
+        if inputfile is None:
             runscript += self.get_input()
             runscript += "eor\n"
         runscript += "\n"
         return runscript
 
-    def check_success(self, outfile, errfile):
+    def check_success(self, outfile, errfile, logfile=None):
+        if logfile is None:
+            logfilename = 'logfile'
+        else:
+            logfilename = logfile
+
         # check if the ADF run was successful
-        f = open('logfile', 'r')
+        f = open(logfilename, 'r')
         lastline = ''.join(f.readlines()[-3:])
         f.close()
         if lastline.find('ERROR') >= 0:
@@ -254,7 +344,7 @@ class adfjob (job):
             raise PyAdfError('Unknown Error in ADF run')
 
         # check for warnings in PyAdf
-        f = open('logfile', 'r')
+        f = open(logfilename, 'r')
         for line in f.readlines():
             if line.find('WARNING') >= 0:
                 print " Found WARNING in ADF logfile:"
@@ -263,9 +353,69 @@ class adfjob (job):
         f.close()
         print
 
-        os.remove('logfile')
+        os.remove(logfilename)
 
         return True
 
     def result_filenames(self):
         return ['TAPE21', 'TAPE10', 'TAPE41', 'FOCKMATRIX']
+
+
+class amsjob(adfjob):
+    """
+    Base class for ADF jobs using the AMS engine.
+    """
+    def __init__(self, mol, task='SinglePoint', settings=None):
+        adfjob.__init__(self)
+        self.mol = mol
+        self.task = task
+
+        if settings is None:
+            self.settings = amssettings()
+        else:
+            self.settings = settings
+
+    def create_results_instance(self):
+        return amsresults(self)
+
+    def get_input(self):
+        amsinput = ""
+        amsinput += self.get_task_block()
+        amsinput += self.get_properties_block()
+        amsinput += self.get_system_block()
+        amsinput += self.get_engine_block()
+        return amsinput
+
+    def get_task_block(self):
+        block = " TASK %s \n\n" % self.task
+        return block
+
+    def get_system_block(self):
+        block = " SYSTEM\n"
+        block += "  ATOMS [Angstrom]\n"
+        block += self.mol.print_coordinates(index=False)
+        block += "  END\n"
+        block += " END\n\n"
+        return block
+
+    def get_properties_block(self):
+        return ""
+
+    def get_engine_block(self):
+        pass
+
+    def get_runscript(self):
+        """
+        Return a runscript for AMS.
+        """
+        return adfjob.get_runscript(self, program='ams', serial=False)
+
+    def check_success(self, outfile, errfile, logfile=None):
+        if logfile is None:
+            logfilename = os.path.join('ams.results', 'ams.log')
+        else:
+            logfilename = logfile
+        return adfjob.check_success(self, outfile, errfile, logfilename)
+
+    def result_filenames(self):
+        return [os.path.join('ams.results', f) for f in ['ams.rkf', 'dftb.rkf']]

@@ -5,14 +5,14 @@ fde_settings = adfsettings()
 fde_settings.set_save_tapes([21,10])
 fde_settings.set_functional('LDA')
 fde_settings.ncycles=1000
-fde_settings.set_occupations(['KEEPORBITALS '+str(fde_settings.ncycles)])
+fde_settings.set_occupations(['KEEPORBITALS='+str(fde_settings.ncycles)])
 fde_settings.set_integration(accint=4.0, acclist=[4.0, 4.0])
 
 # other options
 basis_active = "DZP"
 gen_sym_opts = ['NOSYM','NOSYMFIT']
 gen_fde_opts = gen_sym_opts
-fde_act_opts = {'FULLGRID':'', 'RELAXCYCLES': 5, 'THOMASFERMI' : '', 'ENERGY' : '' }
+fde_act_opts = {'FULLGRID':'', 'RELAXCYCLES': 5, 'TNAD':'THOMASFERMI', 'ENERGY' : '' }
 fde_frz_opts = {"RELAX":""}
 
 file_h2o = os.path.join (pyadfenv.outdir, 'H2O.xyz')

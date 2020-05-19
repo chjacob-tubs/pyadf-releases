@@ -135,6 +135,9 @@ class adfnmrresults (adfresults):
         # now do the real matching
         counter = 0
 
+        total = 0.0
+        para  = 0.0
+        iso   = 0.0
         for line in output[start:end]:
 
             m = totre.match(line)
@@ -172,7 +175,7 @@ class adfnmrjob (adfjob):
         __init__
     """
 
-    def __init__(self, adfres, nucs, ghosts=None, out=''):
+    def __init__(self, adfres, nucs, ghosts=None, u1k='best', out=None, calc=None, use=None, analysis=None):
         """
         Constructor of ADF NMR job.
 
@@ -182,7 +185,11 @@ class adfnmrjob (adfjob):
         @type  nucs:   list of int
         @param ghosts: list of coordinates for ghost sites (NICS)
         @type  ghosts: list of float[3]
+        @param u1k:    U1K options options, see ADF-NMR documentation of U1K key. 
+                       set here to 'best' which if missing gives rubbish when spin-orbit coupling is on
+        @type  u1k:    str
         @param out:    output options, see ADF-NMR documentation of OUT key
+                       Default in NMR is 'iso', which outputs the isotropic shieldings
         @type  out:    str
         """
 
@@ -190,10 +197,14 @@ class adfnmrjob (adfjob):
 
         self.adfresults = adfres
         self.nucs = nucs
+        self.u1k = u1k
+        self.use = use
+        self.analysis = analysis
         self.nmrnucs = adfres.get_atom_index(nucs)
 
         self.ghosts = ghosts
         self.out = out
+        self.calc = calc
 
     def create_results_instance(self):
         return adfnmrresults(self)
@@ -203,12 +214,33 @@ class adfnmrjob (adfjob):
 
     def get_input(self):
         nmrinput = "NMR \n"
-        nmrinput += " out iso %s\n" % (self.out)
+
+        if self.u1k is not None :
+            nmrinput += " U1K %s\n" % (self.u1k)
+
+        if self.use is not None :
+            nmrinput += " USE %s\n" % (self.use)
+
+        if self.out is not None :  
+            nmrinput += " out %s\n" % (self.out)
+        else :
+            nmrinput += " out iso\n" 
+
+        if self.calc is not None :  
+            nmrinput += " calc %s\n" % (self.calc)
+        else :
+            nmrinput += " calc all\n" 
+
+        if self.analysis is not None :
+            nmrinput += " Analysis\n %s\n End\n" % (self.analysis)
+            if self.zora :
+                nmrinput += " FakeSO\n"
+
         nuc = ''
         for n in self.nmrnucs:
             nuc += str(n) + " "
         nmrinput += " nuc " + nuc + "\n"
-        if self.ghosts != None:
+        if self.ghosts is not None:
             nmrinput += " GHOSTS\n"
             for g in self.ghosts:
                 nmrinput += " %14.5f %14.5f %14.5f\n" % tuple(g)
@@ -233,11 +265,32 @@ class adfnmrjob (adfjob):
         print self.adfresults.get_molecule().print_coordinates(self.nucs)
         print
 
-        if self.ghosts != None:
+        if self.u1k is not None:
+            print "   U1K  set to : ", self.u1k
+            if self.u1k.lower() == 'all':
+                print "     Note: setting U1K to All is not recommended if with ZORA." 
+        else:
+            print "   U1K  set to :  none"
+            print "     Note: verify whether this is recommended for the Hamiltonian in use."
+
+        if self.out is not None:
+            print "   OUT  set to : ", self.out
+        else:
+            print "   OUT  set to :  iso"
+
+        if self.calc is not None:
+            print "   Calc set to : ", self.out
+        else:
+            print "   Calc set to :  All"
+
+        if self.ghosts is not None:
             print "   Shielding will be calculated for ghost sites : "
             for i, g in enumerate(self.ghosts):
                 print "   %3i) %14.5f %14.5f %14.5f" % (i + 1, g[0], g[1], g[2])
             print
+
+        if self.analysis is not None:
+            print "   Analysis is set to : ", self.analysis
 
     def before_run(self):
         self.adfresults.get_tapes_copy()

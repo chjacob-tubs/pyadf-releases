@@ -10,6 +10,6 @@ obversion = openbabel.OBReleaseVersion()
 ver1, ver2, ver3 = obversion.split('.') 
 
 testobj.assert_(ver1 == '2')
-testobj.assert_(ver2 == '3')
-testobj.assert_(ver3 >= '1')
-
+testobj.assert_(ver2 >= '3')
+if ver2 == '3' :
+    testobj.assert_(ver3 >= '1')

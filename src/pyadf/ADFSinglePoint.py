@@ -43,7 +43,6 @@ from Plot.FileWriters import GridWriter
 from Errors import PyAdfError
 from Molecule import molecule
 from Utils import au_in_eV
-import kf
 import os
 import re
 import shutil
@@ -124,6 +123,8 @@ class adfsettings(object):
         self.basispath = None
         self.printing = None
         self.printcharge = None
+        self.printfit = None
+        self.printeig = {}
         self.createoutput = None
         self.lmo = None
         self.dependency = None
@@ -222,8 +223,10 @@ class adfsettings(object):
                 self.freeze_accmin = True
         elif functional in ['M06-HF', 'M06', 'M06-2X', 'TPSSH']:
             self.functional = 'MetaHybrid ' + functional
+        elif functional in ['CAMYB3LYP']:
+            self.functional = 'HYBRID ' + functional + "\n  xcfun\n  RANGESEP GAMMA=0.34"
         elif functional in ['CAMB3LYP']:
-            self.functional = 'Hybrid ' + functional + "\n  xcfun\n  RANGESEP"
+            self.functional = 'LibXC CAM-B3LYP\n'
         else:
             self.functional = 'GGA ' + functional
 
@@ -378,15 +381,40 @@ class adfsettings(object):
         """
         self.basispath = basispath
 
-    def set_printing(self, printing, printcharge=False):
+    def set_printing(self, printing, printcharge=False, printfit=False, printeig={}):
         """
-        Extended output printing.
+        Extended output printing via the EPRINT keyword.
+
+        note that at this point if self.printing flags is set to false, what will happen when setting up the
+        input block (see get_printing_block) is that the ADF outputs are modified to supress certain parts
+        of the default
+#       if set to false (which is the default), it will modify some of the defaults in ADF and e.g. suppress printing MO compositions etc.
+
 
         @param printing: switch on extended output printing (default: off)
         @type  printing: bool
+        @param printcharge: switch on printing of mulliken population etc (default: off)
+        @type  printing: bool
+        @param printfit: switch on printing of fit coefficients (default: off)
+        @type  printing: bool
+        @param printeig: a dictionary of the form {"occ":[n_occ], "virt":[n_virt]} containing the
+            number of occupied and virtual orbitals to print
+        @type  printing: dict 
         """
         self.printing = printing
         self.printcharge = printcharge
+        self.printfit = printfit
+
+        keys = printeig.keys()  
+        if 'occ' in keys:
+            self.printeig['occ'] = printeig['occ']  
+        else: 
+            self.printeig['occ'] = -1
+      
+        if 'virt' in keys:
+            self.printeig['virt'] = printeig['virt']  
+        else: 
+            self.printeig['virt'] = -1
 
     def set_createoutput(self, createoutput):
         """
@@ -504,7 +532,7 @@ class adfsettings(object):
         sblock += "   iterations %4d \n" % self.ncycles
         sblock += "   converge %6.1e %6.1e \n" % (self.converge[0], self.converge[1])
         if self.mix != 0.2:
-            sblock += "   mix %4f \n" % self.mix
+            sblock += "   mixing %4f \n" % self.mix
         if self.vshift != None:
             if not isinstance(self.vshift, list):
                 sblock += "   lshift %4f " % (self.vshift)
@@ -532,7 +560,7 @@ class adfsettings(object):
             sblock += " UNRESTRICTED\n\n"
 
         # occupations
-        if self.occupations != None:
+        if self.occupations is not None:
             if len(self.occupations[0]) > 1:
                 occupations = self.occupations
             else:
@@ -546,16 +574,18 @@ class adfsettings(object):
                     occopts.append(occ)
                 else:
                     occs.append(occ)
-            sblock += " OCCUPATIONS "
-            for occ in occopts:
-                sblock += " %s " % (occ)
-            if len(occs) > 0:
-                sblock += "&"
-            for occ in occs:
-                sblock += " \n"
-                sblock += "  %s\n" % (occ)
+            if len(occopts) > 0 :
+                sblock += " Occupations "
+                for occ in occopts:
+                    sblock += " %s " % (occ)
+                sblock += " \n\n"
+
+            if len(occs) > 0 :
+                sblock += " IrrepOccupations \n"
+                for occ in occs:
+                    sblock += "  %s\n" % (occ)
                 sblock += " END"
-            sblock += "\n\n"
+                sblock += "\n\n"
 
         # cosmo
         if self.cosmo != None:
@@ -714,15 +744,13 @@ class adfsinglepointresults(adfresults):
         @rtype:   L{molecule}
         """
 
-        f = kf.kffile(self.get_tape_filename(21))
+        nnuc = self.get_result_from_tape('Geometry', 'nnuc')
+        ntyp = self.get_result_from_tape('Geometry', 'ntyp')
 
-        nnuc = f.read('Geometry', 'nnuc')
-        ntyp = f.read('Geometry', 'ntyp')
-        nqptr = f.read('Geometry', 'nqptr')
+        nqptr = self.get_result_from_tape('Geometry', 'nqptr', always_array=True)
+        inpatm = self.get_result_from_tape('Geometry', 'atom order index', always_array=True)
+        qtch = self.get_result_from_tape('Geometry', 'atomtype total charge', always_array=True)
 
-        inpatm = f.read('Geometry', 'atom order index')
-
-        qtch = f.read('Geometry', 'atomtype total charge')
         charge = []
 
         # ROSA: The charges are not read here (sometimes?).
@@ -735,11 +763,9 @@ class adfsinglepointresults(adfresults):
                 else:
                     charge.append(0)
 
-        xyz = f.read('Geometry', 'xyz')
+        xyz = self.get_result_from_tape('Geometry', 'xyz')
         # pylint: disable-msg=E1103
         xyznuc = xyz.reshape(nnuc, 3)
-
-        f.close()
 
         if InputOrder:
             charge_ordered = []
@@ -1510,14 +1536,29 @@ class adfsinglepointjob(adfjob):
                 block += "   SCF ATOMPOP\n"
                 block += "   ATOMPOP GROSS\n"
                 block += "   BASPOP NONE\n"
+                if self.settings.printfit == True:
+                    block += "   FIT Coef charge comb \n"
                 block += " END\n\n"
                 block += " NOPRINT BAS FUNCTIONS QMPOT EPAULI\n\n"
             else:
                 block += " EPRINT \n"
                 block += "   SFO NOEIG NOOVL NOORBPOP \n"
                 block += "   SCF NOPOP \n"
+                if self.settings.printfit == True:
+                    block += "   FIT Coef charge comb \n"
                 block += " END\n\n"
                 block += " NOPRINT BAS FUNCTIONS \n\n"
+        else:
+
+            block += " EPRINT \n"
+            if self.settings.printeig['occ'] > 0 :
+                if self.settings.printeig['virt'] > 0:
+                    block += "   Eigval "+str(self.settings.printeig['occ'])+" "+str(self.settings.printeig['virt'])+"\n"
+                else:
+                    block += "   Eigval "+str(self.settings.printeig['occ'])+"\n"
+            if self.settings.printfit == True:
+                block += "   FIT Coef charge comb \n"
+            block += " END\n\n"
         return block
 
     def get_atoms_block(self):
@@ -1535,7 +1576,7 @@ class adfsinglepointjob(adfjob):
             block += " CHARGE %i" % self.get_molecule().get_charge()
         else:
             block += " CHARGE %f8.4" % self.get_molecule().get_charge()
-        if self.get_molecule().has_spin_assigned():
+        if self.get_molecule().get_spin() > 0:
             block += " %2i" % self.get_molecule().get_spin()
         block += " \n\n"
         return block
@@ -1634,7 +1675,7 @@ class adfsinglepointjob(adfjob):
     def get_efield_block(self):
         block = ""
         if self.pc is not None:
-            block += " EFIELD \n"
+            block += " PointCharges \n"
             for i in self.pc:
                 block += " %14.5f %14.5f %14.5f %14.5f\n" % tuple(i)
             block += " END\n\n"

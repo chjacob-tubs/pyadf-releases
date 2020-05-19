@@ -130,7 +130,7 @@ class PlotPropertyFactory(object):
         else:
             orb_type = 'orblapl'
 
-        options = {'irrep': irrep.upper(), 'orbnum': orbnum}
+        options = {'irrep': irrep, 'orbnum': orbnum}
 
         prop = PlotProperty("orbital", prop_type=orb_type, options=options)
 

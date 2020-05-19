@@ -156,7 +156,7 @@ class Molecule (object):
         self.atoms = []
         self.bonds = []
         self.charge = 0
-        self.spin = None
+        self.spin = 0
         self.symmetry = None
         self.properties = {}
 
@@ -309,9 +309,6 @@ class Molecule (object):
 
     def get_spin(self):
         return self.spin
-
-    def has_spin_assigned(self):
-        return self.spin is not None
 
     def print_coordinates(self, atoms=None, index=True, suffix=''):
         lines = ''

@@ -470,13 +470,42 @@ class adf_filemanager (filemanager):
         if os.path.exists('TAPE15'):
             os.remove('TAPE15')
 
+    def add_ams_results(self, results):
+        """
+        Add the result files of an AMS job.
+
+        The rkf files in the working directory will be added to the
+        file manager. The id the results are stored under will be stored
+        in the passed results object. This results object will usually
+        also be used for accessing the results, see methods of L{adfresults}.
+
+        In addition, the file manager will also remember the name of the
+        output file of the job and the corresponding line numbers.
+
+        @param results: the results object of the job that was run
+        @type  results: derived from L{amsresults}
+        """
+
+        self.add_outputfiles(results)
+
+        # now the tape files
+        self._resultfiles.append([])
+        self._ispacked.append(False)
+
+        for tapenr, rkfname in [(13, 'ams.rkf'), (21, 'dftb.rkf')]:
+            if os.path.exists(rkfname):
+                self.add_file(rkfname)
+                fn = 'resultfiles/t%i.results.%04i' % (tapenr, results.fileid)
+                self.rename_file(rkfname, fn)
+                self._resultfiles[results.fileid].append(fn)
+
     def add_results(self, results):
         """
         Add results.
 
         Based on the type of the results argument, ADF, Dalton, or Dirac results are added
         """
-        from ADFBase import adfresults
+        from ADFBase import adfresults, amsresults
         from ADFSinglePoint import adfsinglepointresults
         from ADF_Densf import densfresults
         from ADF_NMR import adfnmrresults
@@ -488,6 +517,8 @@ class adf_filemanager (filemanager):
 
         if isinstance(results, adfsinglepointresults):
             self.add_adf_results(results)
+        elif isinstance(results, amsresults):
+            self.add_ams_results(results)
         elif isinstance(results, densfresults):
             self.add_adf_results(results)
         elif isinstance(results, adfnmrresults):

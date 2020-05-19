@@ -296,7 +296,7 @@ class diracjob (job):
 
         return m.digest()
 
-    def get_runscript(self):
+    def get_runscript(self, nproc=None):
 
         put_files = ['DFCOEF', 'FRZDNS', 'EMBPOT', 'GRIDOUT']
         get_files = ['DFCOEF', 'GRIDOUT', 'dirac.xml']
@@ -313,23 +313,13 @@ class diracjob (job):
         runscript += "eor\n"
         runscript += "cat MOLECULE.xyz \n"
 
-        # determine whether the Python or the old shell version of pam is present
-        f = open(os.path.join(os.environ['DIRACBIN'], 'pam'))
-        pam_firstline = f.readline()
-        f.close()
-
         runscript += "$DIRACBIN/pam "
-        if 'python' in pam_firstline:
-            runscript += ' --put="' + " ".join([pf for pf in put_files if os.path.exists(pf)]) + '"'
-            runscript += ' --get="' + " ".join([gf for gf in get_files]) + '"'
-            runscript += " --mol=MOLECULE.xyz --inp=DIRAC.inp \n"
-            runscript += " retcode=$? \n"
-        else:
-            for f in put_files:
-                runscript += " -put " + f
-            for f in get_files:
-                runscript += " -get " + f
-            runscript += " MOLECULE.xyz DIRAC.inp || exit $? \n"
+        if nproc is not None:
+            runscript += '--mpi=%i ' % nproc
+        runscript += ' --put="' + " ".join([pf for pf in put_files if os.path.exists(pf)]) + '"'
+        runscript += ' --get="' + " ".join([gf for gf in get_files]) + '"'
+        runscript += " --mol=MOLECULE.xyz --inp=DIRAC.inp \n"
+        runscript += " retcode=$? \n"
 
         runscript += "if [[ -f DIRAC_MOLECULE.OUT ]]; then \n"
         runscript += "  cat DIRAC_MOLECULE.OUT \n"
@@ -376,7 +366,7 @@ class diracsettings (object):
         set_method, set_hamiltonian, set_functional,
         set_properties, set_transform, set_exportfde
     @group Input Generation:
-        get_hamiltonian_block, get_fdeexportlevel_block, get_relccsd_block, get_relccsd_block_old,
+        get_hamiltonian_block, get_fdeexportlevel_block, get_relccsd_block,
         get_dirproperties_block, get_properties_block, get_moltraactive_block
     @group Other Internals:
         __str__, setup_ccnamelist
@@ -602,6 +592,7 @@ class diracsettings (object):
             if self.exportfde == True or self.doprop == True:
                 block += '.GRADIENT\n'
                 block += '*CCFOPR\n'
+                block += '.RELAXED\n'
                 block += '.MP2G\n'
 # at the moment, the ccsd and ccsd(T) energies are always switched on
 #        elif self.method == 'CCSD' :
@@ -655,26 +646,6 @@ class diracsettings (object):
         else:
             block += "# unrecognized export option. will enable SCF-based one\n"
             block += ".LEVEL\nDHF\n"
-        return block
-
-    def get_relccsd_block_old(self):
-
-        block = "   &RELCCSD  "
-        for k in self.ccmain.keys():
-            block += " " + k + "=" + str(self.ccmain[k]) + ","
-        block += "  &END\n"
-
-        block += "   &CCENER"
-        for k in self.ccener.keys():
-            block += " " + k + "=" + str(self.ccener[k]) + ","
-        block += "  &END\n"
-
-        if self.ccmain['DOFOPR'] == 'T':
-            block += "   &CCFOPR"
-            for k in self.ccfopr.keys():
-                block += " " + k + "=" + str(self.ccfopr[k]) + ","
-            block += "  &END\n"
-
         return block
 
     def get_dirproperties_block(self):
@@ -816,6 +787,13 @@ class diracsinglepointjob (diracjob):
 
     def create_results_instance(self):
         return diracsinglepointresults(self)
+
+    def get_runscript(self):
+        if ('DIRAC_PARALLEL' in os.environ) and ('NSCM' in os.environ) :
+            nproc = int(os.environ['NSCM'])
+        else:
+            nproc = None
+        return diracjob.get_runscript(self, nproc=nproc)
 
     # FIXME: restart with Dirac not implemented
     def set_restart(self, restart):

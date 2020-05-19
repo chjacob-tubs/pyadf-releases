@@ -332,10 +332,10 @@ class kffile:
         
         # Undump string data with udmpkf
         import tempfile, os
-        path = tempfile.mktemp()
+        path = tempfile.mktemp(dir=os.getcwd())
 
         udumpCmd = os.path.join(self._kfpath, 'udmpkf')
-        tochild = os.popen(udumpCmd + ' ' + path + ' 2>/dev/null', 'w')
+        tochild = os.popen(udumpCmd + ' "' + path + '" 2>/dev/null', 'w')
         tochild.write(str)
         tochild.close()
 

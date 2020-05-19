@@ -864,6 +864,7 @@ class _TurbomoleAbInitioSettings(TurbomoleSettings):
         self.ri = None
         self.ri_memory = None
         self.basis_set_all = None
+        self.dft_grid = None
         self.dft_functional = None
         self.disp = None
         self.guess_initial_occupation_by = None
@@ -877,6 +878,7 @@ class _TurbomoleAbInitioSettings(TurbomoleSettings):
         if self.dft:
             self.summary.append(["DFT Functional", self.dft_functional])
             self.summary.append(["Dispersion correction", self.disp])
+            self.summary.append(["DFT integration grid", self.dft_grid])
         self.summary.append(["Use RI approximation", self.ri])
         if self.ri:
             self.summary.append(["Memory for RI", "{0} MB".format(self.ri_memory)])
@@ -948,6 +950,15 @@ class _TurbomoleAbInitioSettings(TurbomoleSettings):
         """
 
         self.dft_functional = dft_functional
+
+    def set_dft_grid(self, dft_grid):
+        """
+        Select the DFT integration grid.
+
+        Available options m3-m5  or  1-7
+        """
+
+        self.dft_grid = dft_grid
 
     def set_ri(self, value, memory=2000):
         """
@@ -1629,10 +1640,15 @@ class TurbomoleSinglePointJob(TurbomoleJob):
         if self.settings.method == 'dft':
             if self.settings.dft_functional is None:
                 self.settings.set_dft_functional('b-p')
+            if self.settings.dft_grid is None:
+                self.settings.set_dft_grid('m3')
         if self.settings.guess_initial_occupation_by is None:
             self.settings.set_initial_occupation_guess_method('eht')
         if self.settings.ired is None:
             self.settings.set_redundant_internal_coordinates(False)
+
+        if self.settings.scfiterlimit is None:
+            self.settings.set_scfiterlimit(30)
 
         # Chose the executing applications.
 

@@ -139,6 +139,9 @@ class EmbedXCFunEvaluator (object):
             diff_ta = fun.eval_potential_n(density=density_T[0].values)[:, order] \
                 - fun.eval_potential_n(density=density_A[0].values)[:, order]
 
+        import numpy
+        diff_ta = numpy.nan_to_num(diff_ta)
+
         import hashlib
         m = hashlib.md5()
         m.update("Potential calculated in EmbedXCFunEvaluator._get_TA_difference :\n")

@@ -216,10 +216,12 @@ from ADFGeometry import adfgeometrysettings, adfgeometryjob, adfgradientsjob, ad
 from ADFFrequencies import adffreqjob
 from ADF_NMR import adfnmrjob, adfnmrresults
 from ADF_CPL import cplsettings, adfcpljob, adfcplresults
+from ADF_DFTB import dftbsettings, dftbsinglepointjob, dftbgeometryjob, dftbfreqjob
 from ADFNumDiff import numgradsettings, adfnumgradjob, adfnumgradsjob
 
 from DaltonSinglePoint import daltonsettings, daltonsinglepointjob
-from DaltonCC2 import daltonCC2job
+from DaltonCC2 import daltonCC2settings, daltonCC2job
+
 
 from Dirac import diracsettings, diracjob, diracsinglepointjob
 

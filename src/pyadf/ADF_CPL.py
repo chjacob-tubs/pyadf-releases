@@ -122,6 +122,7 @@ class cplsettings (object):
         self.contributions = contributions
 
         self.cplnuclei = None
+        self.use_gga = False
 
     def set_nuclei(self, nuclei):
         """
@@ -219,6 +220,10 @@ class cplsettings (object):
         """
         self.contributions = contributions
 
+    def set_functional(self, functional):
+        if functional == 'PBE':
+            self.use_gga = True
+
     def check_settings(self):
         """
         Check consistency of settings for CPL.
@@ -307,7 +312,7 @@ class cplsettings (object):
                 for nuc in nucblock:
                     line += ' ' + str(nuc)
                 settings_block += line + '\n'
-        settings_block += ' scf iterations ' + str(self.iterations) + ' converge %.1e\n' % self.converge
+        settings_block += ' scf iterations=' + str(self.iterations) + ' converge=%.1e\n' % self.converge
         if self.contributions != None:
             settings_block += ' Contributions ' + self.contributions + '\n'
 
@@ -513,6 +518,8 @@ class adfcpljob (adfjob):
         cplinput += 'NMRCoupling \n'
         cplinput += self.settings.get_settings_block()
         cplinput += 'End \n'
+        if self.settings.use_gga :
+            cplinput += 'GGA\n'
 
         if self._checksum_only:
             cplinput += self.adfresults.get_checksum()

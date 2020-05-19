@@ -110,7 +110,7 @@ class SerialJobRunner (JobRunner):
         checksum = job.get_checksum()
         fileid = self._files.get_id(checksum)
 
-        if (fileid == None):
+        if (fileid is None):
             print " Running main job ..."
 
             cwd = os.getcwd()

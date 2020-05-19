@@ -42,7 +42,7 @@ def run_potjob (refresults, potproj, projchange=None) :
     settings.set_save_tapes([21,10])
     settings.set_ncycles(1000)
 
-    job = adfsinglepointjob(mol, basis='DZP', settings=settings, options=['LINEARSCALING 100'])
+    job = adfsinglepointjob(mol, basis='DZP', settings=settings, options=['LINEARSCALING 100\nEND'])
     potopts = {'EIGENSHIFT':0.00, 'SMALLEIGTHRESH':1e-6, 
               'POTPROJ':potproj, 'DENSCONV':5.0e-6}
     if projchange is not None:
@@ -112,7 +112,7 @@ def main():
     settings.set_save_tapes([21,10])
     settings.set_ncycles(100)
 
-    refresults = adfsinglepointjob(mol, basis='DZP', settings=settings, options=['LINEARSCALING 100']).run()
+    refresults = adfsinglepointjob(mol, basis='DZP', settings=settings, options=['LINEARSCALING 100\nEND']).run()
 
     ####################################################################
     # potential reconstruction job (zero projection / balanced)
@@ -218,7 +218,7 @@ def main():
     settings.set_save_tapes([21,10])
     settings.set_ncycles(100)
 
-    refresults = adfsinglepointjob(mol, basis='DZP', settings=settings, options=['LINEARSCALING 100']).run()
+    refresults = adfsinglepointjob(mol, basis='DZP', settings=settings, options=['LINEARSCALING 100\nEND']).run()
 
     ####################################################################
     # potential reconstruction job (full projection)
@@ -227,6 +227,17 @@ def main():
     potresults = run_potjob(refresults, potproj='VIRT', projchange=10.0)
 
     recpot_num = numpy.loadtxt(os.path.join(pyadfenv.outdir,'Ar_recpot_num_dzp_hf.txt'))
+
+    #grid = LogGrid(400, b=0.01, rmax=100.0)
+    #coords = numpy.zeros((grid.N,3))
+    #coords[:,0] = grid.r
+    #loggrid = customgrid(mol, coords)
+    #
+    #d_ref = refresults.get_density(grid=loggrid).get_values()
+    #startpot = get_startpot(refresults, loggrid).get_values()
+    #
+    #recpot_num = reconstruct_potential(grid, grid.r*grid.r*d_ref, startpot+recpot_num, {0:3,1:2}, denserr=1e-4) + recpot_num
+    #numpy.savetxt(os.path.join(pyadfenv.outdir, 'Ar_recpot_num_dzp_hf.txt'), recpot_num)
 
     denserr_adf, denserr, denserr_recpot_num, denserr_recpot_bas = compare_results(refresults, potresults, recpot_num)
 

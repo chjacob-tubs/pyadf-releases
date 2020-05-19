@@ -44,20 +44,10 @@ print " Diff Dens Int        : ", diff_dens.integral()
 print " Diff Dens Int (Sqr.) : ", sqrt_error
 print " Diff Dens Int (Abs.) : ", abs_error
 
-testobj.assertAlmostEqual (sqrt_error, 0.00483100, 5)
-testobj.assertAlmostEqual (abs_error,  0.04337426, 5)
+testobj.assertAlmostEqual (sqrt_error, 0.00687409, 5)
+testobj.assertAlmostEqual (abs_error,  0.06881234, 5)
 
-def check_dipole (testobj, dipole_vect_ref, dipole_vect):
-
-    testobj.assertAlmostEqual(dipole_vect[0], dipole_vect_ref[0], 4) 
-    testobj.assertAlmostEqual(dipole_vect[1], dipole_vect_ref[1], 4) 
-    testobj.assertAlmostEqual(dipole_vect[2], dipole_vect_ref[2], 4) 
-
-print supermol_dipole
-print mfcc_dipole
-print fde_dipole
-
-check_dipole (testobj, [ 0.56269604, -0.69415351, -0.73474538], supermol_dipole)
-check_dipole (testobj, [ 0.56461034, -0.69343547, -0.71267449], mfcc_dipole)
-check_dipole (testobj, [ 0.57395739, -0.69197140, -0.73130716], fde_dipole)
+testobj.assertAlmostEqual([ 0.56269604, -0.69415351, -0.73474538], supermol_dipole, 4)
+testobj.assertAlmostEqual([ 0.56452348, -0.69343517, -0.71273217], mfcc_dipole, 4)
+testobj.assertAlmostEqual([ 0.58145083, -0.69676991, -0.72293586], fde_dipole, 4)
 

@@ -266,8 +266,9 @@ class PeriodicTable (object):
 
     @classmethod
     def get_atomic_number(cls, symbol):
+        symb = symbol.split('.')[0]
         try:
-            number = cls.symtonum[symbol.capitalize()]
+            number = cls.symtonum[symb.capitalize()]
         except KeyError:
             raise PTError('trying to convert incorrect atomic symbol')
         return number

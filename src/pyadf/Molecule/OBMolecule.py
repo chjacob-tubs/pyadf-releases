@@ -176,12 +176,6 @@ class BaseMolecule (object):
         """
         pass
 
-    def has_spin_assigned(self):
-        """
-        Returns a boolean stating wether spin has been assigned by user
-        """
-        pass
-
     def get_spin(self):
         """
         Returns the total spin multiplicity
@@ -236,8 +230,7 @@ class OBMolecule (BaseMolecule):
         __str__, print_coordinates, get_geovar_atoms_block, get_geovar_block,
         get_dalton_molfile, write_dalton_molfile, get_cube_header, get_xyz_file
     @group Inquiry methods:
-        get_number_of_atoms, get_charge, get_spin, has_spin_assigned,
-        get_coordinates, get_atom_symbols,
+        get_number_of_atoms, get_charge, get_spin, get_coordinates, get_atom_symbols,
         get_atomic_numbers, get_symmetry, get_all_bonds, distance, distance_to_point,
         get_center_of_mass, get_alternate_locations,
         get_nuclear_dipole_moment, get_nuclear_efield_in_point
@@ -293,14 +286,16 @@ class OBMolecule (BaseMolecule):
 
         self.is_ghost = []
 
+        if filename is not None:
+            self.read(filename, inputformat)
+
         # By default, the charge is initialized to zero.
         # This is necessary because openbabel does not provide a
         # HasTotalChargeAssigned() method
         self.set_charge(0)
         self._charge = None
 
-        if filename != None:
-            self.read(filename, inputformat)
+        self.set_spin(0)
 
     def copy(self, other):
         """
@@ -321,8 +316,7 @@ class OBMolecule (BaseMolecule):
         new = self.__class__()
         new.mol = openbabel.OBMol(self.mol)
         new.set_charge(self.get_charge())
-        if self.mol.HasSpinMultiplicityAssigned():
-            new.set_spin(self.get_spin())
+        new.set_spin(self.get_spin())
 
         if self.mol.HasChainsPerceived():
             new.mol.SetChainsPerceived()
@@ -405,8 +399,7 @@ class OBMolecule (BaseMolecule):
         m.set_symmetry(self.get_symmetry())
         m.add_atoms(other.get_atom_symbols(), other.get_coordinates())
         m.set_charge(self.get_charge() + other.get_charge())
-        if self.mol.HasSpinMultiplicityAssigned() or other.mol.HasSpinMultiplicityAssigned():
-            m.set_spin(self.get_spin() + other.get_spin())
+        m.set_spin(self.get_spin() + other.get_spin())
         return m
 
     def add_as_ghosts(self, other):
@@ -444,8 +437,7 @@ class OBMolecule (BaseMolecule):
         m.set_symmetry(self.get_symmetry())
         m.add_atoms(other.get_atom_symbols(), other.get_coordinates(), ghosts=True)
         m.set_charge(self.get_charge())
-        if self.mol.HasSpinMultiplicityAssigned():
-            m.set_spin(self.get_spin())
+        m.set_spin(self.get_spin())
         return m
 
     def displace_atom(self, atom=None, coordinate=None, displacement=0.01, atomicunits=True):
@@ -672,6 +664,7 @@ class OBMolecule (BaseMolecule):
         @returns: nothing
         """
         self.mol.SetTotalSpinMultiplicity(spin)
+        self.mol.SetSpinMultiplicityAssigned() 
 
     def get_spin(self):
         """
@@ -680,13 +673,7 @@ class OBMolecule (BaseMolecule):
         @returns: total spin
         @rtype:   float
         """
-
-        if self.mol.HasSpinMultiplicityAssigned():
-            spin = self.mol.GetTotalSpinMultiplicity()
-        else:
-            spin = 0
-
-        return spin
+        return self.mol.GetTotalSpinMultiplicity()
 
     def add_atoms(self, atoms, coords, atomicunits=False, ghosts=False):
         """
@@ -734,6 +721,7 @@ class OBMolecule (BaseMolecule):
                 for j in range(3):
                     coords[i][j] = coords[i][j] * Bohr_in_Angstrom
 
+        saved_spin = self.get_spin()
         self.mol.BeginModify()
         for i in range(len(atoms)):
             a = self.mol.NewAtom()
@@ -748,6 +736,7 @@ class OBMolecule (BaseMolecule):
             a.SetVector(coords[i][0], coords[i][1], coords[i][2])
             self.is_ghost.append(ghosts)
         self.mol.EndModify()
+        self.set_spin(saved_spin)
 
     def get_coordinates(self, atoms=None, ghosts=True):
         """
@@ -998,6 +987,7 @@ class OBMolecule (BaseMolecule):
         m = OBMolecule()
         m.add_atoms(self.get_atom_symbols(atoms, ghosts),
                     self.get_coordinates(atoms, ghosts))
+
         return m
 
     def get_residues(self, chain=None, restype=None, resnum=None, idx=None):
@@ -1255,7 +1245,10 @@ class OBMolecule (BaseMolecule):
         @type pH: float
 
         """
+        spin_saved = self.get_spin()
         self.mol.ConnectTheDots()
+        self.set_spin(spin_saved)
+
         self.mol.PerceiveBondOrders()
 
         # set all formal charges to 0 -> all residues will be neutral
@@ -1285,7 +1278,9 @@ class OBMolecule (BaseMolecule):
                 at2.SetHyb(3)
         # END UGLY HACK
 
+        spin_saved = self.get_spin()
         self.mol.AddHydrogens(False, correctForPH, pH)
+        self.set_spin(spin_saved)
 
         self.is_ghost += [False] * (self.mol.NumAtoms() - len(self.is_ghost))
 
@@ -1736,16 +1731,6 @@ class OBMolecule (BaseMolecule):
                                                                at.GetZ() / Bohr_in_Angstrom)
 
         return header
-
-    def has_spin_assigned(self):
-        """
-        Returns a boolean stating wether spin has been assigned by user
-
-        @author: Rosa Bulo (REB)
-
-        @rtype: bool
-        """
-        return self.mol.HasSpinMultiplicityAssigned()
 
     def get_checksum(self, representation='xyz'):
         """

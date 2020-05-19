@@ -172,7 +172,7 @@ class daltonjob (job):
 
         return m.digest()
 
-    def get_runscript(self):
+    def get_runscript(self, nproc=None, memory=None):
         put_files = [f for f in ['EMBPOT', 'FRZDNS'] if os.path.exists(f)]
 
         runscript = "#!/bin/bash \n\n"
@@ -192,6 +192,10 @@ class daltonjob (job):
             runscript += 'gzip dalfiles.tar\n'
 
         runscript += "$DALTONBIN/dalton "
+        if nproc is not None:
+            runscript += '-N %i ' % nproc
+        if memory is not None:
+            runscript += '-M %i ' % memory
         if len(put_files) > 0:
             runscript += '-f dalfiles'
         runscript += " DALTON MOLECULE\n"
@@ -239,7 +243,7 @@ class daltonsettings (object):
         __str__
     """
 
-    def __init__(self, method='DFT', functional='LDA', dftgrid=None):
+    def __init__(self, method='DFT', functional='LDA', dftgrid=None, memory=None):
         """
         Constructor for daltonsettings.
 
@@ -252,14 +256,18 @@ class daltonsettings (object):
         @type  functional: str
         @param dftgrid: the numerical integration grid for the xc part in DFT, see L{set_dftgrid}
         @type  dftgrid: None or str
+        @param memory: the maximum total memory to use (in MB)
+        @type  memory: integer
         """
         self.functional = None
         self.method = None
         self.dftgrid = None
+        self.memory = None
 
         self.set_method(method)
         self.set_functional(functional)
         self.set_dftgrid(dftgrid)
+        self.set_memory(memory)
 
     def set_method(self, method):
         """
@@ -288,6 +296,15 @@ class daltonsettings (object):
         Select the numerical integration grid.
         """
         self.dftgrid = dftgrid
+
+    def set_memory(self, memory):
+        """
+        Set total memory to use.
+
+        @param memory: the maximum total memory to use (in MB)
+        @type  memory: integer
+        """
+        self.memory = memory
 
     def get_wavefunction_block(self):
         block = "**WAVE FUNCTIONS\n"
@@ -380,6 +397,10 @@ class daltonsinglepointjob (daltonjob):
 
         self.fdein = fdein
 
+        self.post2017code = True
+        if 'DALTON_POST2017_VERSION' in os.environ:
+            self.post2017code = False 
+
         # FIXME: Symmetry in Dalton hardcoded
         if self.mol:
             self.mol.set_symmetry('NOSYM')
@@ -391,6 +412,13 @@ class daltonsinglepointjob (daltonjob):
 
     def create_results_instance(self):
         return daltonsinglepointresults(self)
+
+    def get_runscript(self):
+        if 'NSCM' in os.environ :
+            nproc = int(os.environ['NSCM'])
+        else:
+            nproc = None
+        return daltonjob.get_runscript(self, nproc=nproc, memory=self.settings.memory)
 
     # FIXME: restart with Dalton not implemented
     def set_restart(self, restart):
@@ -414,6 +442,14 @@ class daltonsinglepointjob (daltonjob):
             block += ".RUN PROPERTIES\n"
         if not self.fdein == None:
             block += '.FDE\n'
+        # for versions prior to the 2018 dalton release,
+        # the input below is not necessary to run the calculations.
+        # from the 2018 release onwards, the definition of *FDE and
+        # some of its keywords will be mandatory
+            if not self.post2017code:
+                block += '*FDE\n'
+                block += '.PRINT\n 1\n'
+                block += '.EMBPOT\nEMBPOT\n'
         return block
 
     def get_integral_block(self):

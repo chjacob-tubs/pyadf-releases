@@ -8,7 +8,7 @@ fde_settings.set_integration(accint=4.0)
 
 # other options
 basis_active = "DZP"
-fde_act_opts = {'FULLGRID':'', 'PW91k' : '', 'ENERGY' : '' }
+fde_act_opts = {'FULLGRID':'', 'TNAD':'PW91k', 'ENERGY' : '' }
 
 file_h2o = os.path.join (pyadfenv.outdir, 'H2O.xyz')
 file_nh3 = os.path.join (pyadfenv.outdir, 'NH3.xyz')

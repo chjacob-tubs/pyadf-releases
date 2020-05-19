@@ -40,12 +40,6 @@ print dipole
 s2 = results.get_s2()
 print s2
 
-def check_dipole (testobj, dipole_vect_ref, dipole_vect):
-
-    testobj.assertAlmostEqual(dipole_vect[0], dipole_vect_ref[0], 6) 
-    testobj.assertAlmostEqual(dipole_vect[1], dipole_vect_ref[1], 6) 
-    testobj.assertAlmostEqual(dipole_vect[2], dipole_vect_ref[2], 6) 
-
-check_dipole (testobj, [-0.86762132, -0.38990915, 2.57972467], dipole)
-
-testobj.assertAlmostEqual(s2, 0.77362, 4)
+if 'unittesting' in pyadfenv.options :
+    testobj.assertAlmostEqual([-0.86762269, -0.38991088, 2.57971921], dipole)
+    testobj.assertAlmostEqual(s2, 0.77363, 4)

@@ -377,7 +377,7 @@ def reconstruct_potential(grid, refdens, startpot, occs, denserr=1e-4) :
 
         recpot = recpot - (refdens-dens)/ grid.r
 
-    print refdens-dens
+    #print refdens-dens
     return recpot
 
 class CalcFuncGrad(object):
@@ -419,7 +419,7 @@ class CalcFuncGrad(object):
         return self.grad
 
     def grad_smooth (self, pot) :
-        return -8.0*math.pi * self.grid.h * self.lapl_symmetrized.dot(pot-self.startpot) 
+        return -8.0*math.pi * self.grid.h * self.solver.lapl_symmetrized.dot(pot-self.startpot) 
 
     def hess (self, pot, lambda_smooth=None) :
         H = numpy.zeros((self.grid.N, self.grid.N))
@@ -468,7 +468,7 @@ class CalcFuncGrad(object):
         return Hinv
 
     def hess_smooth (self):
-        return -8.0*math.pi * self.grid.h * self.lapl_symmetrized.toarray()
+        return -8.0*math.pi * self.grid.h * self.solver.lapl_symmetrized.toarray()
 
     def error (self) :
         abserr = 4.0*math.pi * self.grid.calc_integral(numpy.abs(self.dens-self.refdens))
@@ -556,7 +556,7 @@ def reconstruct_potential_sd(grid_in, refdens_in, startpot_in, occs_in, denserr=
     if (method is None) or (method == 'BFGS') :
         recpot = fmin_bfgs(funcs.lagrangian, startpot_in*grid_in.r, fprime=funcs.gradient, callback=funcs.info, norm=2, disp=True, gtol=1e-8) / grid_in.r
     elif (method == 'BFGS_OnlyGrad') :
-        recpot = fmin_bfgs_onlygrad(funcs.gradient, startpot_in*grid_in.r, invhess=funcs.invhess, callback=funcs.info, gtol=1e-8) / grid_in.r
+        recpot = fmin_bfgs_onlygrad(funcs.gradient, startpot_in*grid_in.r, invhess=funcs.invhess, callback=funcs.info, gtol=1e-10) / grid_in.r
     else :
         raise Exception('Unknown optimization method')
 

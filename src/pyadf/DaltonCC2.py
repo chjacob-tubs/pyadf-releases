@@ -31,7 +31,8 @@
     daltonCC2results
 """
 
-from DaltonSinglePoint import daltonsinglepointjob, daltonsinglepointresults, daltonsettings
+from DaltonSinglePoint import daltonjob, daltonsinglepointjob, daltonresults, \
+                              daltonsinglepointresults, daltonsettings
 
 import re
 
@@ -231,6 +232,10 @@ class daltonCC2job (daltonsinglepointjob):
 
         daltonsinglepointjob.__init__(self, mol, basis, fdein=fdein,
                                       settings=self.settings, options=options)
+
+    def get_runscript(self):
+        # CC is not available in MPI parallel runs
+        return daltonjob.get_runscript(self, nproc=None, memory=self.settings.memory)
 
     def _get_nexci(self):
         return self.settings.nexci
