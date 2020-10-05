@@ -1,8 +1,9 @@
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2014 by Christoph R. Jacob, S. Maya Beyhan,
+# Copyright (C) 2006-2020 by Christoph R. Jacob, S. Maya Beyhan,
 # Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Michal Handzlik,
-# Karin Kiewisch, Moritz Klammler, Jetze Sikkema, and Lucas Visscher
+# Karin Kiewisch, Moritz Klammler, Lars Ridder, Jetze Sikkema,
+# Lucas Visscher, and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -33,14 +34,14 @@ class PlotPropertyFactory(object):
         """
         Create a new property for a density-related quantity.
 
-        @param type: Density-related quantity to create
+        @param dens_type: Density-related quantity to create
             Possible values are:
             dens:    density itself
             sqrgrad: squared gradient of the density
             grad:    density gradient (x, y, z)
             lapl:    density Laplacian
             hess:    density Hessian (xx, xy, xz, yy, yz, zz)
-        @type type: str
+        @type dens_type: str
 
         @param fit: Whether to use the fit density or the exact density
         @type fit: bool
@@ -50,7 +51,7 @@ class PlotPropertyFactory(object):
             orbitals to include. Use irrep "Loc" for localized orbitals
         @type orbs: dict
         """
-        options = {'fit': fit}
+        options = {'fit':fit}
         if orbs is not None:
             options['orbs'] = orbs
 
@@ -63,7 +64,7 @@ class PlotPropertyFactory(object):
         """
         Create a new property for a potential.
 
-        @param type: Potential to create
+        @param pot_type: Potential to create
             Possible values are:
             total:   the total potential
             nuc:     the nuclear potential
@@ -76,13 +77,10 @@ class PlotPropertyFactory(object):
             embnuc:  the embedding potential, nuclear potential only
             nadxc:   the nonadditive xc potential
             nadkin:  the nonadditve kinetic potential, func needs to be specified
-        @type type: str
+        @type pot_type: str
 
         @param func: the functional to use. Only applicable with 'kinpot' and 'nadkin'
         @type func: fit
-
-        @param fit: Whether to use the fit density or the exact density
-        @type fit: bool
 
         @param orbs:
             a dictionary of the form {"irrep":[nums]} containing the
@@ -96,8 +94,8 @@ class PlotPropertyFactory(object):
             pot_type = 'total'
 
         if func is not None:
-            #FIXME: this check should be moved to densfjob
-            if not pot_type in ['kinpot', 'nadkin']:
+            # FIXME: this check should be moved to densfjob
+            if pot_type not in ['kinpot', 'nadkin']:
                 raise PyAdfError("Functional can only be selected with kinpot and nadkin")
             else:
                 options = {'func': func}
@@ -123,14 +121,14 @@ class PlotPropertyFactory(object):
         @type orbnum: int
 
         @param lapl: Whether to choose the Laplacian instead of the orbital itself
-        @type fit: bool
+        @type lapl: bool
         """
         if not lapl:
             orb_type = 'orbital'
         else:
             orb_type = 'orblapl'
 
-        options = {'irrep': irrep, 'orbnum': orbnum}
+        options = {'irrep':irrep, 'orbnum':orbnum}
 
         prop = PlotProperty("orbital", prop_type=orb_type, options=options)
 
@@ -138,7 +136,6 @@ class PlotPropertyFactory(object):
 
 
 class PlotProperty(object):
-
     """
     Class representing properties that can be stored as GridFunctions.
     """
@@ -349,7 +346,7 @@ class PlotProperty(object):
             return False
         elif self.is_orbital:
             return False
-        elif (self.is_potential) and (self.ptype == 'nuc' or self.ptype == 'coul'):
+        elif self.is_potential and (self.ptype == 'nuc' or self.ptype == 'coul'):
             return False
         else:
             return True
@@ -366,6 +363,7 @@ class PlotProperty(object):
 
     @property
     def components(self):
+        c = None
         if self.vector_length == 1:
             c = None
         elif self.pclass == 'density' and self.ptype == 'grad':

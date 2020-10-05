@@ -2,9 +2,10 @@
 
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2014 by Christoph R. Jacob, S. Maya Beyhan,
+# Copyright (C) 2006-2020 by Christoph R. Jacob, S. Maya Beyhan,
 # Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Michal Handzlik,
-# Karin Kiewisch, Moritz Klammler, Jetze Sikkema, and Lucas Visscher
+# Karin Kiewisch, Moritz Klammler, Lars Ridder, Jetze Sikkema,
+# Lucas Visscher, and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -21,28 +22,27 @@
 
 import os
 import sys
-import shutil
 import traceback
 
 try:
-    import cProfile
+    import cProfile as profile
 except ImportError:
-    pass
+    profile = None
 
 from pyadf import *
 from pyadfenv import setup_pyadfenv, setup_test_pyadfenv
 
-if (os.path.basename(sys.argv[0]) == 'pyadf'):
+if os.path.basename(sys.argv[0]) == 'pyadf':
     pyadfenv = setup_pyadfenv()
 else:
-    pyadfenv = setup_test_pyadfenv(pyadfinput, testing_force_openbabel)
+    pyadfenv = setup_test_pyadfenv(pyadfinput, testing_molclass)
 
 DefaultJobRunner.instance = None
 
 stdout_save = sys.stdout
 stderr_save = sys.stderr
 
-if not 'interactive' in pyadfenv.options:
+if 'interactive' not in pyadfenv.options:
     # redirect PyADF output to a file
     sys.stdout = file(pyadfenv.pyadfout, 'w', 0)
     sys.stderr = sys.stdout
@@ -95,9 +95,9 @@ print
 
 # print the input file
 f = file(pyadfenv.inputname, 'r')
-for l in f.readlines():
-    if l.strip(' \n\r') != "":
-        print l,
+for ll in f.readlines():
+    if ll.strip(' \n\r') != "":
+        print ll,
 print " " + 40 * "-"
 print
 f.close()
@@ -107,10 +107,7 @@ myfiles = adf_filemanager(pyadfenv.outdir, pyadfenv.jobid)
 myfiles.set_outputfilename("alloutput")
 
 # initialize MoleculeFactory
-if not ('openbabel' in pyadfenv.options):
-    MoleculeFactory().use_openbabel(None)
-else:
-    MoleculeFactory().use_openbabel(pyadfenv.options['openbabel'])
+MoleculeFactory().use_molclass(pyadfenv.options["molclass"])
 
 if "restartdir" in pyadfenv.options:
     print " Using restart directory: ", pyadfenv.options["restartdir"]
@@ -123,12 +120,12 @@ print
 try:
     globs = globals().copy()
     globs.update(locals())
-    if not "profile" in pyadfenv.options:
+    if "profile" not in pyadfenv.options:
         execfile(pyadfenv.inputname, globs)
     else:
         profout = os.path.join(pyadfenv.outdir, "pyadf.profile")
         print "Profile will be written to: ", profout
-        cProfile.runctx("execfile(pyadfenv.inputname, globs)", globals(), locals(), profout)
+        profile.runctx("execfile(pyadfenv.inputname, globs)", globals(), locals(), profout)
 
     print " " + 50 * "*"
     print " Finished Execution of PyADF input"

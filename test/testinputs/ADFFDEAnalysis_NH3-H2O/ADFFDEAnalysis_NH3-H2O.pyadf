@@ -31,7 +31,7 @@ diffPrints = diffjob.print_results()
 
 ##############################################################################
 def check_results (testobj, diffresults) :
-    testobj.assertAlmostEqual(diffresults['PBE2'][0][0], 0.868215, 4) 
+    testobj.assertAlmostEqual(diffresults['PBE2'][0][0], 0.868122, 4) 
     testobj.assertAlmostEqual(diffresults['PBE2'][0][2], 0.009314, 4) 
     testobj.assertAlmostEqual(diffresults['PBE2'][0][3], 0.001666, 4) 
     testobj.assertAlmostEqual(diffresults['PBE2'][1][0], 0.782726, 4) 

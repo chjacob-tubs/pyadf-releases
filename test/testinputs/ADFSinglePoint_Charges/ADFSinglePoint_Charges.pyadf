@@ -1,0 +1,44 @@
+h2o = molecule (os.path.join(pyadfenv.outdir, 'water.xyz'))
+h2o.set_symmetry('NOSYM')
+
+settings = adfsettings(functional='PBE')
+settings.set_printing(True, printcharge=True)
+results = adfsinglepointjob(h2o, 'DZP', settings=settings).run()
+
+# Mulliken charges
+
+mulliken = results.get_mulliken_charges()
+print "Mulliken Charges: ", mulliken
+
+testobj.assertAlmostEqualVectors(mulliken, [-0.40154916, 0.20077469, 0.20077447], 3)
+
+# Voronoi charges
+
+voronoi = results.get_voronoi_charges()
+print "Voronoi Charges: ", voronoi
+
+vdd = results.get_voronoi_charges(vdd=True)
+print "VDD Charges: ", vdd
+
+testobj.assertAlmostEqualVectors(voronoi, [0.69373044, -0.34685375, -0.34685377], 3)
+testobj.assertAlmostEqualVectors(vdd, [-0.2626871, 0.13135323, 0.13135321], 3)
+
+# Hirshfeld charges
+
+hirsh = results.get_hirshfeld_charges()
+print "Hirshfeld Charges: ", hirsh
+
+testobj.assertAlmostEqualVectors(hirsh, [-0.28723012, 0.14362652, 0.14362651], 3)
+
+# multipole derived charges
+
+mdc_m = results.get_multipolederiv_charges('MDC-m')
+print "MDC-m Charges: ", mdc_m
+mdc_d = results.get_multipolederiv_charges('MDC-d')
+print "MDC-d Charges: ", mdc_d
+mdc_q = results.get_multipolederiv_charges('MDC-q')
+print "MDC-q Charges: ", mdc_q
+
+testobj.assertAlmostEqualVectors(mdc_m, [0.28695648, -0.14347825, -0.14347823], 3)
+testobj.assertAlmostEqualVectors(mdc_d, [-0.62881444, 0.31440723, 0.31440721], 3)
+testobj.assertAlmostEqualVectors(mdc_q, [-0.29866763, 0.14933381, 0.14933382], 3)

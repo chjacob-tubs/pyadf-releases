@@ -2,10 +2,10 @@ import math
 import copy
 import numpy
 
-supermol = molecule (os.path.join(pyadfenv.outdir, 'cys_cys.pdb'),'pdb')
+supermol = molecule (os.path.join(pyadfenv.outdir, 'cys_cys.pdb'), 'pdb')
 supermol.set_spin(0)
 
-settings = adfsettings ()
+settings = adfsettings()
 settings.set_functional('BP86')
 settings.set_integration(accint=2.0)
 
@@ -13,7 +13,7 @@ basis = 'SZ'
 core = 'Large'
 
 # supermolecule calculation
-supermol_results =  adfsinglepointjob(supermol, basis, core=core, settings=settings).run()
+supermol_results = adfsinglepointjob(supermol, basis, core=core, settings=settings).run()
 supermol_dipole = supermol_results.get_dipole_vector()
 
 frags = cappedfragmentlist()
@@ -22,15 +22,15 @@ frags.partition_protein(supermol)
 # MFCC calculation
 mfcc_results = adfmfccjob(frags, basis, core=core, settings=settings).run()
 mfcc_dipole = mfcc_results.get_dipole_vector()
-mfcc_frags  = mfcc_results.get_fragmentlist()
+mfcc_frags = mfcc_results.get_fragmentlist()
 
 # 3-FDE (0) calculation
 # settings.set_ncycles(1000)
 # settings.set_mixing(0.1)
 # settings.set_convergence(converge=1.0e-4)
 fde_results = adf3fdejob(mfcc_frags, basis, core=core, settings=settings,
-                          fde={'RHO1FITTED':'','CapDensConv':1e-3},
-                          fdeoptions={'DENSTYPE':'SCFfitted'}).run()
+                          fde={'RHO1FITTED': '', 'CapDensConv': 1e-3},
+                          fdeoptions={'DENSTYPE': 'SCFfitted'}).run()
 
 fde_dipole = fde_results.get_dipole_vector()
 fde_dens= fde_results.get_density(spacing=0.2, fit=True)
@@ -38,7 +38,7 @@ fde_dens= fde_results.get_density(spacing=0.2, fit=True)
 supermol_dens = supermol_results.get_density(grid=fde_dens.grid, fit=True)
 
 diff_dens = fde_dens - supermol_dens
-diff_dens.get_cubfile(os.path.join(pyadfenv.outdir,'diff-dens.cub'))
+diff_dens.get_cubfile(os.path.join(pyadfenv.outdir, 'diff-dens.cub'))
 
 print "Dipole moment (a.u.): " 
 print "Supermolecule: ", supermol_dipole

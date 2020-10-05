@@ -1,8 +1,9 @@
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2014 by Christoph R. Jacob, S. Maya Beyhan,
+# Copyright (C) 2006-2020 by Christoph R. Jacob, S. Maya Beyhan,
 # Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Michal Handzlik,
-# Karin Kiewisch, Moritz Klammler, Jetze Sikkema, and Lucas Visscher
+# Karin Kiewisch, Moritz Klammler, Lars Ridder, Jetze Sikkema,
+# Lucas Visscher, and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -35,19 +36,28 @@
 from .. import PatternsLib
 
 import OBFreeMolecule
+
 try:
     import OBMolecule
 except ImportError:
     OBMolecule = None
+
+try:
+    import RDMolecule
+except ImportError:
+    RDMolecule = None
 
 
 class MoleculeFactory(object):
     __metaclass__ = PatternsLib.Singleton
 
     def __init__(self):
-        self.openbabel = (OBMolecule is not None)
+        if OBMolecule is None:
+            self.molclass = "obfree"
+        else:
+            self.molclass = "openbabel"
 
-    def use_openbabel(self, ob):
+    def use_molclass(self, molclass):
         """
         Select whether Openbabel or Openbabel-free molecule class is used.
 
@@ -55,16 +65,16 @@ class MoleculeFactory(object):
         ob = True : use Openbael; ob = False : do not use Openbabel;
         ob = None: detect whether Openbabel is available
         """
-        if ob is None:
-            self.openbabel = not (OBMolecule is None)
-        else:
-            self.openbabel = ob
+        if molclass is not None:
+            self.molclass = molclass
 
     def makeMolecule(self, *args, **kwargs):
-        if not self.openbabel:
-            return OBFreeMolecule.Molecule(*args, **kwargs)
-        else:
+        if self.molclass == "openbabel":
             return OBMolecule.OBMolecule(*args, **kwargs)
+        elif self.molclass == "rdkit":
+            return RDMolecule.RDMolecule(*args, **kwargs)
+        else:
+            return OBFreeMolecule.OBFreeMolecule(*args, **kwargs)
 
 
 def molecule(*args, **kwargs):

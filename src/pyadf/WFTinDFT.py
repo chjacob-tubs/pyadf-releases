@@ -1,8 +1,9 @@
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2014 by Christoph R. Jacob, S. Maya Beyhan,
+# Copyright (C) 2006-2020 by Christoph R. Jacob, S. Maya Beyhan,
 # Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Michal Handzlik,
-# Karin Kiewisch, Moritz Klammler, Jetze Sikkema, and Lucas Visscher
+# Karin Kiewisch, Moritz Klammler, Lars Ridder, Jetze Sikkema,
+# Lucas Visscher, and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -32,7 +33,7 @@ from Dirac import diracsinglepointjob
 import os
 
 
-class diracfragment (fragment):
+class diracfragment(fragment):
 
     def __init__(self, dirac_results, mols=None, subfrag=None, isfrozen=False, fdeoptions=None, occ=None):
 
@@ -99,7 +100,7 @@ class diracfragment (fragment):
         return block
 
 
-class wftindftjob (metajob):
+class wftindftjob(metajob):
 
     def __init__(self, frags, adfoptions, diracoptions):
         metajob.__init__(self)
@@ -169,7 +170,8 @@ class wftindftjob (metajob):
 
             # do the Dirac calculation
             # pylint: disable-msg=W0142
-            dirac_res = diracsinglepointjob(dirac_mol, fdein=dftindft_res, fdeout=outgrid_res, **self._diracoptions).run()
+            dirac_res = diracsinglepointjob(dirac_mol, fdein=dftindft_res, fdeout=outgrid_res,
+                                            **self._diracoptions).run()
 
             # construct new list of fragments, update the Dirac fragment,
             frags = fragmentlist(initial_frags.get_frozen_frags())

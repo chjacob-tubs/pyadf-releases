@@ -1,0 +1,36 @@
+import numpy
+
+_verbose_level = 2
+
+def test_geoopt(name, mol, ref_mol) :
+
+    settings = TurbomoleForceFieldSettings(verbose_level=_verbose_level)
+    res = TurbomoleForceFieldJob(mol, settings=settings).run()
+
+    opt_mol = res.get_molecule()
+    opt_mol.write(os.path.join(pyadfenv.outdir, name+'_opt.xyz'))
+
+    opt_mol.align(ref_mol, range(1, ref_mol.get_number_of_atoms()+1))
+
+    if 'unittesting' in pyadfenv.options:
+        print opt_mol.print_coordinates()
+        print ref_mol.print_coordinates()
+
+        testobj.assertAlmostEqualMolecules(opt_mol, ref_mol)
+
+testmols = [ 
+             ['water',              0],
+             ['bad_water',          0],
+             ['hydrogen',           0],
+             ['trimethyl_oxonium',  1],
+             ['hydroxyl',          -1],
+           ]
+
+for testmol in testmols :
+    mol = molecule(os.path.join(pyadfenv.outdir, testmol[0]+'.xyz'))
+    mol.set_charge(testmol[1])
+
+    mol_ref = molecule(os.path.join(pyadfenv.outdir, testmol[0]+'_ref.xyz'))
+    mol_ref.set_charge(testmol[1])
+
+    test_geoopt(testmol[0], mol, mol_ref)

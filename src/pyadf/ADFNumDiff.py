@@ -1,8 +1,9 @@
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2014 by Christoph R. Jacob, S. Maya Beyhan,
+# Copyright (C) 2006-2020 by Christoph R. Jacob, S. Maya Beyhan,
 # Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Michal Handzlik,
-# Karin Kiewisch, Moritz Klammler, Jetze Sikkema, and Lucas Visscher
+# Karin Kiewisch, Moritz Klammler, Lars Ridder, Jetze Sikkema,
+# Lucas Visscher, and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -42,7 +43,6 @@ from Errors import PyAdfError
 
 
 class numdiffsettings(object):
-
     """
     Class for the settings of a numerical differences job
 
@@ -78,7 +78,6 @@ class numdiffsettings(object):
 
 
 class numgradsettings(numdiffsettings):
-
     """
     Class for the settings of a numerical gradient job
 
@@ -147,7 +146,6 @@ class numgradsettings(numdiffsettings):
 
 
 class numdiffresults(results):
-
     """
     Results of a numdiffjob
 
@@ -200,7 +198,6 @@ class numdiffresults(results):
 
 
 class numgradresults(numdiffresults):
-
     """
     Results of a numgradjob
 
@@ -244,7 +241,6 @@ class numgradresults(numdiffresults):
 
 
 class adfnumgradresults(numgradresults):
-
     """
     Results of an adfnumgradjob
 
@@ -272,7 +268,6 @@ class adfnumgradresults(numgradresults):
 
 
 class numdiffjob(metajob):
-
     """
     Abstract base class for a numerical differences job
 
@@ -291,14 +286,11 @@ class numdiffjob(metajob):
            Can be overriden by child classes
         @type settings: numdiffsettings
         """
-        from Molecule import OBMolecule, OBFreeMolecule
         metajob.__init__(self)
 
-        if not (isinstance(mol, OBFreeMolecule.Molecule) or isinstance(mol, OBMolecule.OBMolecule)):
-            raise PyAdfError("Molecule missing in numdiffjob")
         self.molecule = mol
 
-        if settings == None:
+        if settings is None:
             self.settings = numdiffsettings()
         elif isinstance(settings, numdiffsettings):
             self.settings = settings
@@ -316,7 +308,6 @@ class numdiffjob(metajob):
 
 
 class numgradjob(numdiffjob):
-
     """
     Class for a numerical gradient job
 
@@ -350,11 +341,11 @@ class numgradjob(numdiffjob):
         self.atom = atom
 
         check = ['x', 'y', 'z', 'X', 'Y', 'Z']
-        if not coordinate in check:
+        if coordinate not in check:
             raise PyAdfError("wrong coordinate provided in numgradjob")
         self.coordinate = coordinate.lower()
 
-        if settings == None:
+        if settings is None:
             self.settings = numgradsettings()
         elif isinstance(settings, numgradsettings):
             self.settings = settings
@@ -407,7 +398,6 @@ class numgradjob(numdiffjob):
 
 
 class adfnumgradjob(numgradjob):
-
     """
     Class for a numerical gradient job
 
@@ -458,24 +448,12 @@ class adfnumgradjob(numgradjob):
 
         self.results = []
 
-    def create_job(self, mol, s_scf):
+    def create_job(self, mol):
         """
         """
         from ADFSinglePoint import adfsinglepointjob
 
-        if s_scf.create_job is None:
-            job = adfsinglepointjob(mol=mol, basis=s_scf.basis, core=s_scf.core,
-                                    settings=s_scf.settings, pointcharges=s_scf.pointcharges,
-                                    options=s_scf.options)
-        else:
-            job = s_scf.create_job(s_scf, mol)
-
-        return job
-
-    def create_job(self, mol, s_scf):
-        """
-        """
-        from ADFSinglePoint import adfsinglepointjob
+        s_scf = self.scfsettings
 
         if s_scf.create_job is None:
             job = adfsinglepointjob(mol=mol, basis=s_scf.basis, core=s_scf.core,
@@ -501,32 +479,30 @@ class adfnumgradjob(numgradjob):
         # determine displacements
         displacements = self.get_displacements()
 
-        s_scf = self.scfsettings
-
         # for partial derivatives we need the MOs at the reference geometry
         # the only way to do this in ADF is to write the Fock matrix at the reference geometry
         # and read it back in later
         # this can, at present be done with the keywords READFOCK and WRITEFOCK
         if self.settings.partial:
-            s_scf.options.append('WRITEFOCK')
-            job = self.create_job(self.molecule, s_scf)
-            job.run()
-            s_scf.options.remove('WRITEFOCK')
-            s_scf.options.append('READFOCK')
-            s_scf.settings.set_ncycles(2)
+            raise PyAdfError('Partial derivatives no longer available, ADF interface changed')
+            # s_scf.options.append('WRITEFOCK')
+            # job = self.create_job(self.molecule, s_scf)
+            # job.run()
+            # s_scf.options.remove('WRITEFOCK')
+            # s_scf.options.append('READFOCK')
+            # s_scf.settings.set_ncycles(2)
 
         # compute and collect results for displaced geometries
         for dp in displacements:
             m = self.molecule.displace_atom(atom=self.atom, coordinate=self.coordinate, displacement=dp,
                                             atomicunits=self.settings.atomicunits)
-            job = self.create_job(m, s_scf)
+            job = self.create_job(m)
             self.results.append(job.run())
 
         return adfnumgradresults(self)
 
 
 class adfnumgradsresults(results):
-
     """
     Results of an adfnumgradsjob
     (The gradients are actually already computed in adfnumgradsjob.run() )
@@ -549,7 +525,6 @@ class adfnumgradsresults(results):
 
 
 class adfnumgradsjob(metajob):
-
     """
     Class for a numerical gradients job
 
@@ -580,16 +555,13 @@ class adfnumgradsjob(metajob):
         @type coordinates: str or list of str
 
         """
-        from Molecule import OBMolecule, OBFreeMolecule
         import ADFSinglePoint
 
         metajob.__init__(self)
 
-        if not (isinstance(mol, OBFreeMolecule.Molecule) or isinstance(mol, OBMolecule.OBMolecule)):
-            raise PyAdfError("Molecule missing in adfnumgradsjob")
         self.molecule = mol
 
-        if settings == None:
+        if settings is None:
             self.settings = numgradsettings()
         elif isinstance(settings, numgradsettings):
             self.settings = settings
@@ -614,10 +586,12 @@ class adfnumgradsjob(metajob):
         if isinstance(coordinates, list) or isinstance(coordinates, tuple):
             self.coordinates = []
             for c in coordinates:
-                if not c in check:
+                if c not in check:
                     raise PyAdfError("wrong coordinates provided in adfnumgradsjob")
                 else:
                     self.coordinates.append(c.lower())
+
+        self.gradients = None
 
     def print_jobtype(self):
         """
@@ -666,7 +640,7 @@ class adfnumgradsjob(metajob):
             for coord in self.coordinates:
                 job = adfnumgradjob(mol=self.molecule, atom=at, coordinate=coord,
                                     settings=self.settings, scfsettings=self.scfsettings)
-                results = job.run()
-                self.gradients[at - 1, mapping[coord]] = results.get_gradient(self.settings.energyterm)
+                res = job.run()
+                self.gradients[at - 1, mapping[coord]] = res.get_gradient(self.settings.energyterm)
 
         return adfnumgradsresults(self)

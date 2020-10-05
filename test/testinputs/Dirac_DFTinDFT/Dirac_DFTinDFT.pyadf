@@ -70,5 +70,5 @@ dipole_vect = dirac_res.get_dipole_vector()
 print "Dipole moment for FDE water molecule (Dirac): ", dipole_vect
 
 if 'unittesting' in pyadfenv.options :
-    testobj.assertAlmostEqual(energy, -75.5390740295, 6)
+    testobj.assertAlmostEqual(energy, -75.8546742406, 6)
     testobj.assertAlmostEqual(dipole_vect,  [0.0, 0.0, 0.840760], 4)

@@ -1,8 +1,9 @@
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2014 by Christoph R. Jacob, S. Maya Beyhan,
+# Copyright (C) 2006-2020 by Christoph R. Jacob, S. Maya Beyhan,
 # Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Michal Handzlik,
-# Karin Kiewisch, Moritz Klammler, Jetze Sikkema, and Lucas Visscher
+# Karin Kiewisch, Moritz Klammler, Lars Ridder, Jetze Sikkema,
+# Lucas Visscher, and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -29,8 +30,7 @@
     dftbresults
 """
 
-from Errors import PyAdfError
-from ADFBase import amssettings, amsresults, amsjob
+from ADFBase import amssettings, amsjob
 
 
 class dftbsettings(amssettings):
@@ -47,6 +47,7 @@ class dftbsinglepointjob(amsjob):
     """
     DFTB single point job
     """
+
     def __init__(self, mol, model='SCC-DFTB', parameters='Dresden', settings=None):
         if settings is None:
             mysettings = dftbsettings()
@@ -54,6 +55,8 @@ class dftbsinglepointjob(amsjob):
             mysettings = settings
 
         amsjob.__init__(self, mol, task='SinglePoint', settings=mysettings)
+        self.model = None
+        self.parameters = None
         self.init_dftb_model(model, parameters)
         self.init_dftb_settings(settings)
 
@@ -115,6 +118,7 @@ class dftbgeometryjob(dftbsinglepointjob):
     """
     DFTB geometry optimization
     """
+
     def __init__(self, mol, model='SCC-DFTB', parameters='Dresden', settings=None):
         if settings is None:
             mysettings = dftbsettings()
@@ -138,4 +142,3 @@ class dftbfreqjob(dftbsinglepointjob):
         block += "  NormalModes true\n"
         block += " End\n\n"
         return block
-

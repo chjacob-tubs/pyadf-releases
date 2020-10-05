@@ -1,8 +1,9 @@
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2014 by Christoph R. Jacob, S. Maya Beyhan,
+# Copyright (C) 2006-2020 by Christoph R. Jacob, S. Maya Beyhan,
 # Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Michal Handzlik,
-# Karin Kiewisch, Moritz Klammler, Jetze Sikkema, and Lucas Visscher
+# Karin Kiewisch, Moritz Klammler, Lars Ridder, Jetze Sikkema,
+# Lucas Visscher, and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -32,15 +33,16 @@ from pyadf.Plot.GridFunctions import GridFunctionContainer
 
 
 class MockGrid(object):
-
     npoints = 3
     shape = (1, 3, 1)
 
     def coorditer(self):
         return [[0., 0., 0.], [1., 1., 1.], [2., 2., 2.]]
 
+    weights = numpy.array([1.0, 0.5, 0.5])
+
     def weightiter(self):
-        return [1.0, 0.5, 0.5]
+        return self.weights.__iter__()
 
     def voronoiiter(self):
         return [1, 1, 2]
@@ -115,7 +117,7 @@ class TestGridFunction(PyAdfTestCase):
         ref_values = numpy.array([[[1., 4.], [9., 16.]],
                                   [[25., 36.], [49., 64.]],
                                   [[4., 4.], [9., 9.]]])
-        res = self.gf1.apply_function(lambda x: x ** 2)
+        res = self.gf1.apply_function(lambda x: x**2)
         self.assertAlmostEqual(res.values, ref_values)
 
     def test_filter_volume(self):
@@ -194,11 +196,11 @@ class TestGridFunction1D(PyAdfTestCase):
 
     def test_pow(self):
         ref_values = numpy.array([1., 4., 9.])
-        power = self.gf1 ** 2.
+        power = self.gf1**2.
         self.assertAlmostEqual(power.values, ref_values)
 
     def test_div_scalar_rev(self):
-        ref_values = numpy.array([1., 1., 1./3.])
+        ref_values = numpy.array([1., 1., 1. / 3.])
         qout = 2.0 / self.gf2
         self.assertAlmostEqual(qout.values, ref_values)
 
@@ -512,7 +514,7 @@ class TestGridFunctionContainer(PyAdfTestCase):
         res_container = self.gf_container_1 / self.gf_container_2
 
         ref_values_a = numpy.array([0.5, 1., 1.5])
-        ref_values_b = numpy.array([4./3., 1.25, -2.])
+        ref_values_b = numpy.array([4. / 3., 1.25, -2.])
         self.assertAlmostEqual(res_container[0].values, ref_values_a)
         self.assertAlmostEqual(res_container[1].values, ref_values_b)
 
@@ -528,12 +530,12 @@ class TestGridFunctionContainer(PyAdfTestCase):
         res_container = 2.0 / self.gf_container_2
 
         ref_values_a = numpy.array([1., 1., 1.])
-        ref_values_b = numpy.array([2./3., 0.5, -2./3.])
+        ref_values_b = numpy.array([2. / 3., 0.5, -2. / 3.])
         self.assertAlmostEqual(res_container[0].values, ref_values_a)
         self.assertAlmostEqual(res_container[1].values, ref_values_b)
 
     def test_pow(self):
-        res_container = self.gf_container_1 ** 2.
+        res_container = self.gf_container_1**2.
 
         ref_values_a = numpy.array([1., 4., 9.])
         ref_values_b = numpy.array([16., 25., 36.])
@@ -541,7 +543,7 @@ class TestGridFunctionContainer(PyAdfTestCase):
         self.assertAlmostEqual(res_container[1].values, ref_values_b)
 
     def test_apply_function(self):
-        res_container = self.gf_container_1.apply_function(lambda x: x*x)
+        res_container = self.gf_container_1.apply_function(lambda x: x * x)
 
         ref_values_a = numpy.array([1., 4., 9.])
         ref_values_b = numpy.array([16., 25., 36.])
@@ -603,6 +605,7 @@ class TestGridFunctionContainer(PyAdfTestCase):
         ref_values_b = numpy.array([-1., -1., -9.])
         self.assertAlmostEqual(res_container[0].values, ref_values_a)
         self.assertAlmostEqual(res_container[1].values, ref_values_b)
+
 
 if __name__ == '__main__':
     unittest.main()

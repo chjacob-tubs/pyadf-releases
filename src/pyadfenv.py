@@ -1,8 +1,9 @@
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2014 by Christoph R. Jacob, S. Maya Beyhan,
+# Copyright (C) 2006-2020 by Christoph R. Jacob, S. Maya Beyhan,
 # Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Michal Handzlik,
-# Karin Kiewisch, Moritz Klammler, Jetze Sikkema, and Lucas Visscher
+# Karin Kiewisch, Moritz Klammler, Lars Ridder, Jetze Sikkema,
+# Lucas Visscher, and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -42,7 +43,6 @@ class env:
 
 
 def setup_pyadfenv():
-
     from optparse import OptionParser
 
     parser = OptionParser(usage="usage: %prog [options] inputfile")
@@ -57,10 +57,8 @@ def setup_pyadfenv():
                       dest="restartdir", help="restart using results in directory DIR")
     parser.add_option("--profile", "-p", action="store_true", default=False,
                       dest="profile", help="run using the python profiler")
-    parser.add_option("--openbabel", "-o", action="store_true", default=False,
-                      dest="openbabel", help="use OpenBabel molecule class")
-    parser.add_option("--openbabelfree", "-n", action="store_true", default=False,
-                      dest="openbabelfree", help="do not use OpenBabel molecule class")
+    parser.add_option("--molclass", "-o", choices=["openbabel","plams","rdkit"], default="openbabel",
+                      dest="molclass", help="define molecule class to be used")
 
     (options, args) = parser.parse_args()
 
@@ -74,13 +72,10 @@ def setup_pyadfenv():
     if options.profile:
         opts['profile'] = True
 
-    if options.openbabel:
-        opts['openbabel'] = True
+    if options.molclass:
+        opts['molclass'] = options.molclass
 
-    if options.openbabelfree:
-        opts['openbabel'] = False
-
-    if not (options.restartdir == None):
+    if not (options.restartdir is None):
         opts['restartdir'] = os.path.abspath(options.restartdir)
 
     if 'TC_SUBMISSION_DIR' in os.environ:
@@ -111,7 +106,7 @@ def setup_pyadfenv():
     return pyadfenv
 
 
-def setup_test_pyadfenv(pyadfinput, force_openbabel=None):
+def setup_test_pyadfenv(pyadfinput, molclass=None):
 
     # run locally
     cwd = os.getcwd()
@@ -120,8 +115,7 @@ def setup_test_pyadfenv(pyadfinput, force_openbabel=None):
     os.chdir('pyadftempdir')
 
     options = {'unittesting': True}
-    if not (force_openbabel is None):
-        options['openbabel'] = force_openbabel
+    options['molclass'] = molclass
     pyadfenv = env(cwd, cwd, str(os.getpid()), pyadfinput, options)
 
     return pyadfenv

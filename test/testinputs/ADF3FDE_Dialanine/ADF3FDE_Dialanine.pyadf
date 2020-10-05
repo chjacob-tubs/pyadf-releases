@@ -1,53 +1,118 @@
 import math
-import numpy
-import copy
 
-supermol = molecule (os.path.join(pyadfenv.outdir, 'dialanine.xyz'))
+supermol = molecule(os.path.join(pyadfenv.outdir, 'dialanine.xyz'))
 
-settings = adfsettings ()
+settings = adfsettings()
 settings.set_functional('BP86')
 settings.set_integration(accint=2.0)
 
-supermol_results = adfsinglepointjob( supermol, 'SZ', core='Large', settings=settings).run()
+supermol_results = adfsinglepointjob(supermol, 'SZ', core='Large', settings=settings).run()
 
 supermol_dipole = supermol_results.get_dipole_vector()
 
 frags = cappedfragmentlist()
 frags.partition_protein(supermol)
 
-mfcc_results = adfmfccjob( frags, 'SZ', core='Large', settings=settings).run()
+mfcc_results = adfmfccjob(frags, 'SZ', core='Large', settings=settings).run()
 
 mfcc_dipole = mfcc_results.get_dipole_vector()
-frags       = mfcc_results.get_fragmentlist()
 
-fde_results = adf3fdejob( frags, 'SZ', core='Large', settings=settings,
-                         fde={'RHO1FITTED':'','CapDensConv':1e-3},
-                         fdeoptions={'DENSTYPE':'SCFfitted'}).run()
+frags = mfcc_results.get_fragmentlist()
+
+fde_results = adf3fdejob(frags, 'SZ', core='Large', settings=settings,
+                         fde={'RHO1FITTED': '', 'CapDensConv': 1e-3},
+                         fdeoptions={'DENSTYPE': 'SCFfitted'}).run()
 
 fde_dipole = fde_results.get_dipole_vector()
-fde_dens = fde_results.get_density(spacing=0.2, fit=True)
-
-supermol_dens = supermol_results.get_density(grid=fde_dens.grid, fit=True)
-
-diff_dens = fde_dens - supermol_dens
-diff_dens.get_cubfile(os.path.join(pyadfenv.outdir, 'diff-dens.cub'))
 
 print "Dipole moment: "
 print "    Supermolecule:  ", supermol_dipole
 print "    MFCC:           ", mfcc_dipole
 print "    3-FDE:          ", fde_dipole
 
-sqrt_error = math.sqrt(diff_dens.integral(func=lambda x: x*x))
-abs_error  = diff_dens.integral(func=lambda x: abs(x))
+print "Mulliken charges: "
+fde_results.print_mulliken_charges()
+print
+
+fde_dens = fde_results.get_density(spacing=0.2, fit=True)
+fde_pot = fde_results.get_potential(grid=fde_dens.grid)
+
+supermol_dens = supermol_results.get_density(grid=fde_dens.grid, fit=True)
+supermol_pot = supermol_results.get_potential(grid=fde_dens.grid)
+
+diff_dens = fde_dens - supermol_dens
+diff_dens.get_cubfile(os.path.join(pyadfenv.outdir, 'diff-dens.cub'))
+
+sqrt_error = math.sqrt(diff_dens.integral(func=lambda x: x * x))
+abs_error = diff_dens.integral(func=lambda x: abs(x))
 
 print " Diff Dens Int        : ", diff_dens.integral()
 print " Diff Dens Int (Sqr.) : ", sqrt_error
 print " Diff Dens Int (Abs.) : ", abs_error
 
-testobj.assertAlmostEqual (sqrt_error, 0.00687409, 5)
-testobj.assertAlmostEqual (abs_error,  0.06881234, 5)
+testobj.assertAlmostEqual(sqrt_error, 0.00703035, 5)
+testobj.assertAlmostEqual(abs_error, 0.07179732, 5)
 
-testobj.assertAlmostEqual([ 0.56269604, -0.69415351, -0.73474538], supermol_dipole, 4)
-testobj.assertAlmostEqual([ 0.56452348, -0.69343517, -0.71273217], mfcc_dipole, 4)
-testobj.assertAlmostEqual([ 0.58145083, -0.69676991, -0.72293586], fde_dipole, 4)
+testobj.assertAlmostEqual([0.56467118, -0.69386790, -0.73352803], supermol_dipole, 4)
+testobj.assertAlmostEqual([0.56601593, -0.69271897, -0.71130688], mfcc_dipole, 4)
+testobj.assertAlmostEqual([0.58094044, -0.70450021, -0.7244815 ], fde_dipole, 4)
 
+diff_pot = fde_pot - supermol_pot
+pot_error = (diff_pot * supermol_dens).integral(func=lambda x: abs(x))
+
+print " Diff Pot Error (Abs.) : ", pot_error
+testobj.assertAlmostEqual(pot_error, 0.190299, 5)
+
+# normal FT
+
+frags = mfcc_results.get_fragmentlist()
+fde_results = adf3fdejob(frags, 'SZ', core='Large', settings=settings,
+                         fde={'RHO1FITTED': '', 'CapDensConv': 1e-3, 'NORMALFT':''},
+                         fdeoptions={'DENSTYPE': 'SCFfitted'}).run()
+
+fde_dipole = fde_results.get_dipole_vector()
+fde_dens = fde_results.get_density(spacing=0.2, fit=True)
+
+diff_dens = fde_dens - supermol_dens
+
+print "Dipole moment: "
+print "    3-FDE (NormalFT): ", fde_dipole
+
+sqrt_error = math.sqrt(diff_dens.integral(func=lambda x: x * x))
+abs_error = diff_dens.integral(func=lambda x: abs(x))
+
+print " Diff Dens Int        : ", diff_dens.integral()
+print " Diff Dens Int (Sqr.) : ", sqrt_error
+print " Diff Dens Int (Abs.) : ", abs_error
+
+testobj.assertAlmostEqual(sqrt_error, 0.0068318, 5)
+testobj.assertAlmostEqual(abs_error, 0.0658243, 5)
+testobj.assertAlmostEqual([0.58296498, -0.70185472, -0.70691394], fde_dipole, 4)
+
+# mixed FT
+
+frags = mfcc_results.get_fragmentlist()
+frags._frags[0].add_fdeoption('n3fde', 1)
+frags._frags[1].add_fdeoption('n3fde', 0)
+fde_results = adf3fdejob(frags, 'SZ', core='Large', settings=settings,
+                         fde={'RHO1FITTED': '', 'CapDensConv': 1e-3, 'MIXEDFT':''},
+                         fdeoptions={'DENSTYPE': 'SCFfitted'}).run()
+
+fde_dipole = fde_results.get_dipole_vector()
+fde_dens = fde_results.get_density(spacing=0.2, fit=True)
+
+diff_dens = fde_dens - supermol_dens
+
+print "Dipole moment: "
+print "    3-FDE (MixedFT): ", fde_dipole
+
+sqrt_error = math.sqrt(diff_dens.integral(func=lambda x: x * x))
+abs_error = diff_dens.integral(func=lambda x: abs(x))
+
+print " Diff Dens Int        : ", diff_dens.integral()
+print " Diff Dens Int (Sqr.) : ", sqrt_error
+print " Diff Dens Int (Abs.) : ", abs_error
+
+testobj.assertAlmostEqual(sqrt_error, 0.00564830, 5)
+testobj.assertAlmostEqual(abs_error, 0.05240008, 5)
+testobj.assertAlmostEqual([0.5713133, -0.69835467, -0.75275672], fde_dipole, 4)

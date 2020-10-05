@@ -1,8 +1,9 @@
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2014 by Christoph R. Jacob, S. Maya Beyhan,
+# Copyright (C) 2006-2020 by Christoph R. Jacob, S. Maya Beyhan,
 # Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Michal Handzlik,
-# Karin Kiewisch, Moritz Klammler, Jetze Sikkema, and Lucas Visscher
+# Karin Kiewisch, Moritz Klammler, Lars Ridder, Jetze Sikkema,
+# Lucas Visscher, and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -36,7 +37,7 @@ class GridWriter(object):
         f = kf.kffile(filename)
 
         lblock = 128
-        if (grid.npoints % lblock == 0):
+        if grid.npoints % lblock == 0:
             dummypoints = 0
         else:
             dummypoints = lblock - (grid.npoints % lblock)
@@ -111,30 +112,34 @@ class GridWriter(object):
 
 class GridFunctionWriter(object):
 
-    #pylint: disable=E0213
+    # pylint: disable=E0213
     def ensure_1D(func):
         """
         Decorator to ensure that write_* class method is applied to 1D grid function.
         """
+
         def _wrapper(cls, gf, *args, **kwargs):
             from GridFunctions import GridFunction1D
             if not isinstance(gf, GridFunction1D):
                 raise PyAdfError("%s is only applicable for 1D grid functions" % func.__name__)
-            #pylint: disable=E1102
+            # pylint: disable=E1102
             func(cls, gf, *args, **kwargs)
+
         return _wrapper
 
-    #pylint: disable=E0213
+    # pylint: disable=E0213
     def ensure_cubegrid(func):
         """
         Decorator to ensure that write_* class method is applied for a cube grid function.
         """
+
         def _wrapper(cls, gf, *args, **kwargs):
             from Grids import cubegrid
             if not isinstance(gf.grid, cubegrid):
                 raise PyAdfError('%s only possible if cubegrid has been used' % func.__name__)
-            #pylint: disable=E1102
+            # pylint: disable=E1102
             func(cls, gf, *args, **kwargs)
+
         return _wrapper
 
     @classmethod

@@ -1,8 +1,9 @@
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2014 by Christoph R. Jacob, S. Maya Beyhan,
+# Copyright (C) 2006-2020 by Christoph R. Jacob, S. Maya Beyhan,
 # Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Michal Handzlik,
-# Karin Kiewisch, Moritz Klammler, Jetze Sikkema, and Lucas Visscher
+# Karin Kiewisch, Moritz Klammler, Lars Ridder, Jetze Sikkema,
+# Lucas Visscher, and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -35,8 +36,7 @@ from Errors import PyAdfError
 from ADFBase import adfjob, adfresults
 
 
-class cplsettings (object):
-
+class cplsettings(object):
     """
     Class for the settings for an ADF CPL job.
 
@@ -146,10 +146,10 @@ class cplsettings (object):
         @type adfres:  L{adfsinglepointresults}
         """
 
-        if adfres == None:
+        if adfres is None:
             raise PyAdfError('No ADF results object provided in set_cplnuclei')
 
-        if self.nuclei == None:
+        if self.nuclei is None:
             self.cplnuclei = None
         else:
             self.cplnuclei = []
@@ -230,10 +230,10 @@ class cplsettings (object):
 
         @note: set_cplnuclei should be called before!
         """
-        if self.cplnuclei != None and (self.atompert != None or self.atomresp != None):
+        if self.cplnuclei is not None and (self.atompert is not None or self.atomresp is not None):
             raise PyAdfError('You cannot use nuclei and atompert/atomresp')
-        if self.cplnuclei == None:
-            if self.atomresp == None or self.atomresp == None:
+        if self.cplnuclei is None:
+            if self.atomresp is None or self.atomresp is None:
                 raise PyAdfError('You have to specify atompert and atomresp')
 
     def print_settings(self, mol=None):
@@ -246,10 +246,10 @@ class cplsettings (object):
 
         """
 
-        if mol == None:
+        if mol is None:
             raise PyAdfError('Molecule object required in print_settings')
 
-        if self.nuclei == None:
+        if self.nuclei is None:
             pnuc = self.atompert
             rnuc = self.atomresp
         else:
@@ -286,7 +286,7 @@ class cplsettings (object):
         settings_block = ''
         for op in self.operators:
             settings_block += ' ' + op + '\n'
-        if not 'fc' in self.operators:
+        if 'fc' not in self.operators:
             settings_block += ' nofc\n'
         # CPL keys have a weird behavior:
         #     sd is *not* computed by default for non-relativistic calculations
@@ -295,9 +295,10 @@ class cplsettings (object):
         #   nosd will instruct CPL to use the spin-orbit routines for the fc term also in non-relativistic calculations
         #   nosd together with nofc will lead to a crash of CPL
         #   therefore I decided not to set 'nosd'
+
         # if not 'sd' in self.operators:
-        ###     settings_block += ' nosd\n'
-        if self.nuclei == None:
+        #    settings_block += ' nosd\n'
+        if self.nuclei is None:
             line = ' AtomPert'
             for nuc in self.atompert:
                 line += ' ' + str(nuc)
@@ -312,15 +313,15 @@ class cplsettings (object):
                 for nuc in nucblock:
                     line += ' ' + str(nuc)
                 settings_block += line + '\n'
-        settings_block += ' scf iterations=' + str(self.iterations) + ' converge=%.1e\n' % self.converge
-        if self.contributions != None:
+        settings_block += ' SCF\n   iterations ' + str(
+            self.iterations) + '\n   converge %.1e\n' % self.converge + 'END\n'
+        if self.contributions is not None:
             settings_block += ' Contributions ' + self.contributions + '\n'
 
         return settings_block
 
 
-class adfcplresults (adfresults):
-
+class adfcplresults(adfresults):
     """
     Class for the results of an ADF CPL job.
 
@@ -351,7 +352,7 @@ class adfcplresults (adfresults):
 
         """
 
-        if unit == None:
+        if unit is None:
             raise PyAdfError('No unit specified for reading nuclear spin-spin couplings in read_couplings')
         elif unit not in ('J', 'K'):
             raise PyAdfError('Wrong unit specified for reading nuclear spin-spin couplings in read_couplings')
@@ -395,7 +396,7 @@ class adfcplresults (adfresults):
 
         small = 1.e-02
 
-        if nucs == None:
+        if nucs is None:
             raise PyAdfError('No list of pairs of nuclei provided in get_coupling')
 
         natom = self.job.mol.get_number_of_atoms()
@@ -448,8 +449,7 @@ class adfcplresults (adfresults):
         return coupls
 
 
-class adfcpljob (adfjob):
-
+class adfcpljob(adfjob):
     """
     Class for ADF spin-spin coupling jobs (using the CPL program).
 
@@ -481,9 +481,9 @@ class adfcpljob (adfjob):
         @type options: list of str
         """
 
-        if adfres == None:
+        if adfres is None:
             raise PyAdfError('No ADF singe point results provided in adfcpljob')
-        elif settings == None:
+        elif settings is None:
             raise PyAdfError('No settings (cplsettings) provided in adfcpljob')
 
         adfjob.__init__(self)
@@ -496,7 +496,7 @@ class adfcpljob (adfjob):
 
         self.mol = self.adfresults.get_molecule()
 
-        if options == None:
+        if options is None:
             self.options = []
         else:
             if isinstance(options, list):
@@ -518,7 +518,7 @@ class adfcpljob (adfjob):
         cplinput += 'NMRCoupling \n'
         cplinput += self.settings.get_settings_block()
         cplinput += 'End \n'
-        if self.settings.use_gga :
+        if self.settings.use_gga:
             cplinput += 'GGA\n'
 
         if self._checksum_only:
@@ -547,7 +547,6 @@ class adfcpljob (adfjob):
 
 
 class couplings(object):
-
     """
     Class for storing results of ADF spin-spin calculations.
 
@@ -594,7 +593,7 @@ class couplings(object):
         self.total = total
 
     def compute_sd(self):
-        if (self.fcsd == None) or (self.fc == None):
+        if (self.fcsd is None) or (self.fc is None):
             print 'Cannot compute sd: fcsd or fc missing!'
         else:
             self.sd = self.fcsd - self.fc
@@ -604,7 +603,7 @@ class couplings(object):
         Compute the total coupling constant
         (Requires that fc+sd, dso and pso terms have been computed before)
         """
-        if (self.fcsd == None) or (self.dso == None) or (self.pso == None):
+        if (self.fcsd is None) or (self.dso is None) or (self.pso is None):
             print 'Cannot compute total: fcsd or dso or pso missing!'
         else:
             self.total = self.fcsd + self.dso + self.pso
@@ -632,13 +631,13 @@ class couplings(object):
             self.set_total(coupling)
         elif ('fc' in operators) and ('sd' in operators):
             self.set_fcsd(coupling)
-        elif ('fc' in operators):
+        elif 'fc' in operators:
             self.set_fc(coupling)
-        elif ('sd' in operators):
+        elif 'sd' in operators:
             self.set_sd(coupling)
-        elif ('dso' in operators):
+        elif 'dso' in operators:
             self.set_dso(coupling)
-        elif ('pso' in operators):
+        elif 'pso' in operators:
             self.set_pso(coupling)
         else:
             print 'Unsupported operator list in set_coupling!'
@@ -661,13 +660,13 @@ class couplings(object):
             return self.get_total()
         elif ('fc' in operators) and ('sd' in operators):
             return self.get_fcsd()
-        elif ('fc' in operators):
+        elif 'fc' in operators:
             return self.get_fc()
-        elif ('sd' in operators):
+        elif 'sd' in operators:
             return self.get_sd()
-        elif ('dso' in operators):
+        elif 'dso' in operators:
             return self.get_dso()
-        elif ('pso' in operators):
+        elif 'pso' in operators:
             return self.get_pso()
         else:
             print 'Unsupported operator list in get_coupling!'
@@ -715,7 +714,7 @@ def operatorname(operators=None):
 
     ( 'fc+sd' for ['fc', 'sd'] )
     """
-    if operators == None:
+    if operators is None:
         return ''
     else:
         name = ''

@@ -1,8 +1,9 @@
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2014 by Christoph R. Jacob, S. Maya Beyhan,
+# Copyright (C) 2006-2020 by Christoph R. Jacob, S. Maya Beyhan,
 # Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Michal Handzlik,
-# Karin Kiewisch, Moritz Klammler, Jetze Sikkema, and Lucas Visscher
+# Karin Kiewisch, Moritz Klammler, Lars Ridder, Jetze Sikkema,
+# Lucas Visscher, and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -26,7 +27,7 @@
 """
 
 from Errors import PyAdfError
-from Molecule.OBMolecule import OBMolecule
+from Molecule import MoleculeFactory, OBMolecule, RDMolecule
 from BaseJob import metajob, results
 from ADFFragments import fragment, fragmentlist, adffragmentsjob
 # pylint: disable-msg=W0611
@@ -34,8 +35,7 @@ from ADFSinglePoint import adfsinglepointjob, adfsinglepointresults
 from Plot.Grids import cubegrid
 
 
-class capmolecule (OBMolecule):
-
+class CapMoleculeMixin(object):
     """
     A molecule used in a cap or capped fragment.
 
@@ -44,10 +44,6 @@ class capmolecule (OBMolecule):
     within Openbabel for this: caps are residues with the
     name 'CAP'. Each cap has two parts (1 and 2), which are
     marked with even / odd residue numbers.
-
-    @undocumented: __delattr__, __getattribute__, __hash__, __new__, __reduce__,
-                   __reduce_ex__, __repr__, __str__, __setattr__
-
     """
 
     def __init__(self, mol=None):
@@ -57,12 +53,9 @@ class capmolecule (OBMolecule):
         @param mol: a standard L{molecule}
         @type mol:  L{molecule}
         """
-        # pylint: disable-msg=W0231
-
-        if mol:
+        super(CapMoleculeMixin, self).__init__()
+        if mol is not None:
             self.copy(mol)
-        else:
-            OBMolecule.__init__(self)
 
     def cap_id(self, atom):
         """
@@ -75,18 +68,16 @@ class capmolecule (OBMolecule):
         @param atom: the atom number (Atom numbering starts at 1)
         @type atom:  int
         """
+        chain_id, resname, resnum = self.get_atom_resinfo(atom)
 
-        a = self.mol.GetAtom(atom)
-        res = a.GetResidue()
-
-        if (res and res.GetName() == 'CAP'):
+        if resname == 'CAP':
             # even residue number: capid = 1
             #  odd residue number: capid = 2
-            capid = (res.GetNum() % 2) + 1
-        elif (res and res.GetName() == 'SCP'):
+            capid = (resnum % 2) + 1
+        elif resname == 'SCP':
             # even residue number: capid = 3
             #  odd residue number: capid = 4
-            capid = (res.GetNum() % 2) + 3
+            capid = (resnum % 2) + 3
         else:
             capid = 0
 
@@ -120,13 +111,12 @@ class capmolecule (OBMolecule):
         @rtype: list of str
 
         """
-
-        if atoms == None:
-            atoms = range(1, self.mol.NumAtoms() + 1)
-            if ghosts == False:
+        if atoms is None:
+            atoms = range(1, self.get_number_of_atoms() + 1)
+            if not ghosts:
                 atoms = [i for i in atoms if not self.is_ghost[i - 1]]
 
-        symbols = OBMolecule.get_atom_symbols(self, atoms, ghosts, prefix_ghosts)
+        symbols = super(CapMoleculeMixin, self).get_atom_symbols(atoms, ghosts, prefix_ghosts)
 
         for i, at in enumerate(atoms):
             if self.cap_id(at) == 1:
@@ -141,20 +131,39 @@ class capmolecule (OBMolecule):
         return symbols
 
     def get_noncap_fragment(self):
-
         atoms = []
         for i in range(1, self.get_number_of_atoms() + 1):
-            a = self.mol.GetAtom(i)
-            res = a.GetResidue()
+            chain_id, resname, resnum = self.get_atom_resinfo(i)
 
-            if not res or not (res.GetName() == 'CAP' or res.GetName() == 'SCP'):
+            if not (resname == 'CAP' or resname == 'SCP'):
                 atoms.append(i)
 
         return self.get_fragment(atoms)
 
 
-class cappedfragment (fragment):
+if OBMolecule is not None:
+    class OBCapMolecule(CapMoleculeMixin, OBMolecule.OBMolecule):
+        pass
 
+if RDMolecule is not None:
+    class RDCapMolecule(CapMoleculeMixin, RDMolecule.RDMolecule):
+        pass
+
+
+def capmolecule(mol=None):
+    if (OBMolecule is not None) and isinstance(mol, OBMolecule.OBMolecule):
+        return OBCapMolecule(mol)
+    elif (RDMolecule is not None) and isinstance(mol, RDMolecule.RDMolecule):
+        return RDCapMolecule(mol)
+    elif MoleculeFactory().molclass == "openbabel":
+        return OBCapMolecule(mol)
+    elif MoleculeFactory().molclass == "rdkit":
+        return RDCapMolecule(mol)
+    else:
+        return None
+
+
+class cappedfragment(fragment):
     """
     A capped fragments, as used in 3-partition FDE.
 
@@ -293,7 +302,7 @@ class cappedfragment (fragment):
     def print_fragment_options(self):
         if self.iscap:
             print " type: frozen FDE cap fragment"
-            if (len(self._fdeoptions) > 0):
+            if len(self._fdeoptions) > 0:
                 print "        FDE options: "
             for opt, value in self._fdeoptions.iteritems():
                 print "           ", opt, "  ", value
@@ -303,35 +312,34 @@ class cappedfragment (fragment):
 
     def get_atoms_block(self):
 
-        AtomsBlock = ""
+        atoms_block = ""
 
         if (not self.has_frag_results()) or (len(self._cap_fragments) == 0):
-            AtomsBlock += fragment.get_atoms_block(self)
+            atoms_block += fragment.get_atoms_block(self)
         else:
             if len(self._mols) > 1:
                 raise PyAdfError("Capped fragments must appear only once")
 
             mol = self._mols[0].get_noncap_fragment()
             suffix = "f=" + self.fragname
-            AtomsBlock += mol.print_coordinates(index=False, suffix=suffix)
+            atoms_block += mol.print_coordinates(index=False, suffix=suffix)
 
             for cap_frag, cap_res in zip(self._cap_fragments, self._cap_residue_nums):
                 if cap_res < 5:
                     mol = self._mols[0].get_residues(restype='CAP', resnum=cap_res)[0]
                     mol = capmolecule(mol)
                     suffix = "f=" + self.fragname + "   fs=cap" + str(cap_frag.num_cap)
-                    AtomsBlock += mol.print_coordinates(index=False, suffix=suffix)
+                    atoms_block += mol.print_coordinates(index=False, suffix=suffix)
                 elif cap_res > 4:
                     mol_s = self._mols[0].get_residues(restype='SCP', resnum=cap_res)[0]
                     mol_s = capmolecule(mol_s)
                     suffix = "f=" + self.fragname + "   fs=scap" + str(cap_frag.num_cap)
-                    AtomsBlock += mol_s.print_coordinates(index=False, suffix=suffix)
+                    atoms_block += mol_s.print_coordinates(index=False, suffix=suffix)
 
-        return AtomsBlock
+        return atoms_block
 
 
-class cappedfragmentlist (fragmentlist):
-
+class cappedfragmentlist(fragmentlist):
     """
     List of capped fragments and caps.
 
@@ -383,10 +391,10 @@ class cappedfragmentlist (fragmentlist):
         return reduce(lambda x, y: x + y, mols)
 
     def get_atoms_block(self):
-        AtomsBlock = ""
+        atoms_block = ""
         for frag in self.fragiter():
-            AtomsBlock += frag.get_atoms_block()
-        return AtomsBlock
+            atoms_block += frag.get_atoms_block()
+        return atoms_block
 
     def get_fragments_block(self, checksum_only):
         block = ""
@@ -443,7 +451,7 @@ class cappedfragmentlist (fragmentlist):
         frag1.add_scap(cap, 3)
         frag2.add_scap(cap, 4)
 
-    def partition_protein(self, mol, special_reslists=None, fragsize=None):
+    def partition_protein(self, mol, special_reslists=None, fragsize=None, caps=None):
         """
         Partition a protein into the individual amino acids and caps.
 
@@ -457,13 +465,15 @@ class cappedfragmentlist (fragmentlist):
         @param fragsize:
             number of residues in one 3-FDE fragment (not for residues in special_reslist)
         @type fragsize: int
-        """
 
-        import openbabel
+        @param caps:
+            type of cap molecule, standard is mfcc caps, option is hydrogen caps
+        @type caps: str
+        """
 
         # generate fragment list
 
-        res_of_atoms = mol.get_residue_numbers_of_atoms()
+        res_of_atoms = mol.get_residx_of_atoms()
 
         capped_bonds = []
         # list of bonds between residues within fragment
@@ -475,12 +485,12 @@ class cappedfragmentlist (fragmentlist):
         self._frags = []
         self._caps = []
 
-        if fragsize == None:
+        if fragsize is None:
             fragsize = 1
-        if special_reslists == None:
+        if special_reslists is None:
             special_reslists = {}
 
-        #----------------------------------------------------------------------------------
+        # ----------------------------------------------------------------------------------
         # simplest fragmentation: each residue is one fragment
 
         if special_reslists == {} and fragsize == 1:
@@ -489,7 +499,7 @@ class cappedfragmentlist (fragmentlist):
             for res in mol.get_residues():
                 self.append(cappedfragment(None, res))
                 frag_indices.append(len(self._frags) - 1)
-        #----------------------------------------------------------------------------------
+        # ----------------------------------------------------------------------------------
         # more complicated fragmentation
 
         else:
@@ -497,16 +507,16 @@ class cappedfragmentlist (fragmentlist):
 
             fragmentation_list = []
             residuelist = mol.get_residues()
-            frag_indices = [-1 for i in range(len(residuelist))]
+            frag_indices = [-1] * len(residuelist)
 
             # get list of residues connected by covalent bonds (tuples)
             connected_residues = []
             for b in mol.get_all_bonds():
                 if not (res_of_atoms[b[0] - 1] == res_of_atoms[b[1] - 1]):
                     # -1 is not totally clear to me, but works
-                    connected_residues.append(set([res_of_atoms[b[0] - 1], res_of_atoms[b[1] - 1]]))
+                    connected_residues.append({res_of_atoms[b[0] - 1], res_of_atoms[b[1] - 1]})
 
-            #------------------------------------------------------------------------------
+            # ------------------------------------------------------------------------------
             # first get fragmentation list: which residues belong to which fragment
             # something like [ [3,4,5], [11,12,14], [1, 2], [6, 7], [8, 9], [10], [13]]
 
@@ -514,12 +524,10 @@ class cappedfragmentlist (fragmentlist):
             # dictionary that connects pdb resnums with internal idx
             # problem: resnum as key is not unique, use combination of residue name and chain as key
             res_idx = {}
-            for res in residuelist:
-                resnum = res.mol.GetResidue(0).GetNum()
-                reschain = res.mol.GetResidue(0).GetChain()
+
+            for reschain, resname, resnum in mol.residue_iter():
                 reskey = 'c' + str(reschain) + str(resnum)
-                intresnum = res.mol.GetResidue(0).GetIdx()
-                res_idx[reskey] = intresnum
+                res_idx[reskey] = mol.get_residx_from_resinfo(reschain, resname, resnum)
 
             # convert residue numbers in special_reslists to internal numbers
             for i in range(len(special_reslists)):
@@ -527,13 +535,9 @@ class cappedfragmentlist (fragmentlist):
                     special_reslists[i][j] = res_idx[special_reslists[i][j]]
 
             # flatten list of lists so that you can check whether a residue is a special residue
-            specialresnums = []
+            specialresidxs = []
             for slist in special_reslists:
-                if isinstance(slist, (list, tuple)):
-                    specialresnums.extend(slist)
-                # else should not occur, but maybe it is needed later
-                else:
-                    specialresnums.append(slist)
+                specialresidxs.extend(slist)
 
             # first add special residues to fragmentation list
             for slist in special_reslists:
@@ -542,31 +546,31 @@ class cappedfragmentlist (fragmentlist):
             fragl = []  # templist for fragments
             # add all other residues
             # use res.GetIdx() instead of enumerate
-            for res in residuelist:
-                resnum = res.mol.GetResidue(0).GetIdx()
-                if resnum not in specialresnums:
+            for res, (reschain, resname, resnum) in zip(residuelist, mol.residue_iter()):
+                residx = mol.get_residx_from_resinfo(reschain, resname, resnum)
+                if residx not in specialresidxs:
                     # take care of fragsize
                     if fragsize == 1:
-                        fragmentation_list.append([resnum])
+                        fragmentation_list.append([residx])
                     else:
                         # check whether there has to be a new fragment
                         if len(fragl) != 0:
-                            if not set([resnum, fragl[-1]]) in connected_residues or \
+                            if not {residx, fragl[-1]} in connected_residues or \
                                     len(fragl) == fragsize:
-                               # no covalent connection? new fragment! fragsize reached?
+                                # no covalent connection? new fragment! fragsize reached?
                                 fragmentation_list.append(fragl)
                                 fragl = []
                         # new fragment
                         if len(fragl) == 0:
-                            fragl.append(resnum)
+                            fragl.append(residx)
                         # add to fragment
                         else:
-                            fragl.append(resnum)
+                            fragl.append(residx)
             # last fragment
             if len(fragl) != 0:
                 fragmentation_list.append(fragl)
 
-            #------------------------------------------------------------------------------
+            # ------------------------------------------------------------------------------
             # now add fragments to _frags using fragmentation list
             # take care of uncapped bonds and fragindices etc.
 
@@ -584,8 +588,8 @@ class cappedfragmentlist (fragmentlist):
                     # check whether new residue is connected to another residue within this fragment
                     if len(frag_reslist) > 1:
                         for rd in range(len(frag_reslist)):
-                            if set([rlist[rnum], rlist[rd]]) in connected_residues:
-                                non_capped_res.append(set([rlist[rnum], rlist[rd]]))
+                            if {rlist[rnum], rlist[rd]} in connected_residues:
+                                non_capped_res.append({rlist[rnum], rlist[rd]})
 
                     # take care of residue information here
                     frag_indices[rlist[rnum]] = len(self._frags)
@@ -596,41 +600,72 @@ class cappedfragmentlist (fragmentlist):
                 # clear frag_reslist for next fragment
                 frag_reslist = []
 
-        #------------------------------------------------------------------------------
+        # ------------------------------------------------------------------------------
 
         # find all peptide bonds and create caps
 
-        sp = openbabel.OBSmartsPattern()
-        sp.Init('[C;X4;H1,H2][CX3](=O)[NX3][C;X4;H1,H2][CX3](=O)')
-        # this SMARTS pattern matches all peptide bonds
-        #
-        # (in this comment: atom numbering starts at 1;
-        #  in the code below the numbering of the list starts at 0)
-        # the peptide bond is between atoms 2 and 4
-        # atoms 1-5 (+ connected hydrogens) form the cap fragment
-        # part 1 (o-part): atoms 1-3
-        # part 2 (n-part): atoms 4-5
+        if caps is None:
+            caps = 'mfcc'
 
-        sp.Match(mol.mol)
-        maplist = sp.GetUMapList()
+        if caps == 'mfcc':
+            sp = '[C;X4;H1,H2][CX3](=O)[NX3][C;X4;H1,H2][CX3](=O)'
+            # this SMARTS pattern matches all peptide bonds
+            #
+            # (in this comment: atom numbering starts at 1;
+            #  in the code below the numbering of the list starts at 0)
+            # the peptide bond is between atoms 2 and 4
+            # atoms 1-5 (+ connected hydrogens) form the cap fragment
+            # part 1 (o-part): atoms 1-3
+            # part 2 (n-part): atoms 4-5
+
+        elif caps == 'hydrogen':
+            sp = '[C;X4;H1,H2][CX3](=O)[NX3]([*])[C;X4;H1,H2][CX3](=O)'
+            # same as above, but also matches any atom bound to the nitrogen
+            # the * might not be a good idea, but [C,H] was not working...
+            # (this is needed for the proper calculation of the hydrogen coordinates)
+
+        else:
+            raise PyAdfError('unsupported cap type, please specify one of the following: mfcc, hydrogen')
+
+        maplist = mol.get_smarts_matches(sp)
+
         for mp in maplist:
-            mp = list(mp)
 
-            if set([res_of_atoms[mp[3] - 1], res_of_atoms[mp[1] - 1]]) not in non_capped_res:
+            if {res_of_atoms[mp[3] - 1], res_of_atoms[mp[1] - 1]} not in non_capped_res:
 
-                capped_bonds.append(set([mp[1], mp[3]]))
-                cap_o = mp[0:3] + mol.find_adjacent_hydrogens(mp[0:3])
-                cap_n = mp[3:5] + mol.find_adjacent_hydrogens(mp[3:5])
-                m_cap = mol.get_fragment(cap_o + cap_n)
-                m_cap.set_spin(0)
-                m_cap.set_residue('CAP', 1, atoms=range(1, len(cap_o) + 1))
-                m_cap.set_residue('CAP', 2, atoms=range(len(cap_o) + 1, len(cap_o + cap_n) + 1))
-                m_cap.add_hydrogens()
+                capped_bonds.append({mp[1], mp[3]})
 
-            # find the capped fragments
-            #   frag1: fragment that contains the N atom (mp[3])
-            #   frag2: fragment that contains the C=O atom (mp[1])
-            # why minus 1???
+                if caps == 'mfcc':
+                    cap_o = mp[0:3] + mol.find_adjacent_hydrogens(mp[0:3])
+                    cap_n = mp[3:5] + mol.find_adjacent_hydrogens(mp[3:5])
+                    m_cap = mol.get_fragment(cap_o + cap_n)
+                    m_cap.set_spin(0)
+                    m_cap.set_residue('CAP', 1, atoms=range(1, len(cap_o) + 1))
+                    m_cap.set_residue('CAP', 2, atoms=range(len(cap_o) + 1, len(cap_o + cap_n) + 1))
+
+                    m_cap.add_hydrogens_to_sp3_c(1)
+                    m_cap.add_hydrogens_to_sp2_n(len(cap_o) + 1)
+                    m_cap.add_hydrogens_to_sp3_c(len(cap_o) + 2)
+
+                elif caps == 'hydrogen':
+                    ccap = mol.get_fragment([mp[1], mp[2], mp[0]])
+                    ccap.add_hydrogens_to_sp2_c(1)
+                    ncap = mol.get_fragment([mp[3], mp[4], mp[5]])
+                    ncap.add_hydrogens_to_sp3_n(1)
+
+                    m_cap = capmolecule()
+                    m_cap.add_atoms(['H'], ncap.get_coordinates([4]))
+                    m_cap.add_atoms(['H'], ccap.get_coordinates([4]), bond_to=1)
+
+                    m_cap.set_spin(0)
+                    m_cap.set_residue('CAP', 1, atoms=[1])
+                    m_cap.set_residue('CAP', 2, atoms=[2])
+
+                    m_cap.set_symmetry('NOSYM')
+
+                # find the capped fragments
+                #   frag1: fragment that contains the N atom (mp[3])
+                #   frag2: fragment that contains the C=O atom (mp[1])
 
                 fi1 = frag_indices[res_of_atoms[mp[3] - 1]]
                 fi2 = frag_indices[res_of_atoms[mp[1] - 1]]
@@ -639,29 +674,49 @@ class cappedfragmentlist (fragmentlist):
                 frag2 = self._frags[fi2]
                 self.append_cap(cappedfragment(None, capmolecule(m_cap)), frag1, frag2)
 
-        #------------------------------------------------------------------------------
-
+        # ------------------------------------------------------------------------------
         # check here for disulfide bonds and create disulfide bond caps
 
-        sp_sulfide = openbabel.OBSmartsPattern()
-        sp_sulfide.Init('[C;X4;H1,H2]SS[C;X4;H1,H2]')
+        maplist_sulfide = mol.get_smarts_matches('[C;X4;H1,H2]SS[C;X4;H1,H2]')
         # SMARTS pattern for disulfde bonds
 
-        sp_sulfide.Match(mol.mol)
-        maplist_sulfide = sp_sulfide.GetUMapList()
         for mps in maplist_sulfide:
-            mps = list(mps)
 
-            if set([res_of_atoms[mps[2] - 1], res_of_atoms[mps[1] - 1]]) not in non_capped_res:
+            if {res_of_atoms[mps[2] - 1], res_of_atoms[mps[1] - 1]} not in non_capped_res:
 
-                capped_bonds.append(set([mps[1], mps[2]]))
-                cap_s1 = mps[0:2] + mol.find_adjacent_hydrogens(mps[0:2])
-                cap_s2 = mps[2:] + mol.find_adjacent_hydrogens(mps[2:])
-                m_cap_s = mol.get_fragment(cap_s1 + cap_s2)
-                m_cap_s.set_spin(0)
-                m_cap_s.set_residue('SCP', 1, atoms=range(1, len(cap_s1) + 1))
-                m_cap_s.set_residue('SCP', 2, atoms=range(len(cap_s1) + 1, len(cap_s1 + cap_s2) + 1))
-                m_cap_s.add_hydrogens()
+                capped_bonds.append({mps[1], mps[2]})
+
+                if caps == 'mfcc':
+                    cap_s1 = mps[0:2] + mol.find_adjacent_hydrogens(mps[0:2])
+                    cap_s2 = mps[2:] + mol.find_adjacent_hydrogens(mps[2:])
+                    m_cap_s = mol.get_fragment(cap_s1 + cap_s2)
+                    m_cap_s.set_spin(0)
+                    m_cap_s.set_residue('SCP', 1, atoms=range(1, len(cap_s1) + 1))
+                    m_cap_s.set_residue('SCP', 2, atoms=range(len(cap_s1) + 1, len(cap_s1 + cap_s2) + 1))
+
+                    m_cap_s.add_hydrogens_to_sp3_c(1)
+                    m_cap_s.add_hydrogens_to_sp3_c(len(cap_s1) + 2)
+
+                elif caps == 'hydrogen':
+
+                    import numpy
+                    import math
+
+                    s1_coord = numpy.array(mol.get_coordinates([mps[1]]))
+                    s2_coord = numpy.array(mol.get_coordinates([mps[2]]))
+
+                    h1_coord = s1_coord + 1.34 * ((s2_coord - s1_coord) / numpy.linalg.norm(s2_coord - s1_coord))
+                    h2_coord = s2_coord + 1.34 * ((s1_coord - s2_coord) / numpy.linalg.norm(s1_coord - s2_coord))
+
+                    m_cap_s = capmolecule()
+                    m_cap_s.add_atoms(['H'], h2_coord)
+                    m_cap_s.add_atoms(['H'], h1_coord, bond_to=1)
+
+                    m_cap_s.set_spin(0)
+                    m_cap_s.set_residue('SCP', 1, atoms=[1])
+                    m_cap_s.set_residue('SCP', 2, atoms=[2])
+
+                    m_cap_s.set_symmetry('NOSYM')
 
                 fi1 = frag_indices[res_of_atoms[mps[2] - 1]]
                 fi2 = frag_indices[res_of_atoms[mps[1] - 1]]
@@ -670,7 +725,7 @@ class cappedfragmentlist (fragmentlist):
                 frag_s2 = self._frags[fi2]
                 self.append_scap(cappedfragment(None, capmolecule(m_cap_s)), frag_s1, frag_s2)
 
-        #------------------------------------------------------------------------------
+        # ------------------------------------------------------------------------------
 
         # find bonds between different residues and check if they have been capped
 
@@ -679,10 +734,9 @@ class cappedfragmentlist (fragmentlist):
 
             if not (res_of_atoms[b[0] - 1] == res_of_atoms[b[1] - 1]):
 
-                if not set([b[0], b[1]]) in capped_bonds \
-                        and not set([res_of_atoms[b[0] - 1], res_of_atoms[b[1] - 1]]) in non_capped_res \
-                        and not set([res_of_atoms[b[0] - 1], res_of_atoms[b[1] - 1]]).issubset(special_reslists):
-
+                if not {b[0], b[1]} in capped_bonds \
+                        and not {res_of_atoms[b[0] - 1], res_of_atoms[b[1] - 1]} in non_capped_res \
+                        and not {res_of_atoms[b[0] - 1], res_of_atoms[b[1] - 1]}.issubset(special_reslists):
                     num_uncapped_bonds += 1
                     print "Bond between atoms ", b[0], " and ", b[1], "not capped."
                     print "Bond between res ", res_of_atoms[b[0] - 1], " and ", res_of_atoms[b[1] - 1], "not capped."
@@ -692,7 +746,7 @@ class cappedfragmentlist (fragmentlist):
             raise PyAdfError('Not all bonds capped in partition_protein')
 
 
-class mfccresults (results):
+class mfccresults(results):
 
     def __init__(self, job, frags=None):
         results.__init__(self, job)
@@ -715,28 +769,34 @@ class mfccresults (results):
         return dipole
 
     def get_density(self, grid=None, spacing=0.5, fit=False):
-        if grid == None:
+        if grid is None:
             grid = cubegrid(self.job.get_molecule(), spacing)
 
         posdens = [f.results.get_nonfrozen_density(grid, fit=fit) for f in self._frags.fragiter()]
         capdens = [c.results.get_nonfrozen_density(grid, fit=fit) for c in self._frags.capiter()]
 
         posdens = reduce(lambda x, y: x + y, posdens)
-        capdens = reduce(lambda x, y: x + y, capdens)
 
-        return posdens - capdens
+        if capdens:
+            capdens = reduce(lambda x, y: x + y, capdens)
+            return posdens - capdens
+        else:
+            return posdens
 
-    def get_potential(self, grid=None, pot='total'):
-        if grid == None:
+    def get_potential(self, grid=None, spacing=0.5, pot='total'):
+        if grid is None:
             grid = cubegrid(self.job.get_molecule(), spacing)
 
         pospot = [f.results.get_nonfrozen_potential(grid, pot=pot) for f in self._frags.fragiter()]
         cappot = [c.results.get_nonfrozen_potential(grid, pot=pot) for c in self._frags.capiter()]
 
         posdens = reduce(lambda x, y: x + y, pospot)
-        capdens = reduce(lambda x, y: x + y, cappot)
 
-        return posdens - capdens
+        if cappot:
+            capdens = reduce(lambda x, y: x + y, cappot)
+            return posdens - capdens
+        else:
+            return posdens
 
     def get_mulliken_charges(self):
         """
@@ -749,7 +809,7 @@ class mfccresults (results):
         mulliken_charges = None
 
         for f in self._frags.fragiter():
-            if mulliken_charges == None:
+            if mulliken_charges is None:
                 mulliken_charges = numpy.trim_zeros((f.results.get_mulliken_charges()))
             else:
                 frag_mulliken_charges = f.results.get_mulliken_charges()
@@ -765,21 +825,11 @@ class mfccresults (results):
         @type  nocap: bool
 
         """
-        import numpy
-
-        mulliken_charges = None
-
-        for f in self._frags.fragiter():
-            if mulliken_charges == None:
-                mulliken_charges = numpy.trim_zeros((f.results.get_mulliken_charges()))
-            else:
-                frag_mulliken_charges = f.results.get_mulliken_charges()
-                mulliken_charges = numpy.concatenate((mulliken_charges, numpy.trim_zeros(frag_mulliken_charges)))
-
+        mulliken_charges = self.get_mulliken_charges()
         atomsblock = self._frags.get_atoms_block()
 
         for i, line in enumerate(atomsblock.splitlines()):
-            if (nocap):
+            if nocap:
                 if line.find('cap') < 0:
                     print "%s     %+2.3f" % (line.split('fs')[0].rstrip(), mulliken_charges[i])
             else:
@@ -788,7 +838,7 @@ class mfccresults (results):
         return ''
 
 
-class adfmfccjob (metajob):
+class adfmfccjob(metajob):
 
     def __init__(self, frags, basis, settings=None, core=None, pointcharges=None, fitbas=None, options=None):
         """
@@ -827,7 +877,6 @@ class adfmfccjob (metajob):
         return self._frags.get_total_molecule()
 
     def metarun(self):
-
         import copy
         frags = copy.deepcopy(self._frags)
 
@@ -840,14 +889,14 @@ class adfmfccjob (metajob):
         return r
 
 
-class adf3fdejob (adfmfccjob):
+class adf3fdejob(adfmfccjob):
 
     def __init__(self, frags, basis, settings=None, core=None,
                  fde=None, fdeoptions=None, pointcharges=None, fitbas=None, options=None):
 
         adfmfccjob.__init__(self, frags, basis, settings, core, pointcharges, fitbas, options)
 
-        if fde == None:
+        if fde is None:
             self._fde = {}
         else:
             import copy
@@ -870,7 +919,7 @@ class adf3fdejob (adfmfccjob):
             self._normalft = False
             self._mixedft = False
 
-        if fdeoptions == None:
+        if fdeoptions is None:
             self._fdeoptions = {}
         else:
             self._fdeoptions = fdeoptions

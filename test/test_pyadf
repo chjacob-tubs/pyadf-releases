@@ -2,9 +2,10 @@
 #
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2011 by Christoph R. Jacob, S. Maya Beyhan,
-# Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Karin Kiewisch,
-# Jetze Sikkema, and Lucas Visscher
+# Copyright (C) 2006-2020 by Christoph R. Jacob, S. Maya Beyhan,
+# Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Michal Handzlik,
+# Karin Kiewisch, Moritz Klammler, Lars Ridder, Jetze Sikkema,
+# Lucas Visscher, and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -19,21 +20,26 @@
 #    You should have received a copy of the GNU General Public License
 #    along with PyADF.  If not, see <http://www.gnu.org/licenses/>.
 
+import sys
+import os
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 import unittest
-import pyadf
 
 from pyadf_doctests import make_doctest_suite
 from pyadf_testinputs import make_testinputs_suite
+from pyadf_unittests.PyAdfTestCase import PyAdfTextTestResult
 
 
 def get_options():
-
     from optparse import OptionParser
 
     parser = OptionParser(usage="usage: %prog [options]")
 
     parser.add_option("--tests", default="all",
-                      dest="tests", help="which tests to run [available: doctests, short, medium, long, all]")
+                      dest="tests",
+                      help="which tests to run [available: doctests, unittests, short, medium, long, all]")
     parser.add_option("--noopenbabel", action="store_false", default=True,
                       dest="openbabel", help="skip tests relying on Openbabel")
     parser.add_option("--nodalton", action="store_false", default=True,
@@ -54,12 +60,10 @@ def get_options():
                       dest="keep", help="keep temporary test directories")
     parser.add_option("--profile", "-p", action="store_true", default=False,
                       dest="profile", help="run tests using the Python profiler")
-    parser.add_option("--openbabel", action="store_true", default=False,
-                      dest="forceopenbabel",
-                      help="Always force using the Openbabel Molecule class")
-    parser.add_option("--openbabelfree", action="store_true", default=False,
-                      dest="forceopenbabelfree",
-                      help="Always force using the Openbabel-free Molecule class")
+    parser.add_option("--molclass", choices=["openbabel", "obfree", "rdkit"], default='openbabel',
+                      help="select molecule class to use [available: openbabel, obfree, rdkit]")
+    parser.add_option("--nokf", action="store_false", default=True,
+                      dest="kftest", help="skip kf tests")
 
     (options, args) = parser.parse_args()
 
@@ -67,32 +71,28 @@ def get_options():
 
 
 def test():
-
     options = get_options()
 
     suite = unittest.TestSuite()
 
-    forceopenbabel = None
-    if options.forceopenbabel:
-        forceopenbabel = True
-    if options.forceopenbabelfree:
-        forceopenbabel = False
-
     if options.singletest:
         suite.addTest(make_testinputs_suite(testnames=[options.singletest],
                                             keep=options.keep, prof=options.profile,
-                                            forceopenbabel=forceopenbabel))
-    else:
-        try:
+                                            molclass=options.molclass))
+    else :
+        if options.tests != "unittests":  # add doctests, unless only unittests requested
+            doctests = make_doctest_suite(molclass=options.molclass)
+            if doctests is not None:
+                suite.addTest(doctests)
+
+        if options.tests != "doctests":  # add unittests, unless onlt doctests requested
             from kf import KFFileTests
             suite.addTest(unittest.TestLoader().loadTestsFromTestCase(KFFileTests))
-        except:
-            pass
 
-        doctests = make_doctest_suite()
-        if doctests is not None:
-            suite.addTest(make_doctest_suite())
-        if options.tests != 'doctests' :
+            import pyadf_unittests
+            suite.addTest(unittest.TestLoader().loadTestsFromModule(pyadf_unittests))
+
+        if not (options.tests in ["doctests", "unittests"]):
             suite.addTest(make_testinputs_suite(tests=options.tests,
                                                 dalton=options.dalton,
                                                 dirac=options.dirac,
@@ -102,9 +102,9 @@ def test():
                                                 turbomole=options.turbomole,
                                                 openbabel=options.openbabel,
                                                 keep=options.keep, prof=options.profile,
-                                                forceopenbabel=forceopenbabel))
+                                                molclass=options.molclass))
 
-    unittest.TextTestRunner(verbosity=2, descriptions=False).run(suite)
+    unittest.TextTestRunner(verbosity=2, descriptions=False, resultclass=PyAdfTextTestResult).run(suite)
 
 
 if __name__ == '__main__':

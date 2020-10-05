@@ -1,0 +1,118 @@
+import os
+import zipfile
+
+
+def write_fragmentation_files(frags, zipname):
+    with zipfile.ZipFile(os.path.join(pyadfenv.outdir, zipname), 'w') as zf:
+        for i, f in enumerate(frags.fragiter()):
+            atblock = f.get_atoms_block()
+            zf.writestr('frag%i.out' % i, atblock)
+        for i, c in enumerate(frags.capiter()):
+            atblock = c.get_atoms_block()
+            zf.writestr('cap%i.out' % i, atblock)
+
+
+def compare_atblocks(first, second):
+    for line1, line2 in zip(sorted(first), sorted(second)):
+        l1 = line1.strip().split()
+        l2 = line2.strip().split()
+        testobj.assertEqual(l1[0], l2[0])
+        testobj.assertAlmostEqual(float(l1[1]), float(l2[1]), 3)
+        testobj.assertAlmostEqual(float(l1[2]), float(l2[2]), 3)
+        testobj.assertAlmostEqual(float(l1[3]), float(l2[3]), 3)
+
+def compare_fragmentation_results(frags, zip_orig):
+    with zipfile.ZipFile(os.path.join(pyadfenv.outdir, zip_orig), 'r') as zf:
+        for i, f in enumerate(frags.fragiter()):
+            atblock_orig = zf.open('frag%i.out' % i).readlines()
+            atblock = f.get_atoms_block().splitlines()
+            compare_atblocks(atblock_orig, atblock)
+        for i, c in enumerate(frags.capiter()):
+            atblock_orig = zf.open('cap%i.out' % i).readlines()
+            atblock = c.get_atoms_block().splitlines()
+            compare_atblocks(atblock_orig, atblock)
+
+
+ubi_full = molecule(os.path.join(pyadfenv.outdir, '1UBQ.pdb'), 'pdb')
+ubi_full.delete_residue(restype='HOH')
+
+ubi_full.write(os.path.join(pyadfenv.outdir, 'ubiquitin_nowater.pdb'), 'pdb')
+ubi = molecule(os.path.join(pyadfenv.outdir, 'ubiquitin_nowater_orig.pdb'), 'pdb')
+testobj.assertAlmostEqualMolecules(ubi_full, ubi)
+
+ubi_orig = molecule(os.path.join(pyadfenv.outdir, 'ubiquitin_mod_orig.pdb'), 'pdb')
+
+if MoleculeFactory().molclass == "openbabel":
+    ubi.add_hydrogens()
+    ubi.write(os.path.join(pyadfenv.outdir, 'ubiquitin_mod.pdb'), 'pdb')
+    testobj.assertAlmostEqualMolecules(ubi, ubi_orig)
+
+ubi = ubi_orig
+
+# fragmentation 1
+frags = cappedfragmentlist()
+frags.partition_protein(ubi, fragsize=1)
+
+write_fragmentation_files(frags, 'fragmentation_one.zip')
+compare_fragmentation_results(frags, 'fragmentation_one_orig.zip')
+
+# fragmentation 2
+frags = cappedfragmentlist()
+frags.partition_protein(ubi, fragsize=2)
+
+write_fragmentation_files(frags, 'fragmentation_two.zip')
+compare_fragmentation_results(frags, 'fragmentation_two_orig.zip')
+
+# fragmentation 5
+frags = cappedfragmentlist()
+frags.partition_protein(ubi, fragsize=5)
+
+write_fragmentation_files(frags, 'fragmentation_five.zip')
+compare_fragmentation_results(frags, 'fragmentation_five_orig.zip')
+
+# fragmentation 10
+frags = cappedfragmentlist()
+frags.partition_protein(ubi, fragsize=10)
+
+write_fragmentation_files(frags, 'fragmentation_ten.zip')
+compare_fragmentation_results(frags, 'fragmentation_ten_orig.zip')
+
+# special fragmentation 1
+
+residuenumbers = [i for i in range(77) if i > 0]
+frag1 = ['cA' + str(i) for i in residuenumbers if i <= 13]
+frag2 = ['cA' + str(i) for i in residuenumbers if 13 < i <= 20]
+frag3 = ['cA' + str(i) for i in residuenumbers if 20 < i <= 28]
+frag4 = ['cA' + str(i) for i in residuenumbers if 28 < i <= 37]
+frag5 = ['cA' + str(i) for i in residuenumbers if 37 < i <= 50]
+frag6 = ['cA' + str(i) for i in residuenumbers if 50 < i <= 57]
+frag7 = ['cA' + str(i) for i in residuenumbers if 57 < i <= 64]
+frag8 = ['cA' + str(i) for i in residuenumbers if 64 < i <= 76]
+specialfraglist = [frag1, frag2, frag3, frag4, frag5, frag6, frag7, frag8]
+
+frags = cappedfragmentlist()
+frags.partition_protein(ubi, special_reslists=specialfraglist)
+
+write_fragmentation_files(frags, 'fragmentation_special1.zip')
+compare_fragmentation_results(frags, 'fragmentation_special1_orig.zip')
+
+# special fragmentation 2
+
+frag1 = ['cA1', 'cA2', 'cA3', 'cA4', 'cA5', 'cA13', 'cA14', 'cA15', 'cA16', 'cA17',
+         'cA18', 'cA19', 'cA20', 'cA21', 'cA22', 'cA23', 'cA24', 'cA25', 'cA26', 'cA27',
+         'cA28', 'cA29', 'cA30', 'cA31', 'cA32', 'cA33', 'cA34', 'cA35', 'cA51', 'cA52',
+         'cA53', 'cA54', 'cA55', 'cA56', 'cA57', 'cA58', 'cA59', 'cA60', 'cA61', 'cA62',
+         'cA63', 'cA64']
+frag2 = ['cA6', 'cA12', 'cA66', 'cA67', 'cA68']
+frag3 = ['cA7', 'cA8', 'cA9', 'cA10', 'cA11']
+frag4 = ['cA36', 'cA37', 'cA38', 'cA39', 'cA40', 'cA41', 'cA69', 'cA70',
+         'cA71', 'cA72', 'cA73', 'cA74', 'cA75', 'cA76']
+frag5 = ['cA42', 'cA43', 'cA44']
+frag6 = ['cA45', 'cA46', 'cA47', 'cA48', 'cA49', 'cA50', 'cA65']
+specialfraglist = [frag1, frag2, frag3, frag4, frag5, frag6]
+
+frags = cappedfragmentlist()
+frags.partition_protein(ubi, special_reslists=specialfraglist)
+
+write_fragmentation_files(frags, 'fragmentation_special2.zip')
+compare_fragmentation_results(frags, 'fragmentation_special2_orig.zip')

@@ -1,8 +1,9 @@
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2014 by Christoph R. Jacob, S. Maya Beyhan,
+# Copyright (C) 2006-2020 by Christoph R. Jacob, S. Maya Beyhan,
 # Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Michal Handzlik,
-# Karin Kiewisch, Moritz Klammler, Jetze Sikkema, and Lucas Visscher
+# Karin Kiewisch, Moritz Klammler, Lars Ridder, Jetze Sikkema,
+# Lucas Visscher, and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -38,8 +39,7 @@ import os
 import re
 
 
-class daltonresults (results):
-
+class daltonresults(results):
     """
     Class for results of a Dalton calculation.
     """
@@ -51,8 +51,7 @@ class daltonresults (results):
         results.__init__(self, j)
 
 
-class daltonsinglepointresults (daltonresults):
-
+class daltonsinglepointresults(daltonresults):
     """
     Class for results of a Dalton single point calculation.
 
@@ -91,14 +90,18 @@ class daltonsinglepointresults (daltonresults):
 
         output = self.get_output()
 
-        start = re.compile("\s*Dipole moment components")
+        startline = None
+        start = re.compile(r"\s*Dipole moment components")
         for i, l in enumerate(output):
             m = start.match(l)
             if m:
                 startline = i
 
+        if startline is None:
+            raise PyAdfError('Dalton dipole moment not found in output')
+
         for i, c in enumerate(['x', 'y', 'z']):
-            dip = re.compile("\s*" + c + "\s*(?P<dip>[-+]?(\d+(\.\d*)?|\d*\.\d+))")
+            dip = re.compile(r"\s*" + c + r"\s*(?P<dip>[-+]?(\d+(\.\d*)?|\d*\.\d+))")
             m = dip.match(output[startline + 5 + i])
             dipole[i] = float(m.group('dip'))
 
@@ -114,7 +117,7 @@ class daltonsinglepointresults (daltonresults):
 
         energy = float(0)
         output = self.get_output()
-        en_re = re.compile("^ {5}Total energy *(?P<energy>-?\d+\.\d+)")
+        en_re = re.compile(r"^ {5}Total energy *(?P<energy>-?\d+\.\d+)")
         for line in output:
             m = en_re.match(line)
             if m:
@@ -123,8 +126,7 @@ class daltonsinglepointresults (daltonresults):
         return energy
 
 
-class daltonjob (job):
-
+class daltonjob(job):
     """
     An abstract base class for Dalton jobs.
 
@@ -220,17 +222,16 @@ class daltonjob (job):
 
         f = open(errfile)
         err = f.readlines()
-        for l in reversed(err):
-            if "SEVERE ERROR" in l:
+        for line in reversed(err):
+            if "SEVERE ERROR" in line:
                 raise PyAdfError("Error running Dalton job")
-            if l == newjobmarker:
+            if line == newjobmarker:
                 break
         f.close()
         return True
 
 
-class daltonsettings (object):
-
+class daltonsettings(object):
     """
     Class that holds the settings for a Dalton calculation..
 
@@ -332,8 +333,7 @@ class daltonsettings (object):
         return s
 
 
-class daltonsinglepointjob (daltonjob):
-
+class daltonsinglepointjob(daltonjob):
     """
     A class for Dalton single point runs.
 
@@ -385,23 +385,24 @@ class daltonsinglepointjob (daltonjob):
 
         self.mol = mol
         self.basis = basis
-        if self.mol and (self.basis == None):
+        if self.mol and (self.basis is None):
             raise PyAdfError("Missing basis set in Dalton single point job")
 
-        if settings == None:
+        if settings is None:
             self.settings = daltonsettings()
         else:
             self.settings = settings
 
+        self.restart = None
         self.set_restart(None)
 
         self.fdein = fdein
 
         self.post2017code = True
         if 'DALTON_POST2017_VERSION' in os.environ:
-            self.post2017code = False 
+            self.post2017code = False
 
-        # FIXME: Symmetry in Dalton hardcoded
+            # FIXME: Symmetry in Dalton hardcoded
         if self.mol:
             self.mol.set_symmetry('NOSYM')
 
@@ -414,7 +415,7 @@ class daltonsinglepointjob (daltonjob):
         return daltonsinglepointresults(self)
 
     def get_runscript(self):
-        if 'NSCM' in os.environ :
+        if 'NSCM' in os.environ:
             nproc = int(os.environ['NSCM'])
         else:
             nproc = None
@@ -440,12 +441,12 @@ class daltonsinglepointjob (daltonjob):
         block += ".DIRECT\n"
         if self.settings.method in ('HF', 'DFT'):
             block += ".RUN PROPERTIES\n"
-        if not self.fdein == None:
+        if self.fdein is not None:
             block += '.FDE\n'
-        # for versions prior to the 2018 dalton release,
-        # the input below is not necessary to run the calculations.
-        # from the 2018 release onwards, the definition of *FDE and
-        # some of its keywords will be mandatory
+            # for versions prior to the 2018 dalton release,
+            # the input below is not necessary to run the calculations.
+            # from the 2018 release onwards, the definition of *FDE and
+            # some of its keywords will be mandatory
             if not self.post2017code:
                 block += '*FDE\n'
                 block += '.PRINT\n 1\n'
@@ -490,12 +491,12 @@ class daltonsinglepointjob (daltonjob):
 
     def before_run(self):
         daltonjob.before_run(self)
-        if not self.fdein == None:
+        if self.fdein is not None:
             self.fdein.export_embedding_data('EMBPOT', 'FRZDNS')
 
     def after_run(self):
         daltonjob.after_run(self)
-        if not self.fdein == None:
+        if self.fdein is not None:
             os.remove('EMBPOT')
             os.remove('FRZDNS')
 

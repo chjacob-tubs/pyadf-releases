@@ -1,0 +1,31 @@
+
+def check_results_bp86 (testobj, energy, dipole_vect, dipole_magn):
+
+    testobj.assertAlmostEqual(energy,        -76.42391185401, 6)
+
+    testobj.assertAlmostEqual(dipole_magn,     0.72680616, 5)                   
+    testobj.assertAlmostEqual(dipole_vect[0],  0.704462, 4)             
+    testobj.assertAlmostEqual(dipole_vect[1],  0.163859, 4)             
+    testobj.assertAlmostEqual(dipole_vect[2], -0.071629, 4)          
+
+_verbose_level = 5
+
+h2o = molecule (os.path.join(pyadfenv.outdir, 'H2O.xyz'))
+
+# BP86 single point calculation
+
+settings = TurbomoleSinglePointSettings(verbose_level=_verbose_level)
+settings.set_basis_set('cc-pVDZ')
+settings.set_dft_functional('b-p')
+settings.set_ri(True)
+settings.set_dft_grid('m4')
+settings.set_dispersion_correction('dft-d3')
+settings.set_scfiterlimit(500)
+results = TurbomoleSinglePointJob(h2o, method='dft', settings=settings).run()
+
+energy = results.get_energy()
+dipole_vect = results.get_dipole_vector ()
+dipole_magn = results.get_dipole_magnitude ()
+
+check_results_bp86 (testobj, energy, dipole_vect, dipole_magn)
+       

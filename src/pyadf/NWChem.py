@@ -1,8 +1,9 @@
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2014 by Christoph R. Jacob, S. Maya Beyhan,
+# Copyright (C) 2006-2020 by Christoph R. Jacob, S. Maya Beyhan,
 # Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Michal Handzlik,
-# Karin Kiewisch, Moritz Klammler, Jetze Sikkema, and Lucas Visscher
+# Karin Kiewisch, Moritz Klammler, Lars Ridder, Jetze Sikkema,
+# Lucas Visscher, and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -36,8 +37,7 @@ import os
 import re
 
 
-class nwchemresults (results):
-
+class nwchemresults(results):
     """
     Class for results of an NWChem calculation.
     """
@@ -49,8 +49,7 @@ class nwchemresults (results):
         results.__init__(self, j)
 
 
-class nwchemsinglepointresults (nwchemresults):
-
+class nwchemsinglepointresults(nwchemresults):
     """
     Class for results of an NWChem single point calculation.
 
@@ -90,14 +89,18 @@ class nwchemsinglepointresults (nwchemresults):
 
         output = self.get_output()
 
-        start = re.compile("\s*Dipole Moment")
+        startline = None
+        start = re.compile(r"\s*Dipole Moment")
         for i, l in enumerate(output):
             m = start.match(l)
             if m:
                 startline = i
 
+        if startline is None:
+            raise PyAdfError('NWChem dipole moment not found in output')
+
         for i, c in enumerate(['X', 'Y', 'Z']):
-            dip = re.compile("\s*DM" + c + "\s*(?P<dip>[-+]?(\d+(\.\d*)?|\d*\.\d+))\s+DM" + c + "EFC")
+            dip = re.compile(r"\s*DM" + c + r"\s*(?P<dip>[-+]?(\d+(\.\d*)?|\d*\.\d+))\s+DM" + c + "EFC")
             m = dip.match(output[startline + 7 + i])
             dipole[i] = float(m.group('dip'))
 
@@ -117,7 +120,7 @@ class nwchemsinglepointresults (nwchemresults):
             raise PyAdfError('Energy only implemented for HF and DFT')
 
         output = self.get_output()
-        en_re = re.compile("^ +Total (SCF|DFT) energy = *(?P<energy>-?\d+\.\d+)")
+        en_re = re.compile(r"^ +Total (SCF|DFT) energy = *(?P<energy>-?\d+\.\d+)")
         for line in output:
             m = en_re.match(line)
             if m:
@@ -127,6 +130,7 @@ class nwchemsinglepointresults (nwchemresults):
 
     def _get_fdein(self):
         return self.job.fdein
+
     fdein = property(_get_fdein, None, None, """
     The results of the ADF FDE calculation from that the embedding potential was imported.
 
@@ -134,8 +138,7 @@ class nwchemsinglepointresults (nwchemresults):
     """)
 
 
-class nwchemjob (job):
-
+class nwchemjob(job):
     """
     An abstract base class for NWChem jobs.
 
@@ -184,7 +187,7 @@ class nwchemjob (job):
         runscript += "eor\n"
         runscript += "cat NWCHEM.INP \n"
 
-        #if 'NSCM' in os.environ :
+        # if 'NSCM' in os.environ :
         #    runscript += 'mpirun -np $NSCM '
         runscript += "$NWCHEMBIN/nwchem NWCHEM.INP >NWCHEM.OUT \n"
         runscript += "retcode=$?\n"
@@ -198,8 +201,6 @@ class nwchemjob (job):
         runscript += "rm NWCHEM.INP \n"
         runscript += "exit $retcode \n"
 
-        print runscript
-
         return runscript
 
     def check_success(self, outfile, errfile):
@@ -209,8 +210,7 @@ class nwchemjob (job):
         return True
 
 
-class nwchemsettings (object):
-
+class nwchemsettings(object):
     """
     Settings for a NWChem calculation.
 
@@ -347,8 +347,7 @@ class nwchemsettings (object):
         return "Default NWChem settings"
 
 
-class nwchemsinglepointjob (nwchemjob):
-
+class nwchemsinglepointjob(nwchemjob):
     """
     A class for NWChem single point runs.
 
@@ -402,11 +401,12 @@ class nwchemsinglepointjob (nwchemjob):
         self.mol = mol
         self.basis = basis
 
-        if settings == None:
+        if settings is None:
             self.settings = nwchemsettings()
         else:
             self.settings = settings
 
+        self.restart = None
         self.set_restart(None)
 
         self.fdein = fdein
@@ -461,7 +461,7 @@ class nwchemsinglepointjob (nwchemjob):
         block = "dft\n"
         block += "   direct\n"
         block += self.settings.get_dft_block()
-        if not self.fdein == None:
+        if self.fdein is not None:
             block += '   frozemb\n'
         block += 'end\n'
         return block
@@ -469,7 +469,7 @@ class nwchemsinglepointjob (nwchemjob):
     def get_scf_block(self):
         block = "scf\n"
         block += "   direct\n"
-        if not self.fdein == None:
+        if self.fdein is not None:
             block += '   frozemb\n'
         block += 'end\n'
         return block
@@ -513,12 +513,12 @@ class nwchemsinglepointjob (nwchemjob):
 
     def before_run(self):
         nwchemjob.before_run(self)
-        if not self.fdein == None:
+        if self.fdein is not None:
             self.fdein.export_embedding_data('EMBPOT', 'FRZDNS')
 
     def after_run(self):
         nwchemjob.after_run(self)
-        if not self.fdein == None:
+        if self.fdein is not None:
             os.remove('EMBPOT')
             os.remove('FRZDNS')
 

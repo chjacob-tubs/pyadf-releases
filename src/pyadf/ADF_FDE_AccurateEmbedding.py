@@ -1,8 +1,9 @@
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2014 by Christoph R. Jacob, S. Maya Beyhan,
+# Copyright (C) 2006-2020 by Christoph R. Jacob, S. Maya Beyhan,
 # Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Michal Handzlik,
-# Karin Kiewisch, Moritz Klammler, Jetze Sikkema, and Lucas Visscher
+# Karin Kiewisch, Moritz Klammler, Lars Ridder, Jetze Sikkema,
+# Lucas Visscher, and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -39,13 +40,20 @@ from pyadf.Errors import PyAdfError
 import os.path
 
 
-class adfaccurateembeddingresults (object):
+class adfaccurateembeddingresults(object):
 
     def __init__(self):
-        pass
+        self.super = None
+        self.frag1 = None
+        self.frag2 = None
+
+        self.locorb_set1 = None
+        self.locorb_set2 = None
+
+        self.pot = None
+        self.dens_err = None
 
     def write_accurate_potential(self, grid, outdir):
-
         # construct initial guess for the potential and save it to a variable
         startpot = self.frag1.get_potential(grid=grid, pot='total')
 
@@ -62,16 +70,14 @@ class adfaccurateembeddingresults (object):
         final_pot = startpot + rec_pot
         super_pot = self.super.get_potential(grid, pot='total')
 
-       # difference between the supermolecular and the reconstructed potential
+        # difference between the supermolecular and the reconstructed potential
         diff_pot = super_pot - final_pot
         diff_pot.get_xyzvfile(os.path.join(outdir, "diff_pot.xyzv"))
 
     def write_approximate_potentials(self, grid, kin_funcs, outdir):
-
         # FIXME: add NDSD and CJCORR here
 
         for func in kin_funcs:
-
             #  get kinetic potential for the supermolecular system
             kinpot_tot = self.super.get_kinetic_potential(grid, func=func)
 
@@ -85,9 +91,10 @@ class adfaccurateembeddingresults (object):
             apot.get_xyzvfile(os.path.join(outdir, "approx_" + func + ".xyzv"))
 
 
-class adfaccurateembeddingjob (metajob):
+class adfaccurateembeddingjob(metajob):
 
     def __init__(self, frag1, frag2, basis, ghostbasis, settings, potoptions):
+        metajob.__init__(self)
         self.frag1 = frag1
         self.frag2 = frag2
 
@@ -99,7 +106,7 @@ class adfaccurateembeddingjob (metajob):
         self.supermol.set_symmetry('NOSYM')
 
         # if requested, add ghost basis functions to the active fragment
-        if ghostbasis == True:
+        if ghostbasis:
             self.frag1 = self.frag1.add_as_ghosts(self.frag2)
 
         self.basis = basis
@@ -211,8 +218,8 @@ class adfaccurateembeddingjob (metajob):
         sys1_dens = results.super.get_locorb_density(grid=adfGrid, orbs=results.locorb_set1)
         sys1_dens.prop = 'density scf'
 
-        #results.sys2_dens = results.super.get_locorb_density(grid=adfGrid, orbs=results.locorb_set2)
-        #results.sys2_dens.prop = 'density scf'
+        # results.sys2_dens = results.super.get_locorb_density(grid=adfGrid, orbs=results.locorb_set2)
+        # results.sys2_dens.prop = 'density scf'
 
         print 'reference calculations finished'
 

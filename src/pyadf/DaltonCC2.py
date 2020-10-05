@@ -1,8 +1,9 @@
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2014 by Christoph R. Jacob, S. Maya Beyhan,
+# Copyright (C) 2006-2020 by Christoph R. Jacob, S. Maya Beyhan,
 # Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Michal Handzlik,
-# Karin Kiewisch, Moritz Klammler, Jetze Sikkema, and Lucas Visscher
+# Karin Kiewisch, Moritz Klammler, Lars Ridder, Jetze Sikkema,
+# Lucas Visscher, and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -31,14 +32,14 @@
     daltonCC2results
 """
 
-from DaltonSinglePoint import daltonjob, daltonsinglepointjob, daltonresults, \
-                              daltonsinglepointresults, daltonsettings
+from Errors import PyAdfError
+from DaltonSinglePoint import daltonjob, daltonsinglepointjob, \
+    daltonsinglepointresults, daltonsettings
 
 import re
 
 
-class daltonCC2results (daltonsinglepointresults):
-
+class daltonCC2results(daltonsinglepointresults):
     """
     Class for results of an Dalton CC2 calculation.
 
@@ -65,11 +66,15 @@ class daltonCC2results (daltonsinglepointresults):
 
         output = self.get_output()
 
+        startline = None
         start = re.compile(r".*CC2\s*Excitation energies")
         for i, l in enumerate(output):
             m = start.match(l)
             if m:
                 startline = i
+
+        if startline is None:
+            raise PyAdfError('Dalton CC2 excitation energies not found in output')
 
         exen = re.compile(r"""\s* \| \s* \^1A \s* \|
                                    \s* (\d+)  \s* \|
@@ -94,11 +99,15 @@ class daltonCC2results (daltonsinglepointresults):
 
         output = self.get_output()
 
+        startline = None
         start = re.compile(r".*(CC2\s*Transition properties|CC2\s*Length\s+Gauge Oscillator Strength)")
         for i, l in enumerate(output):
             m = start.match(l)
             if m:
                 startline = i
+
+        if startline is None:
+            raise PyAdfError('Dalton CC2 oscillator strengths not found in output')
 
         oscstr = re.compile(r"""\s* \| \s* \^1A \s* \|
                                    \s* (\d+)  \s* \|
@@ -113,8 +122,7 @@ class daltonCC2results (daltonsinglepointresults):
         return os
 
 
-class daltonCC2settings (daltonsettings):
-
+class daltonCC2settings(daltonsettings):
     """
     Class that holds the settings for a Dalton CC2 calculation..
 
@@ -126,7 +134,7 @@ class daltonCC2settings (daltonsettings):
         __str__
     """
 
-    def __init__(self, nexci=10, freeze_occ=0, freeze_virt=0,):
+    def __init__(self, nexci=10, freeze_occ=0, freeze_virt=0, ):
         """
         Constructor for daltonCC2settings.
 
@@ -182,8 +190,7 @@ class daltonCC2settings (daltonsettings):
         return s
 
 
-class daltonCC2job (daltonsinglepointjob):
-
+class daltonCC2job(daltonsinglepointjob):
     """
     A class for Dalton CC2 excitation energy calculations.
 
@@ -225,7 +232,7 @@ class daltonCC2job (daltonsinglepointjob):
         @type options: list of str
         """
 
-        if settings == None:
+        if settings is None:
             self.settings = daltonCC2settings()
         else:
             self.settings = settings
@@ -239,6 +246,7 @@ class daltonCC2job (daltonsinglepointjob):
 
     def _get_nexci(self):
         return self.settings.nexci
+
     nexci = property(_get_nexci, None, None, """
     The number of excitations that were calculated.
 

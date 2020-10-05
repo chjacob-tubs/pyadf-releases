@@ -1,0 +1,48 @@
+def check_results_bp86 (testobj, energy, dipole_vect, dipole_magn):
+
+    testobj.assertAlmostEqual(energy,        -76.423898481, 6)
+
+    testobj.assertAlmostEqual(dipole_magn,     0.7257301, 5)
+    testobj.assertAlmostEqual(dipole_vect[0],  0.703418, 4)
+    testobj.assertAlmostEqual(dipole_vect[1],  0.163654, 4)
+    testobj.assertAlmostEqual(dipole_vect[2], -0.071532, 4)
+
+_verbose_level = 5
+
+h2o = molecule (os.path.join(pyadfenv.outdir, 'H2O.xyz'))
+
+# BP86 single point calculation
+
+settings = TurbomoleSinglePointSettings(verbose_level=_verbose_level)
+settings.set_basis_set('cc-pVDZ')
+settings.set_dft_functional('b-p')
+settings.set_ri(True)
+settings.set_scfconv(10)
+
+results = TurbomoleSinglePointJob(h2o, method='dft', settings=settings).run()
+
+energy = results.get_energy()
+dipole_vect = results.get_dipole_vector()
+dipole_magn = results.get_dipole_magnitude()
+
+check_results_bp86(testobj, energy, dipole_vect, dipole_magn)
+
+settings = TurbomoleSinglePointSettings(verbose_level=_verbose_level)
+settings.set_basis_set('cc-pVDZ')
+settings.set_dft_functional('b-p')
+settings.set_ri(True)
+settings.set_scfiterlimit(3)
+
+job2 = TurbomoleSinglePointJob(h2o, method='dft', settings=settings)
+job2.set_restart(results)
+
+results = job2.run()
+
+energy = results.get_energy()
+dipole_vect = results.get_dipole_vector()
+dipole_magn = results.get_dipole_magnitude()
+
+check_results_bp86 (testobj, energy, dipole_vect, dipole_magn)
+
+print results.get_result_file_list()
+

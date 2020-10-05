@@ -77,4 +77,15 @@ print "Integral of difference in Coulomb potentials", int_diff
 if 'unittesting' in pyadfenv.options :
     testobj.assertAlmostEqual(int_diff, 0.0, 6)
 
+pot_coul_loc = results.get_potential(grid=cgrid, pot='Coul', orbs={'Loc':[3,4,5]})
+pot_coul_loc_numint = results.get_locorb_coulpot_numint(grid=cgrid, orbs=[3,4,5])
 
+diff_pot = pot_coul_loc - pot_coul_loc_numint
+
+dens = results.get_density(grid=cgrid, orbs={'Loc':[3,4,5]})
+
+int_diff = (diff_pot*dens).integral(func=lambda x: abs(x))
+print "Density-weighted integral of difference in Coulomb potentials", int_diff
+
+if 'unittesting' in pyadfenv.options :
+    testobj.assert_(int_diff < 0.071)

@@ -37,6 +37,6 @@ exens = results.get_excitation_energies ()
 oscs  = results.get_oscillator_strengths ()
   
 if 'unittesting' in pyadfenv.options:
-    testobj.assertAlmostEqual(exens[0], 12.51968, 3)
-    testobj.assertAlmostEqual(exens[1], 14.60608, 3)
-    testobj.assertAlmostEqual(exens[2], 16.30812, 3)
+    testobj.assertAlmostEqual(exens[0], 12.51734, 3)
+    testobj.assertAlmostEqual(exens[1], 14.60532, 3)
+    testobj.assertAlmostEqual(exens[2], 16.30686, 3)

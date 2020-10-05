@@ -1,8 +1,9 @@
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2014 by Christoph R. Jacob, S. Maya Beyhan,
+# Copyright (C) 2006-2020 by Christoph R. Jacob, S. Maya Beyhan,
 # Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Michal Handzlik,
-# Karin Kiewisch, Moritz Klammler, Jetze Sikkema, and Lucas Visscher
+# Karin Kiewisch, Moritz Klammler, Lars Ridder, Jetze Sikkema,
+# Lucas Visscher, and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -37,8 +38,7 @@ import shutil
 import pickle
 
 
-class filemanager (object):
-
+class filemanager(object):
     """
     Base class for file managers.
 
@@ -79,7 +79,7 @@ class filemanager (object):
                       Default is the PID of the current process.
         @type  jobid: str
         """
-        self._files = set([])       # set with all managed files
+        self._files = set([])  # set with all managed files
         if outdir is None:
             self._outdir = os.getcwd()
         else:
@@ -132,7 +132,7 @@ class filemanager (object):
         @param filename: the file name
         @type  filename: str
         """
-        return (filename in self._files)
+        return filename in self._files
 
     def change_to_basedir(self):
         os.chdir(self._cwd)
@@ -252,8 +252,7 @@ class filemanager (object):
                            """)
 
 
-class adf_filemanager (filemanager):
-
+class adf_filemanager(filemanager):
     """
     A file manager for ADF-related files.
 
@@ -298,11 +297,11 @@ class adf_filemanager (filemanager):
         @type  jobid: str
         """
         filemanager.__init__(self, outdir, jobid)
-        self._resultfiles = []        # list of lists of result files, id gives index
-        self._output = []             # a list giving for each result the name of the
+        self._resultfiles = []  # list of lists of result files, id gives index
+        self._output = []  # a list giving for each result the name of the
         #                               output file and first and last line of the output
         #                               result id gives index
-        self._id = {}                 # dictionary giving results id for job checksums
+        self._id = {}  # dictionary giving results id for job checksums
         self._ispacked = []
         os.mkdir('resultfiles')
 
@@ -332,13 +331,14 @@ class adf_filemanager (filemanager):
 
         # the output files
 
-        if not results.job == None:
+        if results.job is not None:
             outfilename = self.outputfilename
 
             f = open(outfilename, 'r')
             outputstart = -1
-            for i, l in enumerate(f.readlines()):
-                if l == newjobmarker:
+            outputend = -1
+            for i, ll in enumerate(f.readlines()):
+                if ll == newjobmarker:
                     outputstart = i
                 outputend = i
             if outputstart == -1:
@@ -664,7 +664,7 @@ class adf_filemanager (filemanager):
         @type  dirname: str
         """
 
-        if (len(self._resultfiles) > 0):
+        if len(self._resultfiles) > 0:
             raise PyAdfError('Error importing resultsdir')
 
         f = open(os.path.join(dirname, 'adffiles.pickle'), 'r')
@@ -698,7 +698,7 @@ class adf_filemanager (filemanager):
         @type  fileid: int
         """
 
-        if self._ispacked[fileid] == True:
+        if self._ispacked[fileid]:
             return
 
         import subprocess

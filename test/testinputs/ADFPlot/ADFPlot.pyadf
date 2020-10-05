@@ -54,9 +54,10 @@ dens = results.get_density(spacing=0.1)
 dens.get_cubfile(os.path.join(pyadfenv.outdir, 'H2O.cub'))
 dens.get_xsffile(os.path.join(pyadfenv.outdir, 'H2O.xsf'))
 dens.get_xyzvfile(os.path.join(pyadfenv.outdir, 'H2O.xyzv'))
+dens.get_xyzwvfile(os.path.join(pyadfenv.outdir, 'H2O.xyzwv'))
 
 # calculate integral of the density
-cube_int        = dens.integral()
+cube_int = dens.integral()
 
 # calculate dipole moment numerically and analytically
 # (numerical integration is not very accurate, because 
@@ -64,9 +65,9 @@ cube_int        = dens.integral()
 cube_num_dipole = calc_dipole(dens, results.get_molecule())*au_in_Debye
 analyt_dipole   = results.get_dipole_vector()*au_in_Debye
 
-print "     Integral of the density ", cube_int 
-print "     Dipole moment [numint] (Debye): ", cube_num_dipole
-print "     Dipole moment [analyt] (Debye): ", analyt_dipole
+print "     Integral of the density: %12.3f" % cube_int 
+print "     Dipole moment [numint] (Debye): [%12.4f, %12.4f, %12.4f]" % (cube_num_dipole[0], cube_num_dipole[1], cube_num_dipole[2])
+print "     Dipole moment [analyt] (Debye): [%12.4f, %12.4f, %12.4f]" % (analyt_dipole[0], analyt_dipole[1], analyt_dipole[2])
 
 if 'unittesting' in pyadfenv.options :
     testobj.assertAlmostEqual(cube_int, 9.9862, 3)
@@ -102,9 +103,9 @@ adf_int        = dens.integral()
 # now, the dipole moment calculated by numerical integration is accurate
 adf_num_dipole = calc_dipole(dens, results.get_molecule())*au_in_Debye
 
-print "     Integral of the density ", adf_int
-print "     Dipole moment [numint] (Debye): ", adf_num_dipole
-print "     Dipole moment [analyt] (Debye): ", analyt_dipole
+print "     Integral of the density %12.4f" % adf_int
+print "     Dipole moment [numint] (Debye): [%12.4f, %12.4f, %12.4f]" % (adf_num_dipole[0], adf_num_dipole[1], adf_num_dipole[2])
+print "     Dipole moment [analyt] (Debye): [%12.4f, %12.4f, %12.4f]" % (analyt_dipole[0], analyt_dipole[1], analyt_dipole[2])
 
 if 'unittesting' in pyadfenv.options :
     testobj.assertAlmostEqual(adf_int, 10.0, 4)

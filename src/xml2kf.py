@@ -1,8 +1,9 @@
-# This file is part of 
+# This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2012 by Christoph R. Jacob, S. Maya Beyhan,
-# Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Karin Kiewisch,
-# Jetze Sikkema, and Lucas Visscher 
+# Copyright (C) 2006-2020 by Christoph R. Jacob, S. Maya Beyhan,
+# Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Michal Handzlik,
+# Karin Kiewisch, Moritz Klammler, Lars Ridder, Jetze Sikkema,
+# Lucas Visscher, and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -24,82 +25,98 @@ from kf import kffile
 
 import numpy
 
+
 class GridHandler(ContentHandler):
 
-    def __init__ (self, file_name):
+    def __init__(self, file_name):
         self.data_name = 'dataset'
         self.data_grid = 'grid'
         self.data_tape = file_name
         self.lblock = 128
 
+        self.variables = []
         self.data = None
+        self.idata = None
+        self.outfile = None
 
-    def startDocument (self) :
+        self.section = None
+        self.var = None
+
+        self.width = None
+        self.chars = ""
+
+        self.npoints = None
+        self.nblock = None
+        self.dummypoints = None
+        self.npoints_total = None
+        self.gridname = None
+
+    def startDocument(self):
         self.variables = []
         self.outfile = kffile(self.data_tape)
 
-    def endDocument (self):
+    def endDocument(self):
         self.outfile.close()
 
-    def dataset_Handler (self, attrs):
+    def dataset_Handler(self, attrs):
         name = attrs.get('name', '')
-        if name == "gridpoints" :
+        if name == "gridpoints":
             self.section = "Points"
-            self.var     = "Data"
-        elif name == "vc" :
-            self.section = "FrozenDensityElpot" 
-            self.var     = "ElpotFD"
-        elif name == "density" :
+            self.var = "Data"
+        elif name == "vc":
+            self.section = "FrozenDensityElpot"
+            self.var = "ElpotFD"
+        elif name == "density":
             self.section = "FrozenDensity"
-            self.var     = "rhoffd"
-        elif name == "gradient" :
+            self.var = "rhoffd"
+        elif name == "gradient":
             self.section = "FrozenDensityFirstDer"
-            self.var     = "drhoffd"
-        elif name == "hessian" :
+            self.var = "drhoffd"
+        elif name == "hessian":
             self.section = "FrozenDensitySecondDer"
-            self.var     = "d2rhoffd"
-        else :
+            self.var = "d2rhoffd"
+        else:
             self.section = name
-            self.var     = name
+            self.var = name
 
         self.width = int(attrs.get('width', 1))
 
         self.chars = ""
-        self.data = numpy.zeros((self.npoints_total*self.width,))
+        self.data = numpy.zeros((self.npoints_total * self.width,))
 
         self.idata = 0
 
-    def dataset_Write (self):
+    def dataset_Write(self):
 
-        if not self.idata == self.npoints*self.width :
+        if not self.idata == self.npoints * self.width:
             raise Exception("Wrong number of points read")
 
         self.data = self.data.reshape((self.npoints_total, self.width))
 
-        outdata = numpy.zeros((self.nblock, self.lblock*self.width))
+        outdata = numpy.zeros((self.nblock, self.lblock * self.width))
 
-        for iblock in range(self.nblock) :
-            ipoint = self.lblock * iblock 
+        for iblock in range(self.nblock):
+            ipoint = self.lblock * iblock
 
             # get one block of points
-            block = self.data[ipoint:ipoint+self.lblock]
+            block = self.data[ipoint:ipoint + self.lblock]
             # points have to be written in Fortran ordering !
             block = block.flatten(True)
 
-            outdata[iblock,:] = block
+            outdata[iblock, :] = block
 
         outdata = outdata.flatten()
 
         self.outfile.writereals(self.section, self.var, outdata)
- 
+
         # reset data
         self.data = None
-    
+
     def grid_Handler(self, attrs):
         self.npoints = int(attrs.get('size', None))
-        if (self.npoints % self.lblock == 0) :
+        if self.npoints % self.lblock == 0:
             self.dummypoints = 0
-        else :
+        else:
             self.dummypoints = self.lblock - (self.npoints % self.lblock)
         self.npoints_total = self.npoints + self.dummypoints
         self.nblock = self.npoints_total / self.lblock
@@ -117,36 +134,38 @@ class GridHandler(ContentHandler):
         self.gridname = attrs.get('name', None)
 
     def startElement(self, tag, attrs):
-        if tag == self.data_name: 
+        if tag == self.data_name:
             self.dataset_Handler(attrs)
-        elif tag == self.data_grid: 
+        elif tag == self.data_grid:
             self.grid_Handler(attrs)
- 
+
     def endElement(self, tag):
-        if tag == 'dataset': 
-            for ch in self.chars.split() :
+        if tag == 'dataset':
+            for ch in self.chars.split():
                 self.data[self.idata] = float(ch)
                 self.idata += 1
             self.dataset_Write()
 
     def characters(self, content):
-        if (not self.data is None) :
+        if self.data is not None:
             self.chars += content
             split_chars = self.chars.split()
-            if len(split_chars) > 0 :
-                for ch in split_chars[:-1] :
+            if len(split_chars) > 0:
+                for ch in split_chars[:-1]:
 
                     self.data[self.idata] = float(ch)
                     self.idata += 1
 
-                    if self.chars[-1].isspace() :
+                    if self.chars[-1].isspace():
                         split_chars[-1] += " "
                     self.chars = split_chars[-1]
 
-def xml2kf (xmlfile, outfile) :
+
+def xml2kf(xmlfile, outfile):
     parser = make_parser()
     parser.setContentHandler(GridHandler(outfile))
     parser.parse(xmlfile)
+
 
 if __name__ == '__main__':
 
@@ -155,4 +174,4 @@ if __name__ == '__main__':
     if not len(sys.argv) == 3:
         raise Exception("Wrong number of arguments")
 
-    xml2kf (sys.argv[1], sys.argv[2])
+    xml2kf(sys.argv[1], sys.argv[2])

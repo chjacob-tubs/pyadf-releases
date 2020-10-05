@@ -1,9 +1,29 @@
+# This file is part of
+# PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
+# Copyright (C) 2006-2020 by Christoph R. Jacob, S. Maya Beyhan,
+# Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Michal Handzlik,
+# Karin Kiewisch, Moritz Klammler, Lars Ridder, Jetze Sikkema,
+# Lucas Visscher, and Mario Wolter.
+#
+#    PyADF is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#
+#    PyADF is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with PyADF.  If not, see <http://www.gnu.org/licenses/>.
+
 from ..Utils import Units, PT
 from pdbtools import PDBHandler, PDBRecord
-from ..Errors import AtomError, BondError, MoleculeError, PTError, FileError
+from ..Errors import *
 import copy
 
-#==================================================================================================
+from BaseMolecule import BaseMolecule
 
 
 class Atom(object):
@@ -25,7 +45,7 @@ class Atom(object):
                 self.coords = (float(coords[0]) * ratio,
                                float(coords[1]) * ratio,
                                float(coords[2]) * ratio)
-            except:
+            except TypeError:
                 raise AtomError('__init__: Invalid coords passed')
 
     def __str__(self):
@@ -51,6 +71,7 @@ class Atom(object):
 
     def _getz(self):
         return self.coords[2]
+
     x = property(_getx, _setx)
     y = property(_gety, _sety)
     z = property(_getz, _setz)
@@ -60,18 +81,22 @@ class Atom(object):
 
     def _setsymbol(self, symbol):
         self.atnum = PT.get_atomic_number(symbol)
+
     symbol = property(_getsymbol, _setsymbol)
 
     def _getmass(self):
         return PT.get_mass(self.atnum)
+
     mass = property(_getmass)
 
     def _getradius(self):
         return PT.get_radius(self.atnum)
+
     radius = property(_getradius)
 
     def _getconnectors(self):
         return PT.get_connectors(self.atnum)
+
     connectors = property(_getconnectors)
 
     def move_by(self, vector, unit='angstrom'):
@@ -89,22 +114,21 @@ class Atom(object):
             raise AtomError('moveTo: Y U MOVE ME TO SUCH NASTY PLACE?')
 
     def distance_to(self, atom, unit='angstrom'):
-    # in unit, default Angstrom
-        res = (atom.x - self.x) ** 2 + (atom.y - self.y) ** 2 + (atom.z - self.z) ** 2
-        return res ** (0.5) * Units.conversion('angstrom', unit)
+        # in unit, default Angstrom
+        res = (atom.x - self.x)**2 + (atom.y - self.y)**2 + (atom.z - self.z)**2
+        return res**0.5 * Units.conversion('angstrom', unit)
 
     def vector_to(self, atom, unit='angstrom'):
-    # in unit, default Angstrom
+        # in unit, default Angstrom
         ratio = Units.conversion('angstrom', unit)
-        return ((atom.x - self.x) * ratio, (atom.y - self.y) * ratio, (atom.z - self.z) * ratio)
+        return (atom.x - self.x) * ratio, (atom.y - self.y) * ratio, (atom.z - self.z) * ratio
 
     def dist_sqr(self, atom):
-    # fast but always in Angstrom; be careful
-        return (self.x - atom.x) ** 2 + (self.y - atom.y) ** 2 + (self.z - atom.z) ** 2
+        # fast but always in Angstrom; be careful
+        return (self.x - atom.x)**2 + (self.y - atom.y)**2 + (self.z - atom.z)**2
 
 
-#==================================================================================================
-class Bond (object):
+class Bond(object):
     AR = 1.5
 
     def __init__(self, atom1, atom2, order=1, mol=None, **other):
@@ -121,11 +145,11 @@ class Bond (object):
         return self.order == Bond.AR
 
     def length(self, unit='angstrom'):
-    # in units of atom1
+        # in units of atom1
         return self.atom1.distance_to(self.atom2, unit)
 
     def other_end(self, atom):
-    #'hard' identity required
+        # 'hard' identity required
         if atom is self.atom1:
             return self.atom2
         elif atom is self.atom2:
@@ -139,18 +163,7 @@ class Bond (object):
         moving.move_by(tuple(i * ratio for i in moving.vector_to(atom)), moving.unit)
 
 
-#==================================================================================================
-
-class Molecule (object):
-
-    """
-    Set the total spin of the molecule.
-
-    @param spin: total spin
-    @type spin: float
-
-    @returns: nothing
-    """
+class OBFreeMolecule(BaseMolecule):
 
     def __init__(self, filename=None, inputformat='xyz'):
         self.atoms = []
@@ -189,7 +202,7 @@ class Molecule (object):
         self.charge += othercopy.charge
         if self.spin is not None and othercopy.spin is not None:
             self.spin += othercopy.spin
-        #self.symmetry = None
+        # self.symmetry = None
         self.properties = dict(othercopy.properties)
         return self
 
@@ -250,7 +263,7 @@ class Molecule (object):
     def get_fragment(self, atoms, ghosts=True):
         atoms = self._get_atoms(atoms)
         atoms = [atom for atom in atoms if ghosts or not atom.ghost]
-        m = Molecule()
+        m = OBFreeMolecule()
         for atom in atoms:
             newatom = Atom(atnum=atom.atnum, coords=atom.coords, mol=m, ghost=atom.ghost)
             newatom.properties = dict(atom.properties)
@@ -259,12 +272,12 @@ class Molecule (object):
         for bond in self.bonds:
             if hasattr(bond.atom1, 'bro') and hasattr(bond.atom2, 'bro'):
                 m.add_bond(Bond(bond.atom1.bro, bond.atom2.bro, order=bond.order,
-                           **bond.properties))
+                                **bond.properties))
         for atom in atoms:
             del atom.bro
         return m
 
-    def add_atoms(self, atoms, coords, atomicunits=False, ghosts=False):
+    def add_atoms(self, atoms, coords, atomicunits=False, ghosts=False, bond_to=None):
         if atomicunits:
             unit = 'bohr'
         else:
@@ -273,7 +286,7 @@ class Molecule (object):
             if isinstance(at, str):
                 at = PT.get_atomic_number(at)
             newatom = Atom(atnum=at, coords=co, unit=unit, mol=self, ghost=ghosts)
-            self.add_atom(newatom)
+            self.add_atom(newatom, adjacent=bond_to)
 
     def delete_atoms(self, atoms):
         atoms = self._get_atoms(atoms)
@@ -314,14 +327,23 @@ class Molecule (object):
         lines = ''
         atoms = self._get_atoms(atoms)
         for i, at in enumerate(atoms):
+            symb = at.symbol
+            if at.ghost:
+                symb = 'Gh.' + symb
             if index:
-                lines += '  %4i)' % (i + 1)
-            lines += str(at) + '  %s\n' % suffix
+                line = "  %3i) %8s %14.5f %14.5f %14.5f" % (i + 1, symb, at.x, at.y, at.z)
+            else:
+                line = "  %8s %14.5f %14.5f %14.5f" % (symb, at.x, at.y, at.z)
+
+            line += "    " + suffix + "\n"
+            lines += line
         return lines
 
     def readxyz(self, f, frame):
         fr = frame
         first = True
+        n = 0
+        i = 1
         for line in f:
             if fr != 0:
                 try:
@@ -435,7 +457,7 @@ class Molecule (object):
             elif line[0] == '@':
                 line = line.partition('>')[2]
                 if not line:
-                    raise MoleculeError('readmol2: Error in %s line %i: invalid @ record' % (f.name, str(i + 1)))
+                    raise MoleculeError('readmol2: Error in %s line %i: invalid @ record' % (f.name, i + 1))
                 mode = (line, i)
 
             elif mode[0] == 'MOLECULE':
@@ -454,7 +476,8 @@ class Molecule (object):
             elif mode[0] == 'ATOM':
                 spl = line.split()
                 if len(spl) < 6:
-                    raise MoleculeError('readmol2: Error in %s line %i: not enough values in line' % (f.name, str(i + 1)))
+                    raise MoleculeError(
+                        'readmol2: Error in %s line %i: not enough values in line' % (f.name, i + 1))
                 symb = spl[5].partition('.')[0]
                 try:
                     num = PT.get_atomic_number(symb)
@@ -475,12 +498,13 @@ class Molecule (object):
             elif mode[0] == 'BOND':
                 spl = line.split()
                 if len(spl) < 4:
-                    raise MoleculeError('readmol2: Error in %s line %i: not enough values in line' % (f.name, str(i + 1)))
+                    raise MoleculeError(
+                        'readmol2: Error in %s line %i: not enough values in line' % (f.name, i + 1))
                 try:
                     atom1 = self.atoms[int(spl[1]) - 1]
                     atom2 = self.atoms[int(spl[2]) - 1]
                 except IndexError:
-                    raise MoleculeError('readmol2: Error in %s line %i: wrong atom ID' % (f.name, str(i + 1)))
+                    raise MoleculeError('readmol2: Error in %s line %i: wrong atom ID' % (f.name, i + 1))
                 newbond = Bond(atom1, atom2, order=bondorders[spl[3]])
                 if len(spl) > 4:
                     for flag in spl[4].split('|'):
@@ -547,18 +571,45 @@ class Molecule (object):
         pdb.add_record(PDBRecord('HEADER'))
         model = []
         for i, at in enumerate(self.atoms):
-            s = 'ATOM  %5i                   %8.3f%8.3f%8.3f                      %2s  ' % (i + 1, at.x, at.y, at.z, at.symbol.upper())
+            s = 'ATOM  %5i                   %8.3f%8.3f%8.3f                      %2s  ' % (
+                i + 1, at.x, at.y, at.z, at.symbol.upper())
             model.append(PDBRecord(s))
         pdb.add_model(model)
         pdb.add_record(pdb.calc_master())
         pdb.add_record(PDBRecord('END'))
         pdb.write(f)
 
+    def readtmol(self, f, frame=1):
+        if frame > 1:
+            raise MoleculeError('readtmol: There is only 1 frame in %s' % f.name)
+
+        in_coord_block = False
+        for line in f:
+            if in_coord_block:
+                if line.startswith('$'):
+                    break
+
+                lst = line.split()
+                if len(lst) != 4:
+                    raise MoleculeError('readtmol: error reading tmol file')
+                num = PT.get_atomic_number(lst[3])
+                self.add_atom(Atom(atnum=num, coords=(lst[0], lst[1], lst[2]), unit='bohr'))
+            elif '$coord' in line:
+                in_coord_block = True
+
+    def writetmol(self, f):
+        ratio = Units.conversion('angstrom', 'bohr')
+
+        f.write('$coord\n')
+        for at in self.atoms:
+            f.write('%20.14f %20.14f %20.14f %-8s \n' % (at.x * ratio, at.y * ratio, at.z * ratio, at.symbol.lower()))
+        f.write('$end\n')
+
     def read(self, filename, inputformat='xyz', frame=1):
         if inputformat in self._iodict:
             try:
                 f = open(filename, 'rU')
-            except:
+            except IOError:
                 raise FileError('read: Error reading file %s' % filename)
             ret = self._iodict[inputformat][0](self, f, frame)
             f.close()
@@ -572,12 +623,69 @@ class Molecule (object):
         if outputformat in self._iodict:
             try:
                 f = open(filename, 'w')
-            except:
+            except IOError:
                 raise FileError('write: Error opening file %s' % filename)
             self._iodict[outputformat][1](self, f)
             f.close()
         else:
             raise MoleculeError('write: Unsupported file format')
+
+    def get_checksum(self, representation='xyz'):
+        """
+        Get a hexadecimal 128-bit md5 hash of the molecule.
+
+        This method writes a coordinate file, digests it and returns the md5
+        checksum of that file. If you think that the representation of the
+        molecule matters, you can specify it explicitly via the C{representation}
+        flag. Needless to say that you have to use the same representation
+        to compare two molecules.
+
+        @param representation: Molecule file format understood by I{Open Babel}.
+        @returns:              Hexadicimal hash
+        @rtype:                L{str}
+        @author:               Moritz Klammler
+        @date:                 Aug. 2011
+
+        """
+
+        import os
+        import tempfile
+        import hashlib
+
+        # First write the  coordinates to a file. The  format obviously doesn't
+        # matter as long as it it unambigous and we always use the same. We use
+        # Python's  `tempfile' module to  write the  coordinates. This  has the
+        # advantage that the method will also succeed if we do not have writing
+        # access to the CWD and we don't risk acidently overwriting an existing
+        # file. The temporary file will be  unlinked from the OS at the time of
+        # disposal of the `tempfile.NamedTemporaryFile' object.
+
+        # We  detect  one source  of  errors by  comparing  the  hash with  the
+        # empty-string hash. If it matches, something must have went wrong with
+        # writing and re-reading the file.
+
+        m = hashlib.md5()
+        emptyhash = m.hexdigest()
+
+        tmp = tempfile.NamedTemporaryFile()
+        tmp.file.close()
+
+        # The file is empty now. Note  that we only call the `file' attribute's
+        # `close()' method.  Saying `tmp.close()' would  immediately unlink the
+        # pysical file which is not what we want.
+
+        self.write(tmp.name, outputformat=representation)
+
+        with open(tmp.name, 'r') as infile:
+            for line in infile:
+                m.update(line)
+
+        molhash = m.hexdigest()
+        if molhash == emptyhash:
+            raise PyAdfError("""Error while trying to compute the md5 hash of
+            the molecule. Hash equals empty-string hash.""")
+
+        return molhash
 
     def get_xyz_file(self):
         lines = str(len(self.atoms)) + '\n'
@@ -621,11 +729,12 @@ class Molecule (object):
 
         for at in self.atoms:
             if not at.ghost:
-                lines += '%5d%12.6f%12.6f%12.6f%12.6f\n' % (at.atnum, 0.0, at.x*ratio, at.y*ratio, at.z*ratio)
+                lines += '%5d%12.6f%12.6f%12.6f%12.6f\n' % (at.atnum, 0.0, at.x * ratio, at.y * ratio, at.z * ratio)
         return lines
 
     def get_dalton_molfile(self, basis):
-        lines = 'BASIS\n' + basis + '\nThis Dalton molecule file was generated by PyADF\n Homepage: http://www.pyadf.org\n'
+        lines = 'BASIS\n' + basis + '\nThis Dalton molecule file was generated by PyADF\n' + \
+                ' Homepage: http://www.pyadf.org\n'
         types = set([at.atnum for at in self.atoms])
         lines += 'Angstrom Nosymmetry Atomtypes=%d\n' % len(types)
         for tp in types:
@@ -642,12 +751,15 @@ class Molecule (object):
 
     def get_coordinates(self, atoms=None, ghosts=True):
         atoms = self._get_atoms(atoms)
-# without list() maybe?
+        # without list() maybe?
         return [list(at.coords) for at in atoms if ghosts or not at.ghost]
 
     def get_atom_symbols(self, atoms=None, ghosts=True, prefix_ghosts=False):
         atoms = self._get_atoms(atoms)
-        pref = lambda arg: 'Gh.' * int(prefix_ghosts and arg.ghost)
+
+        def pref(arg):
+            return 'Gh.' * int(prefix_ghosts and arg.ghost)
+
         return [pref(at) + at.symbol for at in atoms if ghosts or not at.ghost]
 
     def get_atomic_numbers(self, atoms=None, ghosts=True):
@@ -681,18 +793,18 @@ class Molecule (object):
         dist = 999999
         for at1 in self.atoms:
             for at2 in other.atoms:
-                dist = min(dist, (at1.x - at2.x) ** 2 + (at1.y - at2.y) ** 2 + (at1.z - at2.z) ** 2)
-        return dist ** (0.5)
+                dist = min(dist, (at1.x - at2.x)**2 + (at1.y - at2.y)**2 + (at1.z - at2.z)**2)
+        return dist**0.5
 
     def distance_to_point(self, point, ghosts=True):
         dist = 999999
         for at in self.atoms:
             if ghosts or not at.ghost:
-                dist = min(dist, (at.x - point[0]) ** 2 + (at.y - point[1]) ** 2 + (at.z - point[2]) ** 2)
-        return dist ** (0.5)
+                dist = min(dist, (at.x - point[0])**2 + (at.y - point[1])**2 + (at.z - point[2])**2)
+        return dist**0.5
 
     def separate(self):
-    # all returned fragments have default spin, charge, symmetry, props etc.
+        # all returned fragments have default spin, charge, symmetry, props etc.
         frags = []
         clone = copy.deepcopy(self)
         for at in clone.atoms:
@@ -709,7 +821,7 @@ class Molecule (object):
 
         for src in clone.atoms:
             if not src.visited:
-                m = Molecule()
+                m = OBFreeMolecule()
                 dfs(src, m)
                 frags.append(m)
 
@@ -847,14 +959,15 @@ class Molecule (object):
             eford = order
             if order == Bond.AR:
                 eford = eff
-            if order == 1 and ((atom1.symbol == 'N' and atom2.symbol == 'C') or (atom1.symbol == 'C' and atom2.symbol == 'N')):
+            if order == 1 and ((atom1.symbol == 'N' and atom2.symbol == 'C')
+                               or (atom1.symbol == 'C' and atom2.symbol == 'N')):
                 eford = 1.11
-            return ((eford + addd) * ratio, order, ratio, atom1, atom2)
+            return (eford + addd) * ratio, order, ratio, atom1, atom2
 
         self.delete_all_bonds()
 
         dmax = 1.28
-        dmax2 = dmax ** 2
+        dmax2 = dmax**2
         cubesize = dmax * 2.1 * max([at.radius for at in self.atoms])
 
         cubes = {}
@@ -881,17 +994,17 @@ class Molecule (object):
             if at1.free > 0:
                 for at2 in neighbors[at1.cube]:
                     if (at2.free > 0) and (at1.id < at2.id):
-                        ratio = at1.dist_sqr(at2) / ((at1.radius + at2.radius) ** 2)
-                        if (ratio < dmax2):
+                        ratio = at1.dist_sqr(at2) / ((at1.radius + at2.radius)**2)
+                        if ratio < dmax2:
                             heap.append(element(0, ratio, at1, at2))
                             # I hate to do this, but I guess there's no other way :/ [MH]
-                            if (at1.atnum == 16 and at2.atnum == 8):
+                            if at1.atnum == 16 and at2.atnum == 8:
                                 at1.free = 6
-                            elif (at2.atnum == 16 and at1.atnum == 8):
+                            elif at2.atnum == 16 and at1.atnum == 8:
                                 at2.free = 6
-                            elif (at1.atnum == 7):
+                            elif at1.atnum == 7:
                                 at1.free += 1
-                            elif (at2.atnum == 7):
+                            elif at2.atnum == 7:
                                 at2.free += 1
         heapq.heapify(heap)
 
@@ -970,17 +1083,25 @@ class Molecule (object):
 
     def get_nuclear_efield_in_point(self, pointcoord):
         import numpy
-        E = [0.0] * 3
+        e = [0.0] * 3
         dummy = Atom(coords=tuple(pointcoord))
         for at in self.atoms:
             dist = dummy.distance_to(at)
             vec = dummy.vector_to(at)
-            E = [e + (at.atnum * c) / dist ** 3 for e, c in zip(E, vec)]
-        return numpy.array(E) * (Units.conversion('bohr', 'angstrom') ** 2)
+            e = [e + (at.atnum * c) / dist**3 for e, c in zip(e, vec)]
+        return numpy.array(e) * (Units.conversion('bohr', 'angstrom')**2)
 
-# Backwards compatibility:
+    def get_nuclear_interaction_energy(self, other):
+        inten = 0.0
+        for at1 in self.atoms:
+            for at2 in other.atoms:
+                dist = at1.distance_to(at2) * Units.conversion('angstrom', 'bohr')
+                inten = inten + at1.atnum * at2.atnum / dist
+        return inten
+
+    # Backwards compatibility:
     def _get_atoms(self, atomlist):
-    # translate index list into atom list
+        # translate index list into atom list
         if atomlist is None:
             return self.atoms
         else:
@@ -992,52 +1113,15 @@ class Molecule (object):
             else:
                 raise MoleculeError('_get_atoms: passed argument is not a list')
 
-# various trash
     def set_OBMol(self, mol):
         raise MoleculeError('set_OBMol: Openbabel is no longer welcome here')
-
-    def get_alternate_locations(self, filename):
-        raise MoleculeError('get_alternate_locations: I am not implemented, deprecated and dumb')
 
     def add_hydrogens(self, correctForPH=False, pH=7.4):
         raise MoleculeError("add_hydrogens: I'm not implemented. If you REALLY need me, use OBMolecule")
 
-# used in 3FDE only, TOGETRIDOF, dirty and slow
+    # used in 3FDE only, TOGETRIDOF, dirty and slow
     def get_all_bonds(self):
         return [[self.atoms.index(bond.atom1) + 1, self.atoms.index(bond.atom2) + 1] for bond in self.bonds]
 
-    _iodict = {'xyz': (readxyz, writexyz), 'mol': (readmol, writemol), 'mol2': (readmol2, writemol2), 'pdb': (readpdb, writepdb)}
-
-# =================================================================================================
-
-
-def _setUp_doctest(test):
-    import os
-
-    os.mkdir('molecule_doctests')
-
-    h2o = molecule()
-    h2o.add_atoms(['H', 'O', 'H'],
-                  [[-0.21489, 3.43542, 2.17104],
-                   [-0.89430, 3.96159, 2.68087],
-                   [-0.43479, 4.75018, 3.07278]])
-    h2o.write('h2o.xyz')
-
-    an = molecule()
-    an.add_atoms(['C', 'C', 'N', 'H', 'H', 'H'],
-                 [[2.40366, 0.63303, -0.29209],
-                  [1.77188, 1.66625, 0.53174],
-                  [1.27005, 2.49581, 1.19175],
-                  [2.29842, -0.34974, 0.18696],
-                  [1.92918, 0.59583, -1.28199],
-                  [3.47247, 0.85113, -0.42037]])
-    an.write('an.xyz')
-
-
-def _tearDown_doctest(test):
-    import os
-
-    os.remove('h2o.xyz')
-    os.remove('an.xyz')
-
-    os.rmdir('molecule_doctests')
+    _iodict = {'xyz': (readxyz, writexyz), 'mol': (readmol, writemol), 'mol2': (readmol2, writemol2),
+               'pdb': (readpdb, writepdb), 'tmol': (readtmol, writetmol)}

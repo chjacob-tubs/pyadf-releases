@@ -1,8 +1,9 @@
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2014 by Christoph R. Jacob, S. Maya Beyhan,
+# Copyright (C) 2006-2020 by Christoph R. Jacob, S. Maya Beyhan,
 # Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Michal Handzlik,
-# Karin Kiewisch, Moritz Klammler, Jetze Sikkema, and Lucas Visscher
+# Karin Kiewisch, Moritz Klammler, Lars Ridder, Jetze Sikkema,
+# Lucas Visscher, and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -36,8 +37,7 @@ from Errors import PyAdfError
 from ADFBase import adfjob, adfresults
 
 
-class adfnmrresults (adfresults):
-
+class adfnmrresults(adfresults):
     """
     Class for the results of a ADF NMR job.
 
@@ -75,7 +75,7 @@ class adfnmrresults (adfresults):
         for i in self.job.nucs:
             s.append(self.get_shielding(nuc=i))
         g = []
-        if self.job.ghosts != None:
+        if self.job.ghosts is not None:
             for i in range(len(self.job.ghosts)):
                 g.append(self.get_shielding(ghost=i + 1))
 
@@ -105,10 +105,10 @@ class adfnmrresults (adfresults):
 
         isore = re.compile(r"\s{24}isotropic shielding =\s*(?P<iso>[-+]?(\d+\.\d+))")
 
-        if nuc != None:
+        if nuc is not None:
             startre = re.compile(r"\*{4}\s*N U C L E U S.*?\(\s*(?P<num>\d+)\)")
             startnum = self.job.adfresults.get_atom_index([nuc])[0]
-        elif ghost != None:
+        elif ghost is not None:
             startre = re.compile(r"\*{4}\s*G H O S T.*?\(\s*(?P<num>\d+)\)")
             startnum = ghost
         else:
@@ -136,8 +136,7 @@ class adfnmrresults (adfresults):
         counter = 0
 
         total = 0.0
-        para  = 0.0
-        iso   = 0.0
+        para = 0.0
         for line in output[start:end]:
 
             m = totre.match(line)
@@ -162,8 +161,7 @@ class adfnmrresults (adfresults):
         return total, para, dia
 
 
-class adfnmrjob (adfjob):
-
+class adfnmrjob(adfjob):
     """
     A job class for ADF NMR shielding calculations.
 
@@ -215,25 +213,25 @@ class adfnmrjob (adfjob):
     def get_input(self):
         nmrinput = "NMR \n"
 
-        if self.u1k is not None :
-            nmrinput += " U1K %s\n" % (self.u1k)
+        if self.u1k is not None:
+            nmrinput += " U1K %s\n" % self.u1k
 
-        if self.use is not None :
-            nmrinput += " USE %s\n" % (self.use)
+        if self.use is not None:
+            nmrinput += " USE %s\n" % self.use
 
-        if self.out is not None :  
-            nmrinput += " out %s\n" % (self.out)
-        else :
-            nmrinput += " out iso\n" 
+        if self.out is not None:
+            nmrinput += " out %s\n" % self.out
+        else:
+            nmrinput += " out iso\n"
 
-        if self.calc is not None :  
-            nmrinput += " calc %s\n" % (self.calc)
-        else :
-            nmrinput += " calc all\n" 
+        if self.calc is not None:
+            nmrinput += " calc %s\n" % self.calc
+        else:
+            nmrinput += " calc all\n"
 
-        if self.analysis is not None :
-            nmrinput += " Analysis\n %s\n End\n" % (self.analysis)
-            if self.zora :
+        if self.analysis is not None:
+            nmrinput += " Analysis\n %s\n End\n" % self.analysis
+            if self.zora:
                 nmrinput += " FakeSO\n"
 
         nuc = ''
@@ -268,7 +266,7 @@ class adfnmrjob (adfjob):
         if self.u1k is not None:
             print "   U1K  set to : ", self.u1k
             if self.u1k.lower() == 'all':
-                print "     Note: setting U1K to All is not recommended if with ZORA." 
+                print "     Note: setting U1K to All is not recommended if with ZORA."
         else:
             print "   U1K  set to :  none"
             print "     Note: verify whether this is recommended for the Hamiltonian in use."

@@ -1,8 +1,10 @@
 # This file is part of
+# This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2011 by Christoph R. Jacob, S. Maya Beyhan,
-# Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Karin Kiewisch,
-# Jetze Sikkema, and Lucas Visscher
+# Copyright (C) 2006-2020 by Christoph R. Jacob, S. Maya Beyhan,
+# Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Michal Handzlik,
+# Karin Kiewisch, Moritz Klammler, Lars Ridder, Jetze Sikkema,
+# Lucas Visscher, and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -28,8 +30,8 @@ class PyAdfTestCase(unittest.TestCase):
             self.assertAlmostEqual(i, j, places, msg)
 
     def assertAlmostEqualNumpy(self, first, second, places=7, msg=None):
-        numpy.testing.assert_allclose(first, second, rtol=0.5 * 10 ** (-places),
-                                      atol=0.5 * 10 ** (-places), err_msg=msg)
+        numpy.testing.assert_allclose(first, second, rtol=0.5 * 10**(-places),
+                                      atol=0.5 * 10**(-places), err_msg=msg)
 
     def assertAlmostEqual(self, first, second, places=7, msg=None):
         if isinstance(first, numpy.ndarray):
@@ -43,10 +45,10 @@ class PyAdfTestCase(unittest.TestCase):
 
         def build_atsyms_dict(mol):
             atsyms_dict = {}
-            for i, at in enumerate(mol.get_atom_symbols(prefix_ghosts=True)):
-                if not at in atsyms_dict:
-                    atsyms_dict[at] = []
-                atsyms_dict[at].append(i)
+            for ii, atom in enumerate(mol.get_atom_symbols(prefix_ghosts=True)):
+                if atom not in atsyms_dict:
+                    atsyms_dict[atom] = []
+                atsyms_dict[atom].append(ii)
             return atsyms_dict
 
         # build two dictionaries with mapping between atom symbols and atom indices
@@ -91,3 +93,20 @@ class PyAdfTestCase(unittest.TestCase):
                     raise self.failureException(msg or
                                                 "Coordinates not equal for %s atoms within "
                                                 "%i places" % (at, places))
+
+
+class PyAdfTextTestResult(unittest.TextTestResult):
+
+    def startTest(self, test):
+        if str(test).startswith('test'):
+            if self.showAll:
+                self.stream.write('PyADF Unittests ')
+            self.showAll = False
+            self.dots = True
+        else:
+            if self.dots:
+                self.stream.writeln()
+            self.showAll = True
+            self.dots = False
+
+        super(PyAdfTextTestResult, self).startTest(test)

@@ -1,8 +1,9 @@
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2014 by Christoph R. Jacob, S. Maya Beyhan,
+# Copyright (C) 2006-2020 by Christoph R. Jacob, S. Maya Beyhan,
 # Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Michal Handzlik,
-# Karin Kiewisch, Moritz Klammler, Jetze Sikkema, and Lucas Visscher
+# Karin Kiewisch, Moritz Klammler, Lars Ridder, Jetze Sikkema,
+# Lucas Visscher, and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -43,31 +44,36 @@ import os
 import glob
 
 
-class adffdeanalysissettings (object):
-
+class adffdeanalysissettings(object):
     """
     Class for settings of  adffdeanalysisjob.
     """
 
     def __init__(self, tnad=None, runtype=None, usebasis='False', options=None, ncycle=None, cjcorr='False'):
 
-        if tnad == None:
+        self.tnad = None
+        if tnad is None:
             self.set_tnad(['COULOMB', 'THOMASFERMI', 'PW91K', 'PW91Kscaled', 'TW02', 'TF9W', 'PBE2', 'PBE3', 'PBE4'])
         else:
             self.set_tnad(tnad)
 
-        if runtype == None:
+        self.runtype = None
+        if runtype is None:
             self.set_runtype(['parallelFt', 'normalFt'])
         else:
             self.set_runtype(runtype)
 
+        self.usebasis = None
         self.set_usebasis(usebasis)
 
+        self.options = None
         self.set_options(options)
 
+        self.cjcorr = None
         self.set_cjcorr(cjcorr)
 
-        if ncycle == None:
+        self.ncycle = None
+        if ncycle is None:
             self.set_ncycle(1)
         else:
             self.set_ncycle(ncycle)
@@ -95,8 +101,7 @@ class adffdeanalysissettings (object):
         self.cjcorr = cjcorr
 
 
-class adffdeanalysisjob (metajob):
-
+class adffdeanalysisjob(metajob):
     """
     Class for ADF FDE analysis jobs.
     """
@@ -138,7 +143,7 @@ class adffdeanalysisjob (metajob):
         else:
             self.molecules = molecules
 
-        if settings == None:
+        if settings is None:
             raise PyAdfError('no adffdeanalysissettings provided')
         else:
             self.settings = settings
@@ -147,23 +152,25 @@ class adffdeanalysisjob (metajob):
 
         self.adffdesettings = adffdesettings
 
-        if basis == None:
+        if basis is None:
             raise PyAdfError('No basis provided in adffdeanalysisjob')
         else:
             self.basis = basis
 
         self.core = core
 
-        if fde == None:
+        if fde is None:
             self.fde = {}
         else:
             self.fde = fde
 
-    def norm(self, vec=None):
+    @staticmethod
+    def norm(vec):
         from math import sqrt
         return sqrt(sum([x * x for x in vec]))
 
-    def calc_diff(self, res_ref=None, res_test=None, grid=None):
+    @staticmethod
+    def calc_diff(res_ref, res_test, grid):
         """
         Calculate difference in dipole moment and integrals of the difference density between a reference and a test.
 
@@ -188,9 +195,9 @@ class adffdeanalysisjob (metajob):
         from pyadf.Utils import au_in_Debye
         from math import sqrt
 
-        if (res_ref == None) or (res_test == None):
+        if (res_ref is None) or (res_test is None):
             raise PyAdfError('Reference and Test results objects required in calc_den')
-        if (grid == None):
+        if grid is None:
             raise PyAdfError('Grid required in calc_diff')
 
         if not isinstance(res_test, list):
@@ -293,7 +300,7 @@ class adffdeanalysisjob (metajob):
                 print '\n'
                 jobParallelFt = adffdejob(frags, basis=self.basis, core=self.core,
                                           settings=self.adfsettings, options=options, fde=fde,
-                                          adffdesettings=self.adffdesettings).parallel_ft_run()
+                                          adffdesetts=self.adffdesettings).parallel_ft_run()
                 calc_diffFde0 = self.calc_diff(jobKs, jobParallelFt, grid_super)
                 results[t] = [calc_diffSoF, calc_diffFde0]
                 for i in range(0, len(results[t]) - 1):
@@ -312,7 +319,7 @@ class adffdeanalysisjob (metajob):
 
                 jobNormalFt = adffdejob(frags, basis=self.basis, core=self.core,
                                         settings=self.adfsettings, options=options, fde=fde,
-                                        adffdesettings=self.adffdesettings).normal_ft_run()
+                                        adffdesetts=self.adffdesettings).normal_ft_run()
                 calc_diffFde = self.calc_diff(jobKs, jobNormalFt, grid_super)
                 results[t].append(calc_diffFde)
                 results[t][1][0] = self.norm(results[t][1][0])
@@ -323,7 +330,7 @@ class adffdeanalysisjob (metajob):
                 print '\n'
                 jobParallelFt = adffdejob(frags, basis=self.basis, core=self.core,
                                           settings=self.adfsettings, options=options, fde=fde,
-                                          adffdesettings=self.adffdesettings).parallel_ft_run()
+                                          adffdesetts=self.adffdesettings).parallel_ft_run()
                 calc_diffFde0 = self.calc_diff(jobKs, jobParallelFt, grid_super)
                 calc_diffFde0[0] = self.norm(calc_diffFde0[0])
 
@@ -335,7 +342,7 @@ class adffdeanalysisjob (metajob):
 
                     jobNormalFt = adffdejob(frags, basis=self.basis, core=self.core,
                                             settings=self.adfsettings, options=options, fde=fde,
-                                            adffdesettings=self.adffdesettings).normal_ft_run()
+                                            adffdesetts=self.adffdesettings).normal_ft_run()
                     calc_diffFde = self.calc_diff(jobKs, jobNormalFt, grid_super)
                     calc_diffFde[0] = self.norm(calc_diffFde[0])
                     results[t].append(calc_diffFde)
@@ -391,7 +398,6 @@ class adffdeanalysisjob (metajob):
 
 
 class datasetjob(metajob):
-
     """
     Runs L{adffdeanalysisjob}s for a data set and then calculates the average per
     nadkin for every molecule in the data set
@@ -402,12 +408,12 @@ class datasetjob(metajob):
 
         metajob.__init__(self)
 
-        if pathNames == None:
+        if pathNames is None:
             raise PyAdfError('pathName should be supplied')
         else:
             self.pathNames = pathNames
 
-        if settings == None:
+        if settings is None:
             raise PyAdfError('no adffdeanalysissettings provided')
         else:
             self.settings = settings
@@ -415,22 +421,24 @@ class datasetjob(metajob):
         self.adfsettings = adfsettings
         self.adffdesettings = adffdesettings
 
-        if basis == None:
+        if basis is None:
             raise PyAdfError('No basis provided in adffdeanalysisjob')
         else:
             self.basis = basis
             self.core = core
 
-        if fde == None:
+        if fde is None:
             self.fde = {}
         else:
             self.fde = fde
 
-    def norm(self, vec=None):
+    @staticmethod
+    def norm(vec=None):
         from math import sqrt
         return sqrt(sum([x * x for x in vec]))
 
-    def add_lists(self, list1, list2):
+    @staticmethod
+    def add_lists(list1, list2):
         newlist = []
         for i in range(0, len(list1)):
             tmplist = []
@@ -439,7 +447,8 @@ class datasetjob(metajob):
             newlist.append(tmplist)
         return newlist
 
-    def divide_by_number(self, list1, number):
+    @staticmethod
+    def divide_by_number(list1, number):
         newlist = []
         for i in range(0, len(list1)):
             tmplist = []
@@ -543,12 +552,12 @@ class datasetjob(metajob):
             print '' + 'Sum of Fragments'.center(70) + ''
             print '%12.6f   %12.6f   %12.6f' % (avrg[kin][0][0], avrg[kin][0][2], avrg[kin][0][3])
             if self.settings.runtype == ['normalFt']:
-                print '' + 'FDE%i'.center(70) % (self.settings.ncycle) + ''
+                print '' + 'FDE%i'.center(70) % self.settings.ncycle + ''
                 print '%12.6f   %12.6f   %12.6f' % (avrg[kin][1][0], avrg[kin][1][2], avrg[kin][1][3])
             if not self.settings.runtype == ['normalFt']:
                 print '' + 'FDE0'.center(70) + ''
                 print '%12.6f   %12.6f   %12.6f' % (avrg[kin][1][0], avrg[kin][1][2], avrg[kin][1][3])
             if self.settings.runtype == ['parallelFt', 'normalFt']:
                 for i in range(1, self.settings.ncycle + 1):
-                    print '' + 'FDE%i'.center(70) % (i) + ''
+                    print '' + 'FDE%i'.center(70) % i + ''
                     print '%12.6f   %12.6f   %12.6f' % (avrg[kin][i + 1][0], avrg[kin][i + 1][2], avrg[kin][i + 1][3])

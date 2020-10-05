@@ -1,0 +1,37 @@
+_verbose_level = 5
+
+h2o = molecule (os.path.join(pyadfenv.outdir, 'H2O.xyz'))
+
+# BP86 single point calculation
+
+settings = TurbomoleGradientSettings(verbose_level=_verbose_level)
+settings.set_basis_set('cc-pVDZ')
+settings.set_dft_functional('b-p')
+settings.set_ri(False)
+
+results = TurbomoleGradientJob(h2o, method='dft', settings=settings).run()
+
+grad = results.get_gradient_vector()
+
+print "Gradient:", grad
+
+testobj.assertAlmostEqualVectors(grad, [ 0.00789531, -0.0177805, -0.0134407,
+                                        -0.00730576,  0.0016098,  0.0028811,
+                                        -0.00062206,  0.0161463,  0.0105593], 5)
+
+# BP86 single point calculation (RI)
+
+settings = TurbomoleGradientSettings(verbose_level=_verbose_level)
+settings.set_basis_set('cc-pVDZ')
+settings.set_dft_functional('b-p')
+settings.set_ri(True)
+
+results = TurbomoleGradientJob(h2o, method='dft', settings=settings).run()
+
+grad = results.get_gradient_vector()
+
+print "Gradient:", grad
+
+testobj.assertAlmostEqualVectors(grad, [ 0.00791034, -0.0177773, -0.0134424,
+                                        -0.00733814, 0.00159879,  0.0028822,
+                                        -0.00060474, 0.01615413, 0.01056002], 5)

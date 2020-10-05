@@ -1,8 +1,9 @@
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2014 by Christoph R. Jacob, S. Maya Beyhan,
+# Copyright (C) 2006-2020 by Christoph R. Jacob, S. Maya Beyhan,
 # Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Michal Handzlik,
-# Karin Kiewisch, Moritz Klammler, Jetze Sikkema, and Lucas Visscher
+# Karin Kiewisch, Moritz Klammler, Lars Ridder, Jetze Sikkema,
+# Lucas Visscher, and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -37,8 +38,7 @@ from ADFSinglePoint import adfsettings, \
     adfsinglepointresults
 
 
-class adfgradientsresults (adfsinglepointresults):
-
+class adfgradientsresults(adfsinglepointresults):
     """
     Results of an ADF gradients calculation
 
@@ -53,7 +53,7 @@ class adfgradientsresults (adfsinglepointresults):
 
     def get_gradients(self, energytype=''):
         nnuc = self.get_result_from_tape('Geometry', 'nnuc')
-        if (energytype == ''):
+        if energytype == '':
             grad = self.get_result_from_tape('GeoOpt', 'Gradients')
         else:
             grad = self.get_result_from_tape('Gradient', energytype)
@@ -68,7 +68,6 @@ class adfgradientsresults (adfsinglepointresults):
 
 
 class adfgeometrysettings(object):
-
     """
     Class for the settings of an ADF geometry optimization job (adfgeometryjob)
 
@@ -107,12 +106,12 @@ class adfgeometrysettings(object):
 
     def __str__(self):
         s = '   Coordinates: '
-        if self.optim == None:
+        if self.optim is None:
             s += 'ADF default\n'
         else:
             s += self.optim + '\n'
         s += '   Iterations : '
-        if self.iterations == None:
+        if self.iterations is None:
             s += 'ADF default\n'
         else:
             s += str(self.iterations) + '\n'
@@ -140,8 +139,7 @@ class adfgeometrysettings(object):
                 self.converge[k] = v
 
 
-class adfgeometryjob (adfsinglepointjob):
-
+class adfgeometryjob(adfsinglepointjob):
     """
     A job class for ADF geometry optimizations.
 
@@ -201,10 +199,10 @@ class adfgeometryjob (adfsinglepointjob):
             list of int
 
         """
-        if settings == None:
+        if settings is None:
             settings = adfsettings(accint=6.0)
 
-        if geometrysettings == None:
+        if geometrysettings is None:
             self.geometrysettings = adfgeometrysettings()
         else:
             self.geometrysettings = geometrysettings
@@ -227,9 +225,9 @@ class adfgeometryjob (adfsinglepointjob):
     def get_geometry_block(self):
         gs = self.geometrysettings
         block = " GEOMETRY \n"
-        if gs.optim != None:
+        if gs.optim is not None:
             block += "   Optim " + gs.optim + "\n"
-        if gs.iterations != None:
+        if gs.iterations is not None:
             block += "   Iterations " + str(gs.iterations) + "\n"
         if gs.converge != {}:
             conv = "   Converge "
@@ -272,8 +270,7 @@ class adfgeometryjob (adfsinglepointjob):
         print
 
 
-class adfgradientsjob (adfsinglepointjob):
-
+class adfgradientsjob(adfsinglepointjob):
     """
     A job class for ADF gradient calculations.
 
@@ -319,7 +316,7 @@ class adfgradientsjob (adfsinglepointjob):
         """
 
         import copy
-        if settings == None:
+        if settings is None:
             settings = adfsettings(accint=6.0)
         if options is None:
             opts = []

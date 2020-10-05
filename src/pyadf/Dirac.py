@@ -1,8 +1,9 @@
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2014 by Christoph R. Jacob, S. Maya Beyhan,
+# Copyright (C) 2006-2020 by Christoph R. Jacob, S. Maya Beyhan,
 # Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Michal Handzlik,
-# Karin Kiewisch, Moritz Klammler, Jetze Sikkema, and Lucas Visscher
+# Karin Kiewisch, Moritz Klammler, Lars Ridder, Jetze Sikkema,
+# Lucas Visscher, and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -38,8 +39,7 @@ import os
 import re
 
 
-class diracresults (results):
-
+class diracresults(results):
     """
     Class for results of an Dirac calculation.
 
@@ -103,8 +103,7 @@ class diracresults (results):
         self.files.copy_result_file(self.fileid, 10, name)
 
 
-class diracsinglepointresults (diracresults):
-
+class diracsinglepointresults(diracresults):
     """
     Class for results of a Dirac single point calculation.
 
@@ -147,7 +146,7 @@ class diracsinglepointresults (diracresults):
         ccenergies = {}
         for quantity in dom.getElementsByTagName('quantity'):
             label = quantity.getAttribute('label')
-            if (label.find('energy') != -1):
+            if label.find('energy') != -1:
                 ccenergies[label] = float(quantity.firstChild.data)
 
         return ccenergies
@@ -163,7 +162,7 @@ class diracsinglepointresults (diracresults):
         output = self.get_output()
 
         headerline = 1
-        start0 = re.compile("\s+TOTAL ENERGY")
+        start0 = re.compile(r"\s+TOTAL ENERGY")
 
         for i, l in enumerate(output):
             if start0.match(l):
@@ -171,9 +170,9 @@ class diracsinglepointresults (diracresults):
         if headerline == 1:
             raise PyAdfError('Total energy not found')
 
-        en = re.compile("\s+Total energy (\(active subsystem\))?\s+:\s+(?P<energy>[-+]?(\d+(\.\d*)?|\d*\.\d+))")
-        for l in output[headerline:]:
-            m = en.match(l)
+        en = re.compile(r"\s+Total energy (\(active subsystem\))?\s+:\s+(?P<energy>[-+]?(\d+(\.\d*)?|\d*\.\d+))")
+        for line in output[headerline:]:
+            m = en.match(line)
             if m:
                 energy = float(m.group('energy'))
 
@@ -196,23 +195,27 @@ class diracsinglepointresults (diracresults):
         print "\n\nNote: extracting dipole vector for " + level + " level of theory\n"
 
         headerline = 1
-        start0 = re.compile(".+Properties\s+for\s+([A-Z0-9]+)")
+        start0 = re.compile(r".+Properties\s+for\s+([A-Z0-9]+)")
 
         for i, l in enumerate(output):
             if start0.match(l):
                 if start0.match(l).group(1) == level:
                     headerline = i
 
-        start1 = re.compile("\s*\*\s*Dipole moment:")
-        start2 = re.compile("\s*Electronic\s*Nuclear\s*Total")
-        start3 = re.compile("\s*contribution\s*contribution\s*contribution")
+        startline = None
+        start1 = re.compile(r"\s*\*\s*Dipole moment:")
+        start2 = re.compile(r"\s*Electronic\s*Nuclear\s*Total")
+        start3 = re.compile(r"\s*contribution\s*contribution\s*contribution")
         for i, l in enumerate(output):
             if start1.match(l) and start2.match(output[i + 2]) and start3.match(output[i + 3]) and (i > headerline):
                 startline = i
                 break
 
+        if startline is None:
+            raise PyAdfError('Dirac dipole moment not found in output')
+
         for i, c in enumerate(['x', 'y', 'z']):
-            dip = re.compile("\s*" + c + ".*Debye\s*(?P<dip>[-+]?(\d+(\.\d*)?|\d*\.\d+)) Debye")
+            dip = re.compile(r"\s*" + c + r".*Debye\s*(?P<dip>[-+]?(\d+(\.\d*)?|\d*\.\d+)) Debye")
             m = dip.match(output[startline + 5 + i])
             dipole[i] = float(m.group('dip'))
 
@@ -220,6 +223,7 @@ class diracsinglepointresults (diracresults):
 
     def _get_fdeout(self):
         return self.job.fdeout
+
     fdeout = property(_get_fdeout, None, None, """
     The results of the ADF FDE calculation from which the grid is used for exporting.
 
@@ -228,6 +232,7 @@ class diracsinglepointresults (diracresults):
 
     def _get_fdein(self):
         return self.job.fdein
+
     fdein = property(_get_fdein, None, None, """
     The results of the ADF FDE calculation from that the embedding potential was imported.
 
@@ -245,8 +250,7 @@ class diracsinglepointresults (diracresults):
                   % (self.fdeout.get_tape_filename(tape=10), outfile))
 
 
-class diracjob (job):
-
+class diracjob(job):
     """
     An abstract base class for Dirac jobs.
 
@@ -318,6 +322,8 @@ class diracjob (job):
             runscript += '--mpi=%i ' % nproc
         runscript += ' --put="' + " ".join([pf for pf in put_files if os.path.exists(pf)]) + '"'
         runscript += ' --get="' + " ".join([gf for gf in get_files]) + '"'
+        if 'DIRMAX_GB' in os.environ :
+            runscript += ' --ag='+os.environ['DIRMAX_GB']
         runscript += " --mol=MOLECULE.xyz --inp=DIRAC.inp \n"
         runscript += " retcode=$? \n"
 
@@ -345,19 +351,18 @@ class diracjob (job):
 
         f = open(errfile)
         err = f.readlines()
-        for l in reversed(err):
-            if "SEVERE ERROR" in l:
+        for line in reversed(err):
+            if "SEVERE ERROR" in line:
                 raise PyAdfError("Error running Dirac job")
-            if "dirac.x returned non-zero exit code" in l:
+            if "dirac.x returned non-zero exit code" in line:
                 raise PyAdfError("Error running Dirac job")
-            if l == newjobmarker:
+            if line == newjobmarker:
                 break
         f.close()
         return True
 
 
-class diracsettings (object):
-
+class diracsettings(object):
     """
     Class that holds the settings for a Dirac calculation..
 
@@ -484,7 +489,7 @@ class diracsettings (object):
             raise PyAdfError("Invalid Hamiltonian in Dirac settings")
         else:
             self.hamiltonian = hamiltonian
-            if (self.hamiltonian == 'Nonr' or self.hamiltonian == 'Levy'):
+            if self.hamiltonian == 'Nonr' or self.hamiltonian == 'Levy':
                 self.dossc = False
             else:
                 self.dossc = True
@@ -524,7 +529,8 @@ class diracsettings (object):
         Switch on and set options for 4-index transformation.
 
         @param moltra:
-            either ['all'] or a list giving minimum and maximum orbital energy and the degeneracy treshold (three numbers)
+            either ['all'] or a list giving minimum and maximum orbital energy and
+            the degeneracy treshold (three numbers)
         @type moltra: list
         """
         self.domoltra = True
@@ -576,7 +582,7 @@ class diracsettings (object):
         if self.method in ('HF', 'DFT'):
             pass
         elif self.method == 'MP2':
-            if self.exportfde == True or self.doprop == True:
+            if self.exportfde or self.doprop:
                 self.ccmain['DOFOPR'] = 'T'
         elif self.method == 'CCSD':
             self.ccener['DOCCSD'] = 'T'
@@ -589,17 +595,17 @@ class diracsettings (object):
     def get_relccsd_block(self):
         block = "**RELCCSD\n"
         if self.method == 'MP2':
-            if self.exportfde == True or self.doprop == True:
+            if self.exportfde or self.doprop:
                 block += '.GRADIENT\n'
                 block += '*CCFOPR\n'
                 block += '.RELAXED\n'
                 block += '.MP2G\n'
-# at the moment, the ccsd and ccsd(T) energies are always switched on
-#        elif self.method == 'CCSD' :
-#            block += '.DOCCSD\n'
-#        elif self.method == 'CCSDt' :
-#            block += '.DOCCSD\n'
-#            block += '.DOCCSDT\n'
+        # at the moment, the ccsd and ccsd(T) energies are always switched on
+        #        elif self.method == 'CCSD' :
+        #            block += '.DOCCSD\n'
+        #        elif self.method == 'CCSDt' :
+        #            block += '.DOCCSD\n'
+        #            block += '.DOCCSDT\n'
         return block
 
     def get_hamiltonian_block(self):
@@ -608,7 +614,7 @@ class diracsettings (object):
             block += '.LVCORR\n'
         if self.hamiltonian == 'MMF':
             block += '.X2Cmmf\n'
-        if self.hamiltonian == 'DCG'or self.hamiltonian == 'MMF':
+        if self.hamiltonian == 'DCG' or self.hamiltonian == 'MMF':
             block += '.GAUNT\n'
         if self.hamiltonian == 'SFDC':
             block += '.SPINFREE\n'
@@ -668,11 +674,11 @@ class diracsettings (object):
         block = ".ACTIVE\n"
 
         # TODO: setting up active should be done also by orbital strings
-        if (str(self.moltra_active[0]).lower() == 'all'):
+        if str(self.moltra_active[0]).lower() == 'all':
             block += "all\n"
         else:
             block += "energy  " + str(self.moltra_active[0]) + "  " + \
-                str(self.moltra_active[1]) + "  " + str(self.moltra_active[2]) + "\n"
+                     str(self.moltra_active[1]) + "  " + str(self.moltra_active[2]) + "\n"
         return block
 
     def get_grid_block(self):
@@ -698,8 +704,7 @@ class diracsettings (object):
         return s
 
 
-class diracsinglepointjob (diracjob):
-
+class diracsinglepointjob(diracjob):
     """
     A class for Dirac single point runs
 
@@ -762,12 +767,12 @@ class diracsinglepointjob (diracjob):
         self.ecp = ecp
 
         # FXIME: functional should be moved to diracsettings, to be consistent with ADF
-        if settings == None:
+        if settings is None:
             self.settings = diracsettings()
         else:
             self.settings = settings
 
-        if self.mol and (self.basis == None):
+        if self.mol and (self.basis is None):
             raise PyAdfError("Missing basis set in Dirac single point job")
 
         self.restart = None
@@ -789,7 +794,7 @@ class diracsinglepointjob (diracjob):
         return diracsinglepointresults(self)
 
     def get_runscript(self):
-        if ('DIRAC_PARALLEL' in os.environ) and ('NSCM' in os.environ) :
+        if ('DIRAC_PARALLEL' in os.environ) and ('NSCM' in os.environ):
             nproc = int(os.environ['NSCM'])
         else:
             nproc = None
@@ -819,7 +824,7 @@ class diracsinglepointjob (diracjob):
         block = "**HAMILTONIAN\n"
 
         block += self.settings.get_hamiltonian_block()
-        if (self.fdein is not None or self.fdeout is not None):
+        if self.fdein is not None or self.fdeout is not None:
             block += ".FDE\n"
             block += "*FDE\n"
         if self.fdein is not None:
@@ -913,7 +918,7 @@ class diracsinglepointjob (diracjob):
             self.fdeout.export_grid('GRIDOUT')
 
     def after_run(self):
-        if not self.fdein == None:
+        if self.fdein is not None:
             os.remove('EMBPOT')
 
         diracjob.after_run(self)

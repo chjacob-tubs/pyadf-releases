@@ -1,8 +1,9 @@
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2014 by Christoph R. Jacob, S. Maya Beyhan,
+# Copyright (C) 2006-2020 by Christoph R. Jacob, S. Maya Beyhan,
 # Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Michal Handzlik,
-# Karin Kiewisch, Moritz Klammler, Jetze Sikkema, and Lucas Visscher
+# Karin Kiewisch, Moritz Klammler, Lars Ridder, Jetze Sikkema,
+# Lucas Visscher, and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -47,8 +48,7 @@ class amssettings(object):
         return ss
 
 
-class adfresults (results):
-
+class adfresults(results):
     """
     Class for results of an ADF calculation.
 
@@ -235,16 +235,15 @@ class amsresults(adfresults):
         natoms = self.get_result_from_tape('Molecule', 'nAtoms')
         nmodes = self.get_result_from_tape('Vibrations', 'nNormalModes')
 
-        modes_c = numpy.zeros((nmodes, 3*natoms))
+        modes_c = numpy.zeros((nmodes, 3 * natoms))
         for i in range(nmodes):
             modes_c[i, :] = self.get_result_from_tape('Vibrations',
-                                                      'NoWeightNormalMode(%i)' % (i+1))
+                                                      'NoWeightNormalMode(%i)' % (i + 1))
 
         return modes_c
 
 
-class adfjob (job):
-
+class adfjob(job):
     """
     An abstract base class for ADF jobs (ADF and related programs).
 
@@ -315,9 +314,6 @@ class adfjob (job):
         else:
             inp = "<" + inputfile
         runscript = "#!/bin/bash \n\n"
-        runscript += 'if [ -e ../FOCKMATRIX ]; then \n'
-        runscript += '  cp ../FOCKMATRIX . \n'
-        runscript += 'fi \n'
         if serial:
             runscript += "$ADFBIN/" + program + " -n1 " + inp + " || exit $? \n"
         else:
@@ -358,13 +354,14 @@ class adfjob (job):
         return True
 
     def result_filenames(self):
-        return ['TAPE21', 'TAPE10', 'TAPE41', 'FOCKMATRIX']
+        return ['TAPE21', 'TAPE10', 'TAPE41']
 
 
 class amsjob(adfjob):
     """
     Base class for ADF jobs using the AMS engine.
     """
+
     def __init__(self, mol, task='SinglePoint', settings=None):
         adfjob.__init__(self)
         self.mol = mol

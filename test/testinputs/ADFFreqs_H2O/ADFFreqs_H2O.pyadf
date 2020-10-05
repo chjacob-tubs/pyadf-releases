@@ -1,0 +1,6 @@
+
+h2o = molecule (os.path.join(pyadfenv.outdir, 'H2O.xyz'))
+
+results = adffreqjob(h2o, 'SZ').run()
+
+# TODO: add test of calculated frequencies

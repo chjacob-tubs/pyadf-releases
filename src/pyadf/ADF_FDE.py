@@ -1,8 +1,9 @@
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2014 by Christoph R. Jacob, S. Maya Beyhan,
+# Copyright (C) 2006-2020 by Christoph R. Jacob, S. Maya Beyhan,
 # Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Michal Handzlik,
-# Karin Kiewisch, Moritz Klammler, Jetze Sikkema, and Lucas Visscher
+# Karin Kiewisch, Moritz Klammler, Lars Ridder, Jetze Sikkema,
+# Lucas Visscher, and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -34,8 +35,7 @@ from ADFFragments import fragmentlist, adffragmentsjob
 from Plot.Grids import cubegrid
 
 
-class adffdesettings (object):
-
+class adffdesettings(object):
     """
     Class for settings of L{adffdejob}.
     """
@@ -71,8 +71,7 @@ class adffdesettings (object):
     switch_lshift = set_lshift
 
 
-class adffderesults (results):
-
+class adffderesults(results):
     """
     Class for results of an ADF FDE calculation.
 
@@ -98,7 +97,7 @@ class adffderesults (results):
         return dipole
 
     def get_density(self, grid=None, spacing=0.5, fit=False):
-        if grid == None:
+        if grid is None:
             grid = cubegrid(self.job.get_molecule(), spacing)
 
         dens = [f.results.get_nonfrozen_density(grid, fit=fit) for f in iter(self._frags)]
@@ -107,14 +106,13 @@ class adffderesults (results):
         return dens
 
 
-class adffdejob (metajob):
-
+class adffdejob(metajob):
     """
     Class for an ADF FDE job.
     """
 
     def __init__(self, frags, basis, settings=None, core=None, pointcharges=None,
-                 options=None, fde=None, fdeoptions=None, adffdesettings=None):
+                 options=None, fde=None, fdeoptions=None, adffdesetts=None):
         """
         Initialize an FDE job.
 
@@ -139,9 +137,9 @@ class adffdejob (metajob):
         self._core = core
         self._pc = pointcharges
         self._options = options
-        self._adffdesettings = adffdesettings
+        self._adffdesettings = adffdesetts
 
-        if fde == None:
+        if fde is None:
             self._fde = {}
         else:
             import copy
@@ -158,7 +156,7 @@ class adffdejob (metajob):
         else:
             self._normalft = False
 
-        if fdeoptions == None:
+        if fdeoptions is None:
             self._fdeoptions = {}
         else:
             self._fdeoptions = fdeoptions
@@ -193,8 +191,8 @@ class adffdejob (metajob):
             # frags_old: fragments of the previous cycle
             # frags_new: the updated fragments
 
-            if not self._adffdesettings == None:
-                if not self._adffdesettings.occupations == None:
+            if self._adffdesettings is not None:
+                if self._adffdesettings.occupations is not None:
                     self._settings.set_occupations(self._adffdesettings.occupations[0])
                 else:
                     self._settings.set_occupations(None)
@@ -206,14 +204,14 @@ class adffdejob (metajob):
                                       core=self._core, pointcharges=self._pc, options=self._options,
                                       fde=self._fde)
                 f_new.results = job.run()
-                if not self._adffdesettings == None:
+                if self._adffdesettings is not None:
                     if self._adffdesettings.packtape:
                         f_new.results.pack_tape()
 
                 f_old.isfrozen = True
                 self._settings.set_lshift(None)
-                if not self._adffdesettings == None:
-                    if not self._adffdesettings.occupations == None:
+                if self._adffdesettings is not None:
+                    if self._adffdesettings.occupations is not None:
                         if len(self._adffdesettings.occupations) == 2:
                             self._settings.set_occupations(self._adffdesettings.occupations[1])
                         else:
@@ -237,11 +235,11 @@ class adffdejob (metajob):
             print "-" * 50
             print "Beginning FDE cycle (normal FT)", i
 
-            if not self._adffdesettings == None:
+            if self._adffdesettings is not None:
                 self._settings.set_lshift(self._adffdesettings.vshift)
 
-            if not self._adffdesettings == None:
-                if not self._adffdesettings.occupations == None:
+            if self._adffdesettings is not None:
+                if self._adffdesettings.occupations is not None:
                     self._settings.set_occupations(self._adffdesettings.occupations[0])
                 else:
                     self._settings.set_occupations(None)
@@ -252,15 +250,15 @@ class adffdejob (metajob):
                                       core=self._core, pointcharges=self._pc, options=self._options,
                                       fde=self._fde)
                 f_new.results = job.run()
-                if not self._adffdesettings == None:
+                if self._adffdesettings is not None:
                     if self._adffdesettings.packtape:
                         f_new.results.pack_tape()
 
                 f_new.isfrozen = True
                 self._settings.set_lshift(None)
 
-                if not self._adffdesettings == None:
-                    if not self._adffdesettings.occupations == None:
+                if self._adffdesettings is not None:
+                    if self._adffdesettings.occupations is not None:
                         if len(self._adffdesettings.occupations) == 2:
                             self._settings.set_occupations(self._adffdesettings.occupations[1])
                         else:

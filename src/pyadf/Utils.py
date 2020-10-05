@@ -1,8 +1,9 @@
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2014 by Christoph R. Jacob, S. Maya Beyhan,
+# Copyright (C) 2006-2020 by Christoph R. Jacob, S. Maya Beyhan,
 # Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Michal Handzlik,
-# Karin Kiewisch, Moritz Klammler, Jetze Sikkema, and Lucas Visscher
+# Karin Kiewisch, Moritz Klammler, Lars Ridder, Jetze Sikkema,
+# Lucas Visscher, and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -29,9 +30,10 @@ import math
 newjobmarker = '--- PyADF *** new job *** PyADF ---\n'
 
 
-class PeriodicTable (object):
-    data = [None] * 150
-               #[symbol, mass, radius, connectors]
+# noinspection PyTypeChecker
+class PeriodicTable(object):
+    data = ['XX', 0.0, 0.0, 0] * 150
+    # [symbol, mass, radius, connectors]
     data[0] = ['Xx', 0.00000, 0.22, 0]
     data[1] = ['H', 1.00794, 0.30, 1]
     data[2] = ['He', 4.00260, 0.99, 0]
@@ -146,120 +148,18 @@ class PeriodicTable (object):
     data[111] = ['Rg', 280.00000, 2.00, 8]
     data[112] = ['Cn', 285.00000, 2.00, 8]
 
-    symtonum = {}
-    symtonum['Xx'] = 0
-    symtonum['H'] = 1
-    symtonum['He'] = 2
-    symtonum['Li'] = 3
-    symtonum['Be'] = 4
-    symtonum['B'] = 5
-    symtonum['C'] = 6
-    symtonum['N'] = 7
-    symtonum['O'] = 8
-    symtonum['F'] = 9
-    symtonum['Ne'] = 10
-    symtonum['Na'] = 11
-    symtonum['Mg'] = 12
-    symtonum['Al'] = 13
-    symtonum['Si'] = 14
-    symtonum['P'] = 15
-    symtonum['S'] = 16
-    symtonum['Cl'] = 17
-    symtonum['Ar'] = 18
-    symtonum['K'] = 19
-    symtonum['Ca'] = 20
-    symtonum['Sc'] = 21
-    symtonum['Ti'] = 22
-    symtonum['V'] = 23
-    symtonum['Cr'] = 24
-    symtonum['Mn'] = 25
-    symtonum['Fe'] = 26
-    symtonum['Co'] = 27
-    symtonum['Ni'] = 28
-    symtonum['Cu'] = 29
-    symtonum['Zn'] = 30
-    symtonum['Ga'] = 31
-    symtonum['Ge'] = 32
-    symtonum['As'] = 33
-    symtonum['Se'] = 34
-    symtonum['Br'] = 35
-    symtonum['Kr'] = 36
-    symtonum['Rb'] = 37
-    symtonum['Sr'] = 38
-    symtonum['Y'] = 39
-    symtonum['Zr'] = 40
-    symtonum['Nb'] = 41
-    symtonum['Mo'] = 42
-    symtonum['Tc'] = 43
-    symtonum['Ru'] = 44
-    symtonum['Rh'] = 45
-    symtonum['Pd'] = 46
-    symtonum['Ag'] = 47
-    symtonum['Cd'] = 48
-    symtonum['In'] = 49
-    symtonum['Sn'] = 50
-    symtonum['Sb'] = 51
-    symtonum['Te'] = 52
-    symtonum['I'] = 53
-    symtonum['Xe'] = 54
-    symtonum['Cs'] = 55
-    symtonum['Ba'] = 56
-    symtonum['La'] = 57
-    symtonum['Ce'] = 58
-    symtonum['Pr'] = 59
-    symtonum['Nd'] = 60
-    symtonum['Pm'] = 61
-    symtonum['Sm'] = 62
-    symtonum['Eu'] = 63
-    symtonum['Gd'] = 64
-    symtonum['Tb'] = 65
-    symtonum['Dy'] = 66
-    symtonum['Ho'] = 67
-    symtonum['Er'] = 68
-    symtonum['Tm'] = 69
-    symtonum['Yb'] = 70
-    symtonum['Lu'] = 71
-    symtonum['Hf'] = 72
-    symtonum['Ta'] = 73
-    symtonum['W'] = 74
-    symtonum['Re'] = 75
-    symtonum['Os'] = 76
-    symtonum['Ir'] = 77
-    symtonum['Pt'] = 78
-    symtonum['Au'] = 79
-    symtonum['Hg'] = 80
-    symtonum['Tl'] = 81
-    symtonum['Pb'] = 82
-    symtonum['Bi'] = 83
-    symtonum['Po'] = 84
-    symtonum['At'] = 85
-    symtonum['Rn'] = 86
-    symtonum['Fr'] = 87
-    symtonum['Ra'] = 88
-    symtonum['Ac'] = 89
-    symtonum['Th'] = 90
-    symtonum['Pa'] = 91
-    symtonum['U'] = 92
-    symtonum['Np'] = 93
-    symtonum['Pu'] = 94
-    symtonum['Am'] = 95
-    symtonum['Cm'] = 96
-    symtonum['Bk'] = 97
-    symtonum['Cf'] = 98
-    symtonum['Es'] = 99
-    symtonum['Fm'] = 100
-    symtonum['Md'] = 101
-    symtonum['No'] = 102
-    symtonum['Lr'] = 103
-    symtonum['Rf'] = 104
-    symtonum['Db'] = 105
-    symtonum['Sg'] = 106
-    symtonum['Bh'] = 107
-    symtonum['Hs'] = 108
-    symtonum['Mt'] = 109
-    symtonum['Ds'] = 110
-    symtonum['Rg'] = 111
-    symtonum['Cn'] = 112
+    symtonum = {'Xx': 0, 'H': 1, 'He': 2, 'Li': 3, 'Be': 4, 'B': 5, 'C': 6, 'N': 7, 'O': 8, 'F': 9, 'Ne': 10, 'Na': 11,
+                'Mg': 12, 'Al': 13, 'Si': 14, 'P': 15, 'S': 16, 'Cl': 17, 'Ar': 18, 'K': 19, 'Ca': 20, 'Sc': 21,
+                'Ti': 22, 'V': 23, 'Cr': 24, 'Mn': 25, 'Fe': 26, 'Co': 27, 'Ni': 28, 'Cu': 29, 'Zn': 30, 'Ga': 31,
+                'Ge': 32, 'As': 33, 'Se': 34, 'Br': 35, 'Kr': 36, 'Rb': 37, 'Sr': 38, 'Y': 39, 'Zr': 40, 'Nb': 41,
+                'Mo': 42, 'Tc': 43, 'Ru': 44, 'Rh': 45, 'Pd': 46, 'Ag': 47, 'Cd': 48, 'In': 49, 'Sn': 50, 'Sb': 51,
+                'Te': 52, 'I': 53, 'Xe': 54, 'Cs': 55, 'Ba': 56, 'La': 57, 'Ce': 58, 'Pr': 59, 'Nd': 60, 'Pm': 61,
+                'Sm': 62, 'Eu': 63, 'Gd': 64, 'Tb': 65, 'Dy': 66, 'Ho': 67, 'Er': 68, 'Tm': 69, 'Yb': 70, 'Lu': 71,
+                'Hf': 72, 'Ta': 73, 'W': 74, 'Re': 75, 'Os': 76, 'Ir': 77, 'Pt': 78, 'Au': 79, 'Hg': 80, 'Tl': 81,
+                'Pb': 82, 'Bi': 83, 'Po': 84, 'At': 85, 'Rn': 86, 'Fr': 87, 'Ra': 88, 'Ac': 89, 'Th': 90, 'Pa': 91,
+                'U': 92, 'Np': 93, 'Pu': 94, 'Am': 95, 'Cm': 96, 'Bk': 97, 'Cf': 98, 'Es': 99, 'Fm': 100, 'Md': 101,
+                'No': 102, 'Lr': 103, 'Rf': 104, 'Db': 105, 'Sg': 106, 'Bh': 107, 'Hs': 108, 'Mt': 109, 'Ds': 110,
+                'Rg': 111, 'Cn': 112}
 
     def __init__(self):
         pass
@@ -290,6 +190,8 @@ class PeriodicTable (object):
                 pr = cls.data[arg][prop]
             except KeyError:
                 raise PTError('trying to convert incorrect atomic number')
+        else:
+            raise PTError('trying to convert incorrect atomic number')
         return pr
 
     @classmethod
@@ -304,11 +206,11 @@ class PeriodicTable (object):
     def get_connectors(cls, arg):
         return cls._get_pr(arg, 3)
 
+
 PT = PeriodicTable
 
 
-class Units (object):
-
+class Units(object):
     # Bohr radius (in 10^-10 m) according to CODATA 2010
     # see http://physics.nist.gov/cgi-bin/cuu/Value?bohrrada0
     bohr_radius = 0.52917721092
@@ -327,49 +229,31 @@ class Units (object):
 
     dicts = []
 
-    distance = {}
-    distance['__'] = 'Distance'
-    distance['angstrom'] = 1.0
-    distance['A'] = 1.0
-    distance['nm'] = 0.1
-    distance['pm'] = 100.0
-    distance['bohr'] = 1.0 / bohr_radius
+    distance = {'__': 'Distance', 'angstrom': 1.0, 'A': 1.0, 'nm': 0.1, 'pm': 100.0, 'bohr': 1.0 / bohr_radius}
     distance['a0'] = distance['bohr']
     distance['au'] = distance['bohr']
     dicts.append(distance)
 
-    energy = {}
-    energy['__'] = 'Energy'
-    energy['au'] = 1.0
-    energy['hartree'] = 1.0
-    energy['Hartree'] = 1.0
     # Hartree energy in eV according to CODATA 2010
     # see http://physics.nist.gov/cgi-bin/cuu/Value?threv
-    energy['eV'] = 27.21138505
-    energy['ev'] = energy['eV']
     # Hartree energy in kJ according to CODATA 2010
     # see http://physics.nist.gov/cgi-bin/cuu/Value?threv
-    energy['kJ/mol'] = 4.35974434e-21 * avogadro_constant
+    energy = {'__': 'Energy', 'au': 1.0, 'hartree': 1.0, 'Hartree': 1.0, 'eV': 27.21138505,
+              'kJ/mol': 4.35974434e-21 * avogadro_constant}
+    energy['ev'] = energy['eV']
     # By definition (ISO 31-4): 1 kcal = 4.184 kJ
     # see https://en.wikipedia.org/wiki/Calorie
     energy['kcal/mol'] = energy['kJ/mol'] / 4.184
     dicts.append(energy)
 
-    angle = {}
-    angle['__'] = 'Angle'
-    angle['degree'] = 1.0
-    angle['deg'] = 1.0
-    angle['rad'] = math.pi / 180.0
+    angle = {'__': 'Angle', 'degree': 1.0, 'deg': 1.0, 'rad': math.pi / 180.0, 'grad': 100.0 / 90.0,
+             'circle': 1.0 / 360.0}
     angle['radian'] = angle['rad']
-    angle['grad'] = 100.0 / 90.0
-    angle['circle'] = 1.0 / 360.0
+
     dicts.append(angle)
 
-    dipole = {}
-    dipole['__'] = 'Dipole Moment'
-    dipole['au'] = 1.0
+    dipole = {'__': 'Dipole Moment', 'au': 1.0, 'Cm': electron_charge * bohr_radius * 1e-10}
     # conversion to Colomb*Meter
-    dipole['Cm'] = electron_charge * bohr_radius * 1e-10
     # 1 Debye = 1/c * 1e-21 Cm
     # see https://en.wikipedia.org/wiki/Debye
     dipole['debye'] = speed_of_light * 1e21 * dipole['Cm']
@@ -377,7 +261,7 @@ class Units (object):
     dipole['D'] = dipole['debye']
     dicts.append(dipole)
 
-# TODO:    mass, charge, force, frequency, constants ?
+    # TODO:    mass, charge, force, frequency, constants ?
 
     def __init__(self):
         pass
@@ -445,10 +329,10 @@ def f2f(literal):
     try:
         f = float(literal)
     except ValueError:
-        f = _nan
+        f = float('NaN')
     return f
 
-# TOGETRIDOF: ("backwards compatibility")
+
 Bohr_in_Angstrom = Units.conversion('bohr', 'angstrom')
 au_in_Debye = Units.conversion('au', 'debye')
 au_in_eV = Units.conversion('au', 'eV')

@@ -1,8 +1,9 @@
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2014 by Christoph R. Jacob, S. Maya Beyhan,
+# Copyright (C) 2006-2020 by Christoph R. Jacob, S. Maya Beyhan,
 # Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Michal Handzlik,
-# Karin Kiewisch, Moritz Klammler, Jetze Sikkema, and Lucas Visscher
+# Karin Kiewisch, Moritz Klammler, Lars Ridder, Jetze Sikkema,
+# Lucas Visscher, and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -36,8 +37,7 @@ from NWChem import nwchemsinglepointjob, nwchemsinglepointresults, nwchemsetting
 import re
 
 
-class nwchemCC2results (nwchemsinglepointresults):
-
+class nwchemCC2results(nwchemsinglepointresults):
     """
     Class for results of an NWChem CC2 calculation.
 
@@ -63,8 +63,8 @@ class nwchemCC2results (nwchemsinglepointresults):
         exens = []
         output = self.get_output()
 
-        #exen_hartree = re.compile("\s*Excitation energy / hartree\s*=\s*(?P<exenau>[-+]?(\d+(\.\d*)?|\d*\.\d+))")
-        exen_eV = re.compile("\s*/ eV\s*=\s*(?P<exeneV>[-+]?(\d+(\.\d*)?|\d*\.\d+))")
+        # exen_hartree = re.compile(r"\s*Excitation energy / hartree\s*=\s*(?P<exenau>[-+]?(\d+(\.\d*)?|\d*\.\d+))")
+        exen_eV = re.compile(r"\s*/ eV\s*=\s*(?P<exeneV>[-+]?(\d+(\.\d*)?|\d*\.\d+))")
 
         iexci = 1
         root = re.compile(r"\s*Excited state root\s*" + str(iexci))
@@ -72,7 +72,7 @@ class nwchemCC2results (nwchemsinglepointresults):
         for i, l in enumerate(output):
             m = root.match(l)
             if m:
-                #m1 = exen_hartree.match(output[i+1])
+                # m1 = exen_hartree.match(output[i+1])
                 m2 = exen_eV.match(output[i + 2])
 
                 exens.append(float(m2.group("exeneV")))
@@ -92,8 +92,7 @@ class nwchemCC2results (nwchemsinglepointresults):
         return None
 
 
-class nwchemCC2settings (nwchemsettings):
-
+class nwchemCC2settings(nwchemsettings):
     """
     Class that holds the settings for a NWChem CC2 calculation..
 
@@ -103,7 +102,7 @@ class nwchemCC2settings (nwchemsettings):
         __str__
     """
 
-    def __init__(self, nexci=10, freeze_occ=0, freeze_virt=0,):
+    def __init__(self, nexci=10, freeze_occ=0, freeze_virt=0, ):
         """
         Constructor for nwchemCC2settings.
 
@@ -160,8 +159,7 @@ class nwchemCC2settings (nwchemsettings):
         return s
 
 
-class nwchemCC2job (nwchemsinglepointjob):
-
+class nwchemCC2job(nwchemsinglepointjob):
     """
     A class for NWChem CC2 excitation energy calculations.
 
@@ -203,7 +201,7 @@ class nwchemCC2job (nwchemsinglepointjob):
         @type options: list of str
         """
 
-        if settings == None:
+        if settings is None:
             self.settings = nwchemCC2settings()
         else:
             self.settings = settings
@@ -213,6 +211,7 @@ class nwchemCC2job (nwchemsinglepointjob):
 
     def _get_nexci(self):
         return self.settings.nexci
+
     nexci = property(_get_nexci, None, None, """
     The number of excitations that were calculated.
 

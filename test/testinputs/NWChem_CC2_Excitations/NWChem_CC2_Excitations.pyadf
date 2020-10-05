@@ -4,7 +4,7 @@ results = nwchemCC2job( h2o, 'STO-6G').run()
 
 exens = results.get_excitation_energies ()
 
-testobj.assertAlmostEqual(exens[0], 11.561676, 3) 
-testobj.assertAlmostEqual(exens[1], 14.002128, 3) 
-testobj.assertAlmostEqual(exens[2], 15.262116, 3) 
+testobj.assertAlmostEqual(exens[0], 11.558992, 3) 
+testobj.assertAlmostEqual(exens[1], 14.001556, 3) 
+testobj.assertAlmostEqual(exens[2], 15.260789, 3) 
 

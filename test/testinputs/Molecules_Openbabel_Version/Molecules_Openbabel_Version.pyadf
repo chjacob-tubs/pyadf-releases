@@ -1,15 +1,28 @@
 #
 # check Openbabel version; 
-# currently, it should be >= 2.3.1
+# currently, it should be >= 2.4.1
 #
 
 import openbabel
+import subprocess
+
+def check_version(obversion):
+    ver1, ver2, ver3 = obversion.split('.')
+
+    testobj.assert_(ver1 == '2')
+    testobj.assert_(ver2 >= '4')
+    if ver2 == '4':
+        testobj.assert_(ver3 >= '1')
+
+# version of OB Python library
 
 obversion = openbabel.OBReleaseVersion()
+check_version(obversion)
 
-ver1, ver2, ver3 = obversion.split('.') 
+# version of OB command line tool
 
-testobj.assert_(ver1 == '2')
-testobj.assert_(ver2 >= '3')
-if ver2 == '3' :
-    testobj.assert_(ver3 >= '1')
+FNULL = open(os.devnull, 'w')
+out = subprocess.check_output(['obabel', '-V'], stderr=FNULL, close_fds=True)
+
+obversion = out.split()[2]
+check_version(obversion)

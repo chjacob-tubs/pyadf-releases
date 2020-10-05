@@ -1,8 +1,9 @@
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2014 by Christoph R. Jacob, S. Maya Beyhan,
+# Copyright (C) 2006-2020 by Christoph R. Jacob, S. Maya Beyhan,
 # Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Michal Handzlik,
-# Karin Kiewisch, Moritz Klammler, Jetze Sikkema, and Lucas Visscher
+# Karin Kiewisch, Moritz Klammler, Lars Ridder, Jetze Sikkema,
+# Lucas Visscher, and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -35,162 +36,14 @@ import openbabel
 
 from ..Errors import PyAdfError
 from ..Utils import pse, Bohr_in_Angstrom
+from BaseMolecule import BaseMolecule
+from ProteinMolecule import ProteinMoleculeMixin
 
 import copy
 import math
 
 
-class BaseMolecule (object):
-
-    """
-    Class for representing a base molecule class, that does not
-    use openbabel
-
-    @author:        Rosa Bulo
-    @organization:  Vrije Universiteit Amsterdam
-    @contact:       bulo@few.vu.nl
-    """
-
-    def __init__(self):
-        """
-        Create the base molecule object
-        """
-        pass
-
-    def add_atoms(self, atoms, coords, atomicunits=False, ghosts=False):
-        """
-        Adds atoms to itself
-
-        @param atoms:
-            list of either a) atomic numbers or b) atomic symbols
-            of the atoms to add
-        @type atoms: list with same length as C{coords}
-
-        @param coords:
-            the coordinates of the atoms to add (by default in Angstrom)
-        @type coords: n x 3 list of floats or Numeric/numpy array
-
-        @param atomicunits:
-            Whether the coordinates are given in atomic units.
-            By default, they are in Angstrom.
-        @type atomicunits: bool
-        """
-        pass
-
-    def get_geovar_atoms_block(self, geovar):
-        """
-        Print the coordinates for use in the ATOMS block of ADF, using geovars.
-
-        @param geovar: The atoms for which geovars should be used.
-        @type geovar: list
-        """
-        pass
-
-    def get_geovar_block(self, geovar):
-        """
-        Print the GEOVAR block of ADF using the coordinates of the molecule.
-
-        @param geovar: The atoms for which geovars should be used.
-        @type geovar: list
-        """
-        pass
-
-    def set_symmetry(self, symmetry):
-        """
-        Set the symmetry of the molecule.
-
-        @param symmetry:
-            A string specifying the symmetry of the molecule.
-            This string should have the same format as the
-            symmetry group labels used in ADF, e.g., C(2V).
-        @type symmetry: str
-
-        @returns: nothing
-        """
-        pass
-
-    def get_atom_symbols(self, atoms=None, ghosts=True, prefix_ghosts=True):
-        """
-        Give back an array with the atom symbols.
-
-        @param atoms:
-           A list of the numbers of the atoms to include.
-           (The numbering of the atoms starts at 1).
-           If C{None} (default), all atoms are included.
-        @type  atoms: list of int
-
-        @param ghosts:
-            Whether to include ghost atoms or not.
-        @type  ghosts: bool
-
-        @param prefix_ghosts:
-            Whether to prefix the names of ghost atoms with C{Gh.}
-        @type  prefix_ghosts: bool
-        """
-        pass
-
-    def get_coordinates(self, atoms=None, ghosts=True):
-        """
-        Give back an array with the coordinates.
-
-        @param atoms:
-           A list of the numbers of the atoms to include
-           (atom numbering starts at 1).
-           If C{None} (default), all atoms are included.
-        @type  atoms: list of int
-
-        @param ghosts:
-            Whether to include ghost atoms or not.
-        @type  ghosts: bool
-        """
-        pass
-
-    def print_coordinates(self, atoms=None, index=True, suffix=""):
-        """
-        Returns a string for printing the atomic coordinates.
-
-        This method returns a string representation of the
-        atomic coordinates.
-        This string can be used for printing, the method
-        does not print anything itself.
-
-        The (optional) arguments make it possible to select
-        specific atoms for printing and to modify the output
-        format.
-
-        @param atoms:
-        A list with the numbers of atoms that should be
-        included. (The numbering of the atoms starts at 1).
-        If C{None}, all atoms are included (default)
-        @type atoms: list of int's
-
-        @param index:
-        If C{True}, the number of the atom is included
-        (see example below)
-        @type index: bool
-
-        @param suffix:
-        A suffix that is appended to each line
-        (see example below)
-        @type suffix: str
-        """
-        pass
-
-    def get_spin(self):
-        """
-        Returns the total spin multiplicity
-        """
-        pass
-
-    def get_charge(self):
-        """
-        Returns the charge of the system
-        """
-        pass
-
-
-class OBMolecule (BaseMolecule):
-
+class OBMolecule(ProteinMoleculeMixin, BaseMolecule):
     """
     Class for representing a molecule.
 
@@ -230,17 +83,17 @@ class OBMolecule (BaseMolecule):
         __str__, print_coordinates, get_geovar_atoms_block, get_geovar_block,
         get_dalton_molfile, write_dalton_molfile, get_cube_header, get_xyz_file
     @group Inquiry methods:
-        get_number_of_atoms, get_charge, get_spin, get_coordinates, get_atom_symbols,
+        get_number_of_atoms, get_charge, get_spin, get_chain_of_residue, get_coordinates, get_atom_symbols,
         get_atomic_numbers, get_symmetry, get_all_bonds, distance, distance_to_point,
         get_center_of_mass, get_alternate_locations,
-        get_nuclear_dipole_moment, get_nuclear_efield_in_point
+        get_nuclear_dipole_moment, get_nuclear_efield_in_point, get_peptide_orientation, get_backbone_torsions
     @group Manipulation methods:
         add_atoms, set_charge, set_spin, set_symmetry, __add__, add_as_ghosts,
         displace_atom, translate, rotate, align, delete_atoms
     @group Molecular-fragment related methods:
         get_fragment, separate
     @group Residue inquiry and manipulation methods:
-        get_residues, get_residue_numbers_of_atoms, set_residue, delete_residue,
+        get_residues, get_residx_of_atoms, get_resnums, set_residue, delete_residue,
         get_restype_resnums
     @group Hydrogen-related methods:
         add_hydrogens, find_adjacent_hydrogens
@@ -280,7 +133,8 @@ class OBMolecule (BaseMolecule):
             use L{set_symmetry}.
 
         """
-        BaseMolecule.__init__(self)
+        super(OBMolecule, self).__init__()
+
         self.mol = openbabel.OBMol()
         self.symmetry = None
 
@@ -482,9 +336,9 @@ class OBMolecule (BaseMolecule):
 
         """
 
-        if atom == None:
+        if atom is None:
             raise PyAdfError("atom number missing in OBMolecule.displace_atom")
-        elif coordinate == None:
+        elif coordinate is None:
             raise PyAdfError("coordinate missing in OBMolecule.displace_atom")
         coordinate = coordinate.lower()
 
@@ -537,14 +391,31 @@ class OBMolecule (BaseMolecule):
             in case an error occures when reading the molecule
             from file (typically if the file is not found)
 
+        @exampleuse:
+
+            >>> an = OBMolecule('an.xyz')
+            >>> print an
+              Cartesian coordinates:
+                1)        C        2.40366000        0.63303000       -0.29209000
+                2)        C        1.77188000        1.66625000        0.53174000
+                3)        N        1.27005000        2.49581000        1.19175000
+                4)        H        2.29842000       -0.34974000        0.18696000
+                5)        H        1.92918000        0.59583000       -1.28199000
+                6)        H        3.47247000        0.85113000       -0.42037000
+            <BLANKLINE>
         """
 
         conv = openbabel.OBConversion()
         conv.SetInAndOutFormats(inputformat, 'xyz')
         if not conv.ReadFile(self.mol, filename):
             raise PyAdfError("Error reading molecule")
+
         numread = self.mol.NumAtoms() - len(self.is_ghost)
-        self.is_ghost += [ghosts] * numread
+        self.is_ghost = [ghosts] * numread
+
+        if inputformat == 'pdb':
+            atomlist = self._get_alternate_locations(filename)
+            self.delete_atoms(atomlist)
 
     def set_OBMol(self, mol):
         """
@@ -664,7 +535,7 @@ class OBMolecule (BaseMolecule):
         @returns: nothing
         """
         self.mol.SetTotalSpinMultiplicity(spin)
-        self.mol.SetSpinMultiplicityAssigned() 
+        self.mol.SetSpinMultiplicityAssigned()
 
     def get_spin(self):
         """
@@ -675,7 +546,7 @@ class OBMolecule (BaseMolecule):
         """
         return self.mol.GetTotalSpinMultiplicity()
 
-    def add_atoms(self, atoms, coords, atomicunits=False, ghosts=False):
+    def add_atoms(self, atoms, coords, atomicunits=False, ghosts=False, bond_to=None):
         """
         Add atoms to the molecule.
 
@@ -693,6 +564,15 @@ class OBMolecule (BaseMolecule):
             By default, they are in Angstrom.
         @type atomicunits: bool
 
+        @param ghosts: Whether to add the atoms as ghosts.
+        @type ghosts: bool
+
+        @param bond_to:
+            If present, the index of the atom to which the new atoms are bonded.
+            The corresponding bonds will be created and residue information will
+            be copied to the new atoms.
+        @type bond_to: None or int
+
         @note:
             The atomic symbols C{atoms} can be obtained from another molecule
             using L{get_atom_symbols}, the coordinates using L{get_coordinates}
@@ -700,9 +580,20 @@ class OBMolecule (BaseMolecule):
         @returns: nothing
 
         @exampleuse:
-
             >>> mol = OBMolecule()
             >>> atoms = ['H', 'H', 'O']
+            >>> coords = [[-0.21489, 3.43542, 2.17104],
+            ...           [-0.89430, 3.96159, 2.68087],
+            ...           [-0.43479, 4.75018, 3.07278]]
+            >>> mol.add_atoms(atoms, coords)
+            >>> print mol.print_coordinates()
+            1)     H       -0.21489        3.43542        2.17104
+            2)     H       -0.89430        3.96159        2.68087
+            3)     O       -0.43479        4.75018        3.07278
+
+        @exampleuse:
+            >>> mol = OBMolecule()
+            >>> atoms = [1, 1, 8]
             >>> coords = [[-0.21489, 3.43542, 2.17104],
             ...           [-0.89430, 3.96159, 2.68087],
             ...           [-0.43479, 4.75018, 3.07278]]
@@ -735,6 +626,15 @@ class OBMolecule (BaseMolecule):
                 a.SetType(pse.get_symbol(anum))
             a.SetVector(coords[i][0], coords[i][1], coords[i][2])
             self.is_ghost.append(ghosts)
+
+            if bond_to is not None:
+                bond_to_atom = self.mol.GetAtom(bond_to)
+                res = bond_to_atom.GetResidue()
+                self.mol.AddBond(a.GetIdx(), bond_to, 1)
+
+                res.AddAtom(a)
+                res.SetAtomID(a, pse.get_symbol(a.GetAtomicNum()))
+
         self.mol.EndModify()
         self.set_spin(saved_spin)
 
@@ -765,9 +665,9 @@ class OBMolecule (BaseMolecule):
 
         """
 
-        if atoms == None:
+        if atoms is None:
             atoms = range(1, self.mol.NumAtoms() + 1)
-            if ghosts == False:
+            if not ghosts:
                 atoms = [i for i in atoms if not self.is_ghost[i - 1]]
 
         coords = []
@@ -780,13 +680,22 @@ class OBMolecule (BaseMolecule):
     def get_center_of_mass(self):
         """
         Return the coordinates of the center of mass.
+
+        @exampleuse:
+
+            >>> mol = OBMolecule('h2o.xyz')
+            >>> mol.get_center_of_mass()
+            array([-0.83057837,  3.97627218,  2.67427247])
+
         """
         import numpy
         center = numpy.zeros((3,))
+        molweight = 0.0
         for atom in openbabel.OBMolAtomIter(self.mol):
             vec = numpy.array([atom.GetX(), atom.GetY(), atom.GetZ()])
             center += atom.GetAtomicMass() * vec
-        center = center / self.mol.GetMolWt()
+            molweight += atom.GetAtomicMass()
+        center = center / molweight
         return center
 
     def get_number_of_atoms(self):
@@ -795,6 +704,13 @@ class OBMolecule (BaseMolecule):
 
         @returns: number of atoms
         @rtype: int
+
+        @exampleuse:
+
+            >>> mol = OBMolecule('h2o.xyz')
+            >>> mol.get_number_of_atoms()
+            3
+
         """
         return self.mol.NumAtoms()
 
@@ -836,9 +752,9 @@ class OBMolecule (BaseMolecule):
 
         """
 
-        if atoms == None:
+        if atoms is None:
             atoms = range(1, self.mol.NumAtoms() + 1)
-            if ghosts == False:
+            if not ghosts:
                 atoms = [i for i in atoms if not self.is_ghost[i - 1]]
 
         symbols = []
@@ -869,11 +785,21 @@ class OBMolecule (BaseMolecule):
         @returns:
             A list of the requested atomic numbers
         @rtype: list of int
+
+        @exampleuse:
+            Obtaining a list of all atomic symbols.
+
+            >>> an = OBMolecule('an.xyz')
+            >>> h2o = OBMolecule('h2o.xyz')
+            >>> mol = an.add_as_ghosts(h2o)
+            >>> mol.get_atomic_numbers(ghosts=False)
+            [6, 6, 7, 1, 1, 1]
+
         """
 
-        if atoms == None:
+        if atoms is None:
             atoms = range(1, self.mol.NumAtoms() + 1)
-            if ghosts == False:
+            if not ghosts:
                 atoms = [i for i in atoms if not self.is_ghost[i - 1]]
 
         nums = []
@@ -904,6 +830,12 @@ class OBMolecule (BaseMolecule):
             list of nuclear dipole moment contributions per atom
         @rtype: list of float
 
+        @exampleuse:
+
+            >>> mol = OBMolecule('h2o.xyz')
+            >>> mol.get_nuclear_dipole_moment()
+            array([-14.74757385,  75.35910311,  50.43826425])
+
         """
         import numpy
         voronoinucdip = []
@@ -932,19 +864,40 @@ class OBMolecule (BaseMolecule):
         @param pointcoord:
         @type pointcoord: array of float, in Angstrom coordinates
 
+        @exampleuse:
+
+            >>> mol = OBMolecule('h2o.xyz')
+            >>> mol.get_nuclear_efield_in_point([0,0,0])
+            array([-0.01894430 ,  0.09856731,  0.06584592])
+
         """
         import numpy
 
-        E_x = 0.0
-        E_y = 0.0
-        E_z = 0.0
+        e_x = 0.0
+        e_y = 0.0
+        e_z = 0.0
         for coord, atomNum in zip(self.get_coordinates(), self.get_atomic_numbers()):
-            dist = numpy.sqrt((coord[0] - pointcoord[0]) ** 2 + (coord[1] - pointcoord[1]) ** 2 + (coord[2] - pointcoord[2]) ** 2)
-            E_x += atomNum * (coord[0] - pointcoord[0]) / dist ** 3
-            E_y += atomNum * (coord[1] - pointcoord[1]) / dist ** 3
-            E_z += atomNum * (coord[2] - pointcoord[2]) / dist ** 3
+            dist = numpy.sqrt(
+                (coord[0] - pointcoord[0])**2 + (coord[1] - pointcoord[1])**2 + (coord[2] - pointcoord[2])**2)
+            e_x += atomNum * (coord[0] - pointcoord[0]) / dist**3
+            e_y += atomNum * (coord[1] - pointcoord[1]) / dist**3
+            e_z += atomNum * (coord[2] - pointcoord[2]) / dist**3
 
-        return numpy.array([E_x, E_y, E_z]) * (Bohr_in_Angstrom * Bohr_in_Angstrom)
+        return numpy.array([e_x, e_y, e_z]) * (Bohr_in_Angstrom * Bohr_in_Angstrom)
+
+    def get_nuclear_interaction_energy(self, other):
+        """
+        Return the electrostatic interaction energy between the nuclei of this and another molecule.
+        """
+        import numpy
+
+        inten = 0.0
+        for coord1, atomNum1 in zip(self.get_coordinates(), self.get_atomic_numbers()):
+            for coord2, atomNum2 in zip(other.get_coordinates(), other.get_atomic_numbers()):
+                dist = numpy.sqrt((coord1[0] - coord2[0])**2 + (coord1[1] - coord2[1])**2 + (coord1[2] - coord2[2])**2)
+                dist = dist / Bohr_in_Angstrom
+                inten = inten + atomNum1 * atomNum2 / dist
+        return inten
 
     def get_fragment(self, atoms, ghosts=True):
         """
@@ -988,7 +941,31 @@ class OBMolecule (BaseMolecule):
         m.add_atoms(self.get_atom_symbols(atoms, ghosts),
                     self.get_coordinates(atoms, ghosts))
 
+        atom_index_dict = {}
+        for i, a in enumerate(atoms):
+            atom_index_dict[a] = i + 1
+
+        # copy bonds
+        m.mol.BeginModify()
+
+        for i in atoms:
+            at = self.mol.GetAtom(i)
+            for b in openbabel.OBAtomBondIter(at):
+                begin_idx, end_idx = b.GetBeginAtomIdx(), b.GetEndAtomIdx()
+                if (begin_idx in atoms) and (end_idx in atoms):
+                    m.mol.AddBond(atom_index_dict[begin_idx], atom_index_dict[end_idx], b.GetBO())
+
+        m.mol.EndModify()
+        m.set_spin(0)
         return m
+
+    def residue_iter(self):
+        if self.get_number_of_atoms() > 0:
+            # force Openbabel to perceive chains by inquiring the residue of atom 1
+            self.mol.GetAtom(1).GetResidue()
+
+            for r in openbabel.OBResidueIter(self.mol):
+                yield r.GetChain(), r.GetName(), r.GetNum()
 
     def get_residues(self, chain=None, restype=None, resnum=None, idx=None):
         """
@@ -1015,59 +992,225 @@ class OBMolecule (BaseMolecule):
         @type  idx: int
 
         @exampleuse:
+            >>> an = OBMolecule('an.pdb', 'pdb')
+            >>> l = an.get_residues(restype='LIG')
+            >>> print [r.get_nuclear_dipole_moment() for r in l]
+            [array([ 42.75316384,  35.51551279, -19.00308591])]
+            >>> l = an.get_residues(chain='A')
+            >>> print [r.get_nuclear_dipole_moment() for r in l]
+            [array([ 42.75316384,  35.51551279, -19.00308591])]
+            >>> l = an.get_residues(resnum=1, chain='B')
+            >>> print [r.get_nuclear_dipole_moment() for r in l]
+            [array([-26.18593491,  49.01382649,  24.45683550 ])]
+
+        @exampleuse:
+
+            >>> diala = OBMolecule('dialanine.xyz', 'xyz')
+            >>> allala = diala.get_residues(restype='ALA')
+            >>> print [f.get_number_of_atoms() for f in allala]
+            [11, 12]
+            >>> ala1 = diala.get_residues(restype='ALA', resnum=1)
+            >>> print [f.get_number_of_atoms() for f in ala1]
+            [11]
+            >>> ala2 = diala.get_residues(restype='ALA', resnum=2)
+            >>> print [f.get_number_of_atoms() for f in ala2]
+            [12]
+
+        @exampleuse:
             An example of using this method can be found in
             the test PDB_Molecules and in FDE_NMR_relax
-
         """
-
         res_list = []
+        res_index = self.get_residx_of_atoms()
 
-        if self.mol.NumAtoms() == 0:
-            return res_list
+        ci = self.get_chain_info()
 
-        # force Openbabel to perceive chains by inquiring the residue of atom 1
-        self.mol.GetAtom(1).GetResidue()
+        for chain_id, res_name, res_num in self.residue_iter():
+            ridx = self.get_residx_from_resinfo(chain_id, res_name, res_num, chaininfo=ci)
 
-        # collect list of the residues we are interested in
-        residues = [(r, r.GetChain(), r.GetName(), r.GetNum(), r.GetIdx()) for r in openbabel.OBResidueIter(self.mol)]
-
-        if chain:
-            residues = [r for r in residues if (r[1] == chain)]
-        if restype:
-        # for mol2 format: only compare first three letters
-            residues = [r for r in residues if (r[2][:3] == restype)]
-        if resnum:
-            residues = [r for r in residues if (r[3] == resnum)]
-        if idx:
-            residues = [r for r in residues if (r[4] == idx)]
-
-        for res in residues:
-
-            m = OBMolecule()
-
-            for at in openbabel.OBResidueAtomIter(res[0]):
-                m.mol.AddAtom(at)
-                m.is_ghost.append(False)
-
-            m.set_residue(res[2], res[3], res[1], res[4], atoms=None)
-
-            res_list.append(m)
+            if ((chain is None) or (chain_id == chain)) and ((restype is None) or (res_name == restype)) \
+                    and ((resnum is None) or (res_num == resnum)) and ((idx is None) or (idx == ridx)):
+                f = self.get_fragment([i + 1 for i, j in enumerate(res_index) if j == ridx])
+                f.set_residue(res_name, res_num, chain_id)
+                res_list.append(f)
 
         return res_list
 
-    def get_residue_numbers_of_atoms(self):
+    def get_atom_resinfo(self, atom):
+        """
+        Return the residue information (chainID, name, number) for a given atom.
+
+        @param atom: atom number (staring at 1)
+        @type atom: int
+
+        @returns: tuple of (chainid, resname, resnum)
+
+        @exampleuse:
+
+            >>> an = OBMolecule('an.pdb', 'pdb')
+            >>> print an.get_atom_resinfo(10)
+            ('B', 'TIP', 2)
+        """
+        res = self.mol.GetAtom(atom).GetResidue()
+        if res is not None:
+            return res.GetChain(), res.GetName(), res.GetNum()
+        else:
+            return None, None, None
+
+    def get_chain_info(self):
+        """
+        Figure out the number of residues in each chains.
+
+        @returns:
+            chains: a list of the residue numbers in each chain
+            chain_offsets: a list of the offset for the residue indexing in each chain
+
+        @exampleuse
+            >>> dian = OBMolecule('dialanine.xyz')
+            >>> print dian.get_chain_info()
+            ({'A': [(1, 'ALA'), (2, 'ALA')]}, {'A': 0})
+            >>> dian.write('dialanine.pdb', 'pdb')
+            >>> an = OBMolecule('an.pdb', 'pdb')
+            >>> print an.get_chain_info()
+            ({'A': [(1, 'LIG')], 'B': [(1, 'TIP'), (2, 'TIP'), (3, 'TIP'), (4, 'TIP'),
+                                       (5, 'TIP'), (6, 'TIP'), (7, 'TIP')]}, {'A': 0, 'B': 1})
+        """
+        # first figure out which chains and residues exist
+        chains = {}
+        for chain_id, res_name, res_num in self.residue_iter():
+            if not (chain_id in chains):
+                chains[chain_id] = []
+            if (res_num, res_name) not in chains[chain_id]:
+                chains[chain_id].append((res_num, res_name))
+
+        for v in chains.values():
+            v.sort()
+
+        chain_offsets = {}
+        kk = chains.keys()
+        kk.sort()
+        last_offset = 0
+        for k in kk:
+            chain_offsets[k] = last_offset
+            last_offset = last_offset + len(chains[k])
+
+        return chains, chain_offsets
+
+    def get_residx_of_atoms(self, atoms=None, chaininfo=None):
         """
         Return a list giving the residue number of each atom.
 
         Numbering of the residues starts at 0.
+
+        @exampleuse:
+
+            >>> dian = OBMolecule('dialanine.xyz')
+            >>> print dian.get_residx_of_atoms()
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+            >>> an = OBMolecule('an.pdb', 'pdb')
+            >>> print an.get_residx_of_atoms()
+            [0, 0, 0, 0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 5, 5, 5, 6, 6, 6, 7, 7, 7]
+            >>> mol = OBMolecule('1PBE3.pdb', inputformat='pdb')
+            >>> print mol.get_residx_of_atoms()
+            [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2]
+            >>> print mol.get_residx_of_atoms(atoms=[1,8,9,18,19,27])
+            [0, 0, 1, 1, 2, 2]
+
         """
+        if chaininfo is None:
+            ci = self.get_chain_info()
+        else:
+            ci = chaininfo
+
+        if atoms is None:
+            atoms = range(1, self.get_number_of_atoms() + 1)
 
         res_list = []
-
-        for at in openbabel.OBMolAtomIter(self.mol):
-            res_list.append(at.GetResidue().GetIdx())
-
+        for at in atoms:
+            chain_id, res_name, res_num = self.get_atom_resinfo(at)
+            residx = self.get_residx_from_resinfo(chain_id, res_name, res_num, chaininfo=ci)
+            res_list.append(residx)
         return res_list
+
+    def get_resnums_of_atoms(self, atoms=None):
+        """
+        Return a list giving the residue number of given atoms.
+
+        Numbering of the residues as in the pdb file
+
+        @exampleuse:
+            >>> dian = OBMolecule('dialanine.xyz')
+            >>> print dian.get_resnums_of_atoms()
+            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2]
+            >>> an = OBMolecule('an.pdb', 'pdb')
+            >>> print an.get_resnums_of_atoms()
+            [1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 5, 5, 5, 6, 6, 6, 7, 7, 7]
+            >>> mol = OBMolecule('1PBE3.pdb', inputformat='pdb')
+            >>> print mol.get_resnums_of_atoms()
+            [21, 21, 21, 21, 21, 21, 21, 21, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22,
+            23, 23, 23, 23, 23, 23, 23, 23, 23]
+            >>> print mol.get_resnums_of_atoms(atoms=[1,8,9,18,19,27])
+            [21, 21, 22, 22, 23, 23]
+        """
+        if atoms is None:
+            atoms = range(1, self.get_number_of_atoms() + 1)
+
+        res_list = []
+        for at in atoms:
+            chain_id, res_name, res_num = self.get_atom_resinfo(at)
+            res_list.append(res_num)
+        return res_list
+
+    def get_chain_of_residue(self, residx, chaininfo=None):
+        """
+        Returns the chain of a residue.
+
+        @returns: string with the chain descriptor.
+        @rtype: str or None
+
+        @param residx: The internal index of the residue.
+        @type  residx: int
+
+        @exampleuse:
+        >>> mol = OBMolecule('1PBE3.pdb', inputformat='pdb')
+        >>> print mol.get_chain_of_residue(2)
+        A
+        >>> mol = OBMolecule('an.pdb', inputformat='pdb')
+        >>> print mol.get_chain_of_residue(0)
+        A
+        >>> print mol.get_chain_of_residue(1)
+        B
+        """
+        if chaininfo is None:
+            chains, chain_offsets = self.get_chain_info()
+        else:
+            chains, chain_offsets = chaininfo
+
+        chain_offsets_sorted = sorted(chain_offsets.items(), key=lambda x: x[1])
+        for i, (chain_id, offset) in enumerate(chain_offsets_sorted[:-1]):
+            if residx >= offset and (residx < chain_offsets_sorted[i + 1][1]):
+                return str(chain_id)
+
+        return str(chain_offsets_sorted[-1][0])
+
+    def get_resnums(self, chain=None):
+        """
+        Return a list giving the residue numbers (of a chain).
+
+        @exampleuse:
+        >>> mol = OBMolecule('1PBE3.pdb', inputformat='pdb')
+        >>> print mol.get_resnums()
+        [21, 22, 23]
+        >>> mol = OBMolecule('an.pdb', inputformat='pdb')
+        >>> print mol.get_resnums()
+        [1, 1, 2, 3, 4, 5, 6, 7]
+        >>> print mol.get_resnums(chain='A')
+        [1]
+        >>> print mol.get_resnums(chain='B')
+        [1, 2, 3, 4, 5, 6, 7]
+        """
+        return [res_num for (chain_id, res_name, res_num) in self.residue_iter()
+                if (chain is None) or (chain_id == chain)]
 
     def delete_residue(self, restype=None, resnums=None, chain=None):
         """
@@ -1082,6 +1225,37 @@ class OBMolecule (BaseMolecule):
 
         @param chain: which chain, use together with residuenumber
         @type chain: int
+
+        @exampleuse:
+
+            >>> an = OBMolecule('an.pdb', 'pdb')
+            >>> an.delete_residue(restype='TIP')
+            >>> print an.print_coordinates()
+            1)        C        0.83000000        0.66100000       -0.44400000
+            2)        N        0.00000000        0.00000000        0.00000000
+            3)        C        1.87800000        1.55900000       -0.81900000
+            4)        H        1.78500000        2.40300000       -0.13500000
+            5)        H        1.76200000        1.94900000       -1.83000000
+            6)        H        2.82900000        1.12200000       -0.51300000
+            >>> an = OBMolecule('an.pdb', 'pdb')
+            >>> an.delete_residue(chain='B')
+            >>> print an.print_coordinates()
+            1)        C        0.83000000        0.66100000       -0.44400000
+            2)        N        0.00000000        0.00000000        0.00000000
+            3)        C        1.87800000        1.55900000       -0.81900000
+            4)        H        1.78500000        2.40300000       -0.13500000
+            5)        H        1.76200000        1.94900000       -1.83000000
+            6)        H        2.82900000        1.12200000       -0.51300000
+            >>> an = OBMolecule('an.pdb', 'pdb')
+            >>> an.delete_residue(resnums=range(1,8), chain='B')
+            >>> print an.print_coordinates()
+            1)        C        0.83000000        0.66100000       -0.44400000
+            2)        N        0.00000000        0.00000000        0.00000000
+            3)        C        1.87800000        1.55900000       -0.81900000
+            4)        H        1.78500000        2.40300000       -0.13500000
+            5)        H        1.76200000        1.94900000       -1.83000000
+            6)        H        2.82900000        1.12200000       -0.51300000
+
         """
 
         self.mol.GetAtom(1).GetResidue()
@@ -1105,7 +1279,7 @@ class OBMolecule (BaseMolecule):
 
         self.is_ghost = [False] * self.mol.NumAtoms()
 
-    def get_restype_resnums(self, restype, lidx=True):
+    def get_restype_resnums(self, restype):
         """
         Get the residue numbers for a certain residue type.
 
@@ -1114,27 +1288,74 @@ class OBMolecule (BaseMolecule):
         @param restype: the type of the residue
         @type restype:  str
 
-        @param lidx: whether to return the internal residue number (counting starts at 0)
-        @type lidx: bool
+        @returns: A list of tuples (chain, residue number) belonging to restype.
 
-        @returns: A list of residue numbers belonging to restype, if idx == True the internal number
-                  is returned
+        @exampleuse:
+
+            >>> an = OBMolecule('an.pdb', 'pdb')
+            >>> print an.get_restype_resnums('LIG')
+            [('A', 1)]
+            >>> print an.get_restype_resnums('TIP')
+            [('B', 1), ('B', 2), ('B', 3), ('B', 4), ('B', 5), ('B', 6), ('B', 7)]
 
         """
+        reslist = []
+        for chain_id, resname, resnum in self.residue_iter():
+            if resname == restype:
+                reslist.append((chain_id, resnum))
+        return reslist
 
-        resnum_list = []
+    def get_residx_from_resinfo(self, chainid, resname, resnum, chaininfo=None):
+        """
+        Get a unique residue index number for the specified residue.
 
-        residues = [(r, r.GetName(), r.GetNum(), r.GetIdx()) for r in openbabel.OBResidueIter(self.mol)]
+        @exampleuse:
 
-        residues = [r for r in residues if (r[1][:3] == restype)]
+            >>> an = OBMolecule('an.pdb', 'pdb')
+            >>> print an.get_residx_from_resinfo('A', 'LIG', 1)
+            0
+            >>> print an.get_residx_from_resinfo('B', 'TIP', 1)
+            1
 
-        for res in residues:
-            if lidx:
-                resnum_list.append(res[3])
-            else:
-                resnum_list.append(res[2])
+        """
+        if chaininfo is None:
+            chains, chain_offsets = self.get_chain_info()
+        else:
+            chains, chain_offsets = chaininfo
+        residx = chain_offsets[chainid] + chains[chainid].index((resnum, resname))
+        return residx
 
-        return resnum_list
+    def get_restype_residx(self, restype, chaininfo=None):
+        """
+        Get the residue indicess for a certain residue type.
+
+        Use that to obtain the residues for which to set charges, e.g., for all GLU.
+
+        @param restype: the type of the residue
+        @type restype:  str
+
+        @returns: A list of residue indices belonging to restype.
+            Indices start at 0 and run over all chains.
+
+        @exampleuse:
+
+            >>> an = OBMolecule('an.pdb', 'pdb')
+            >>> print an.get_restype_residx('LIG')
+            [0]
+            >>> print an.get_restype_residx('TIP')
+            [1, 2, 3, 4, 5, 6, 7]
+
+        """
+        if chaininfo is None:
+            ci = self.get_chain_info()
+        else:
+            ci = chaininfo
+
+        reslist = []
+        for chain_id, resname, resnum in self.residue_iter():
+            if resname == restype:
+                reslist.append(self.get_residx_from_resinfo(chain_id, resname, resnum, chaininfo=ci))
+        return reslist
 
     def delete_atoms(self, atoms):
         """
@@ -1148,12 +1369,24 @@ class OBMolecule (BaseMolecule):
         @Warning: not yet checked whether all information is updated
                  (i.e., number of atoms, pse, ...)
 
+        @exampleuse:
+
+        >>> an = OBMolecule('an.xyz')
+        >>> an.delete_atoms([1,5])
+        >>> print an
+        Cartesian coordinates:
+        1)     C        1.77188        1.66625        0.53174
+        2)     N        1.27005        2.49581        1.19175
+        3)     H        2.29842       -0.34974        0.18696
+        4)     H        3.47247        0.85113       -0.42037
+
         """
         for atomnumber in sorted(atoms)[::-1]:
             a = self.mol.GetAtom(atomnumber)
             self.mol.DeleteAtom(a)
 
-    def get_alternate_locations(self, filename):
+    @staticmethod
+    def _get_alternate_locations(filename):
         """
         Get alternate location atoms contained in pdb file from the molecule.
 
@@ -1168,26 +1401,13 @@ class OBMolecule (BaseMolecule):
         @returns: A list of atom numbers representing alternate locations
                   (numbering of the atoms starts at 1)
         """
-
-        # needs to open and read pdb file because openbabel does not read four letter residue names
         pdbfile = open(filename, 'r')
-
-        # find atoms with four letter residue codes
-        # and add them to atomlist
         atomlist = []
         for line in pdbfile.readlines():
             word = line.split()
-            if word[0] == "ATOM":
-                if len(word[2]) > 3:
-                    atomtype = word[2][:3]
-                    resname = word[2][3:]
-                    word = word[:2] + [atomtype] + [resname] + word[3:]
-
-        # determine whether first letter is 'A'
-        # if not add them to atomlist
-                if len(word[3]) == 4 and word[3][0] != 'A':
+            if word[0] == "ATOM" and len(line) >= 17:
+                if line[16] not in [' ', 'A', '1']:
                     atomlist.append(int(word[1]))
-
         pdbfile.close()
         return atomlist
 
@@ -1197,6 +1417,24 @@ class OBMolecule (BaseMolecule):
 
         @returns: A list of pairs of atom numbers
                   (numbering of the atoms starts at 1)
+
+        @exampleuse:
+
+        >>> an = OBMolecule('an.pdb', 'pdb')
+        >>> print len(an.get_all_bonds())
+        19
+        >>> diala = OBMolecule('dialanine.xyz', 'xyz')
+        >>> bonds = diala.get_all_bonds()
+        >>> print len(bonds)
+        22
+        >>> for b in bonds:
+        ...     b.sort()
+        >>> bonds.sort()
+        >>> print bonds[:12]
+        [[1, 2], [1, 3], [1, 8], [4, 5], [4, 6], [4, 7], [4, 8], [8, 9], [8, 10], [9, 11], [9, 14], [12, 13]]
+        >>> print bonds[12:]
+        [[12, 14], [12, 16], [12, 20], [13, 15], [13, 18], [14, 17], [18, 19], [20, 21], [20, 22], [20, 23]]
+
         """
 
         bond_list = []
@@ -1215,18 +1453,38 @@ class OBMolecule (BaseMolecule):
 
         @returns: the list of the numbers of the hydrogen atoms
         @rtype:   list of ints
-        """
 
-        hydrogens = []
+        @exampleuse:
+
+            >>> m = OBMolecule('an.pdb', 'pdb')
+            >>> print sorted(m.find_adjacent_hydrogens([1,3,10]))
+            [4, 5, 6, 11, 12]
+
+        """
+        return self.find_adjacent_atoms(atoms, atnum=1)
+
+    def find_adjacent_atoms(self, atoms, atnum=None):
+        """
+        Return a list of all hydrogen atoms that are directly connected to one of the given atoms.
+
+        @param atoms: the list of atoms numbers
+        @type  atoms: list of ints
+
+        @param atnum: only include adjacent atoms with this atomic number
+        @type  atoms: int
+
+        @returns: the list of the numbers of the adjacent atoms
+        @rtype:   list of ints
+        """
+        adjacent = []
 
         for i in atoms:
             a = self.mol.GetAtom(i)
             for neighbor in openbabel.OBAtomAtomIter(a):
-
-                if (neighbor.GetAtomicNum() == 1) and not (neighbor.GetIdx() in atoms):
-                    hydrogens.append(neighbor.GetIdx())
-
-        return hydrogens
+                if neighbor.GetIdx() not in atoms:
+                    if (atnum is None) or (neighbor.GetAtomicNum() == atnum):
+                        adjacent.append(neighbor.GetIdx())
+        return adjacent
 
     def add_hydrogens(self, correctForPH=False, pH=7.4):
         """
@@ -1244,7 +1502,19 @@ class OBMolecule (BaseMolecule):
             pH value
         @type pH: float
 
+        @exampleuse:
+
+        >>> an = OBMolecule('anNOH.pdb', 'pdb')
+        >>> an.add_hydrogens()
+        >>> print an.get_number_of_atoms()
+        15
+        >>> pdb = OBMolecule('1PBE3.pdb', 'pdb')
+        >>> pdb.add_hydrogens()
+        >>> print pdb.get_number_of_atoms()
+        59
+
         """
+
         spin_saved = self.get_spin()
         self.mol.ConnectTheDots()
         self.set_spin(spin_saved)
@@ -1284,7 +1554,14 @@ class OBMolecule (BaseMolecule):
 
         self.is_ghost += [False] * (self.mol.NumAtoms() - len(self.is_ghost))
 
-    def set_residue(self, restype, resnum, chain=None, idx=None, atoms=None):
+    def get_smarts_matches(self, smartspattern):
+        sp = openbabel.OBSmartsPattern()
+        sp.Init(smartspattern)
+        sp.Match(self.mol)
+        maplist = [list(mp) for mp in sp.GetUMapList()]
+        return maplist
+
+    def set_residue(self, restype, resnum, chain=None, atoms=None):
         """
         Set the residue information for the given atoms (or all, if not given).
 
@@ -1294,11 +1571,21 @@ class OBMolecule (BaseMolecule):
         @type  resnum: int
         @param chain: the chain name/number
         @type  chain: str
-        @param idx: the residue idx (internal number)
-        @type  idx: int
         @param atoms: the numbers of the atoms belonging to this residue
                       (atom numbering starts at 1)
         @type  atoms: list on ints
+
+        @exampleuse:
+
+        >>> an = OBMolecule('an.pdb', 'pdb')
+        >>> an.set_residue('WAT', 999, 'C', atoms=range(7,10))
+        >>> print an.get_residues('C', 'WAT', 999)[0]
+          Cartesian coordinates:
+            1)        O       -1.46800000        2.60500000        1.37700000
+            2)        H       -0.95200000        3.29800000        0.96500000
+            3)        H       -1.16100000        1.79900000        0.96100000
+        <BLANKLINE>
+
         """
 
         if not atoms:
@@ -1309,8 +1596,6 @@ class OBMolecule (BaseMolecule):
         res.SetNum(resnum)
         if chain:
             res.SetChain(chain)
-        if idx:
-            res.SetIdx(idx)
 
         for i in atoms:
             a = self.mol.GetAtom(i)
@@ -1325,6 +1610,13 @@ class OBMolecule (BaseMolecule):
 
         @returns: A list of molecules, one for each disconnected fragment
         @rtype:   list of L{molecule}s
+
+        @exampleuse:
+
+        >>> an = OBMolecule('an.pdb', 'pdb')
+        >>> print len(an.separate())
+        8
+
         """
 
         mols = []
@@ -1335,27 +1627,39 @@ class OBMolecule (BaseMolecule):
         return mols
 
     def translate(self, vec):
-        '''
+        """
         Translate the molecule.
 
         @param vec: the translation vector
         @type  vec: numpy array or list of 3 floats
-        '''
+
+        @exampleuse:
+
+        >>> h2o = OBMolecule('h2o.xyz')
+        >>> h2o.translate([-1,2,1])
+        >>> print h2o
+          Cartesian coordinates:
+            1)        H       -1.21489000        5.43542000        3.17104000
+            2)        O       -1.89430000        5.96159000        3.68087000
+            3)        H       -1.43479000        6.75018000        4.07278000
+        <BLANKLINE>
+
+        """
         obvec = openbabel.vector3(vec[0], vec[1], vec[2])
         self.mol.Translate(obvec)
 
     def rotate(self, rotmat):
-        '''
+        """
         Rotate the molecule.
 
         @param rotmat: a 3x3 rotation matrix
         @type  rotmat: numpy 3x3 matrix
-        '''
+        """
         obmat = openbabel.double_array(rotmat.flatten().tolist())
         self.mol.Rotate(obmat)
 
     def align(self, other, atoms, atoms_other=None):
-        '''
+        """
         Rotate and translate the molecule such that the given atoms are maximally aligned.
 
         Returns the rotation matrix and translation vector that were applied
@@ -1370,7 +1674,21 @@ class OBMolecule (BaseMolecule):
 
         @returns: tuple of rotation matrix and translation vector
         @rtype:   tuple of: numpy.array((3,3)), numpy.array((3,))
-        '''
+
+        @exampleuse:
+
+        >>> from numpy import round
+        >>> pdb = OBMolecule('an.pdb', 'pdb')
+        >>> mols = pdb.get_residues(restype = 'TIP')
+        >>> rotmat,transvec = mols[0].align(mols[1],range(1,4))
+        >>> print round(rotmat,6)
+        [[ 0.40120700  0.55936000   0.72536100]
+         [-0.47720900 -0.54829300  0.68676500]
+         [ 0.78186000  -0.62168400  0.04695200]]
+        >>> print round(transvec,5)
+        [ 0.53705000 -2.72789000   2.34056000]
+
+        """
         import numpy
 
         def quaternion_fit(coords_r, coords_f):
@@ -1523,7 +1841,7 @@ class OBMolecule (BaseMolecule):
         """
 
         lines = ""
-        if atoms == None:
+        if atoms is None:
             atoms = range(1, self.mol.NumAtoms() + 1)
 
         coords = self.get_coordinates(atoms)
@@ -1533,7 +1851,7 @@ class OBMolecule (BaseMolecule):
             symb = symbs[i]
             c = coords[i]
 
-            if index == True:
+            if index:
                 line = "  %3i) %8s %14.5f %14.5f %14.5f" % (atoms[i], symb, c[0], c[1], c[2])
             else:
                 line = "  %8s %14.5f %14.5f %14.5f" % (symb, c[0], c[1], c[2])
@@ -1573,7 +1891,7 @@ class OBMolecule (BaseMolecule):
         AtomsBlock = ""
         for i, atom in enumerate(openbabel.OBMolAtomIter(self.mol)):
             symb = pse.get_symbol(atom.GetAtomicNum())
-            if self.is_ghost[i] == True:
+            if self.is_ghost[i]:
                 symb = "Gh." + symb
             if i + 1 in geovar:
                 varname = "atom" + str(i + 1)
@@ -1664,7 +1982,7 @@ class OBMolecule (BaseMolecule):
             molfile += "Charge=%.1f Atoms=%d\n" % (pse.get_atomic_number(atyp), len(coords))
             for i, a in enumerate(coords):
                 line = "%-4s %14.5f %14.5f %14.5f \n" % \
-                    (atyp + str(i + 1), a[0], a[1], a[2])
+                       (atyp + str(i + 1), a[0], a[1], a[2])
                 molfile += line
 
         return molfile
@@ -1683,7 +2001,7 @@ class OBMolecule (BaseMolecule):
 
         for c1 in coords1:
             for c2 in coords2:
-                d = (c1[0] - c2[0]) ** 2 + (c1[1] - c2[1]) ** 2 + (c1[2] - c2[2]) ** 2
+                d = (c1[0] - c2[0])**2 + (c1[1] - c2[1])**2 + (c1[2] - c2[2])**2
                 dists.append(d)
 
         return math.sqrt(min(dists))
@@ -1696,7 +2014,7 @@ class OBMolecule (BaseMolecule):
 
         dists = []
         for c in coords:
-            d = (c[0] - point[0]) ** 2 + (c[1] - point[1]) ** 2 + (c[2] - point[2]) ** 2
+            d = (c[0] - point[0])**2 + (c[1] - point[1])**2 + (c[2] - point[2])**2
             dists.append(d)
         return math.sqrt(min(dists))
 
@@ -1717,6 +2035,16 @@ class OBMolecule (BaseMolecule):
     def get_cube_header(self):
         """
         Return a cub-file header for the molecule.
+
+        @exampleuse:
+
+            >>> mol = OBMolecule('h2o.xyz')
+            >>> print mol.get_cube_header()
+                1    0.00000000   -0.40608300    6.49200300    4.10267100
+                8    0.00000000   -1.68998200    7.48632000    5.06611000
+                1    0.00000000   -0.82163400    8.97653900    5.80671300
+            <BLANKLINE>
+
         """
         header = ""
 
@@ -1726,9 +2054,9 @@ class OBMolecule (BaseMolecule):
         for i in atoms:
             at = self.mol.GetAtom(i)
             header += "%5d%12.6f%12.6f%12.6f%12.6f\n" % (at.GetAtomicNum(), 0.0,
-                                                               at.GetX() / Bohr_in_Angstrom,
-                                                               at.GetY() / Bohr_in_Angstrom,
-                                                               at.GetZ() / Bohr_in_Angstrom)
+                                                         at.GetX() / Bohr_in_Angstrom,
+                                                         at.GetY() / Bohr_in_Angstrom,
+                                                         at.GetZ() / Bohr_in_Angstrom)
 
         return header
 
@@ -1815,6 +2143,111 @@ def _setUp_doctest(test):
                   [1.92918, 0.59583, -1.28199],
                   [3.47247, 0.85113, -0.42037]])
     an.write('an.xyz')
+
+    f = open('an.pdb', 'w')
+    f.write("""REMARK DATE:19-Oct-06  15:59:22       created by user: bulo                     
+ATOM      1  C   LIG A   1       0.830   0.661  -0.444  1.00  0.00      MOL  C
+ATOM      2  N   LIG A   1       0.000   0.000   0.000  1.00  0.00      MOL  N 
+ATOM      3  C   LIG A   1       1.878   1.559  -0.819  1.00  0.00      MOL  C
+ATOM      4  H   LIG A   1       1.785   2.403  -0.135  1.00  0.00      MOL  H
+ATOM      5  H   LIG A   1       1.762   1.949  -1.830  1.00  0.00      MOL  H
+ATOM      6  H   LIG A   1       2.829   1.122  -0.513  1.00  0.00      MOL  H
+ATOM      7  OH2 TIP3B   1      -1.468   2.605   1.377  1.00  0.00      WAT  O
+ATOM      8  H1  TIP3B   1      -0.952   3.298   0.965  1.00  0.00      WAT  H
+ATOM      9  H2  TIP3B   1      -1.161   1.799   0.961  1.00  0.00      WAT  H
+ATOM     10  OH2 TIP3B   2       2.404  -2.510  -0.362  1.00  0.00      WAT  O
+ATOM     11  H1  TIP3B   2       2.700  -3.419  -0.409  1.00  0.00      WAT  H
+ATOM     12  H2  TIP3B   2       1.775  -2.500   0.359  1.00  0.00      WAT  H
+ATOM     13  OH2 TIP3B   3      -3.228  -1.615   1.185  1.00  0.00      WAT  O
+ATOM     14  H1  TIP3B   3      -3.333  -2.553   1.030  1.00  0.00      WAT  H
+ATOM     15  H2  TIP3B   3      -3.142  -1.236   0.310  1.00  0.00      WAT  H
+ATOM     16  OH2 TIP3B   4       0.840  -2.612   2.890  1.00  0.00      WAT  O
+ATOM     17  H1  TIP3B   4       0.588  -3.437   3.305  1.00  0.00      WAT  H
+ATOM     18  H2  TIP3B   4       0.025  -2.115   2.829  1.00  0.00      WAT  H
+ATOM     19  OH2 TIP3B   5       2.954  -0.851   2.997  1.00  0.00      WAT  O
+ATOM     20  H1  TIP3B   5       2.120  -1.224   2.712  1.00  0.00      WAT  H
+ATOM     21  H2  TIP3B   5       2.718  -0.241   3.696  1.00  0.00      WAT  H
+ATOM     22  OH2 TIP3B   6       3.622  -0.740  -2.193  1.00  0.00      WAT  O
+ATOM     23  H1  TIP3B   6       3.051  -1.252  -1.621  1.00  0.00      WAT  H
+ATOM     24  H2  TIP3B   6       4.081  -0.142  -1.602  1.00  0.00      WAT  H
+ATOM     25  OH2 TIP3B   7      -3.800  -1.131  -1.711  1.00  0.00      WAT  O
+ATOM     26  H1  TIP3B   7      -3.026  -0.809  -2.174  1.00  0.00      WAT  H
+ATOM     27  H2  TIP3B   7      -4.316  -0.345  -1.533  1.00  0.00      WAT  H
+""")
+    f.close()
+
+    f = open('anNOH.pdb', 'w')
+    f.write("""REMARK DATE:19-Oct-06  15:59:22       created by user: bulo                     
+ATOM      1  C   LIG A   1       0.830   0.661  -0.444  1.00  0.00      MOL  C
+ATOM      2  N   LIG A   1       0.000   0.000   0.000  1.00  0.00      MOL  N 
+ATOM      3  C   LIG A   1       1.878   1.559  -0.819  1.00  0.00      MOL  C
+ATOM      7  OH2 TIP3B   1      -1.468   2.605   1.377  1.00  0.00      WAT  O
+ATOM     10  OH2 TIP3B   2       2.404  -2.510  -0.362  1.00  0.00      WAT  O
+ATOM     13  OH2 TIP3B   3      -3.228  -1.615   1.185  1.00  0.00      WAT  O
+""")
+    f.close()
+
+    f = open('1PBE3.pdb', 'w')
+    f.write("""HEADER    OXIDOREDUCTASE                          06-JUL-94   1PBE              
+ATOM    137  N   LEU A  21       9.727  97.836  71.643  1.00 13.50           N  
+ATOM    138  CA  LEU A  21       9.876  97.777  73.087  1.00 16.20           C  
+ATOM    139  C   LEU A  21       9.339  99.042  73.792  1.00 15.11           C  
+ATOM    140  O   LEU A  21       8.737  99.002  74.868  1.00 19.11           O  
+ATOM    141  CB  LEU A  21      11.310  97.465  73.467  1.00 12.96           C  
+ATOM    142  CG  LEU A  21      11.992  96.143  73.219  1.00 12.45           C  
+ATOM    143  CD1 LEU A  21      13.462  96.207  73.626  1.00  8.78           C  
+ATOM    144  CD2 LEU A  21      11.347  95.047  74.103  1.00 14.87           C  
+ATOM    145  N   HIS A  22       9.591 100.173  73.211  1.00 19.90           N  
+ATOM    146  CA  HIS A  22       9.197 101.467  73.810  1.00 19.34           C  
+ATOM    147  C   HIS A  22       7.695 101.476  73.920  1.00 21.09           C  
+ATOM    148  O   HIS A  22       7.230 101.695  75.019  1.00 21.48           O  
+ATOM    149  CB  HIS A  22       9.707 102.673  72.988  1.00 25.03           C  
+ATOM    150  CG  HIS A  22       9.358 103.940  73.722  1.00 24.50           C  
+ATOM    151  ND1 HIS A  22      10.074 104.467  74.745  1.00 25.57           N  
+ATOM    152  CD2 HIS A  22       8.301 104.772  73.489  1.00 25.55           C  
+ATOM    153  CE1 HIS A  22       9.477 105.595  75.128  1.00 35.00           C  
+ATOM    154  NE2 HIS A  22       8.405 105.813  74.387  1.00 23.11           N  
+ATOM    155  N   LYS A  23       7.052 101.224  72.799  1.00 20.55           N  
+ATOM    156  CA  LYS A  23       5.598 101.149  72.693  1.00 25.19           C  
+ATOM    157  C   LYS A  23       4.980 100.123  73.659  1.00 25.76           C  
+ATOM    158  O   LYS A  23       3.789 100.278  73.997  1.00 27.71           O  
+ATOM    159  CB  LYS A  23       5.126 100.827  71.289  1.00 26.67           C  
+ATOM    160  CG  LYS A  23       5.560 101.692  70.134  1.00 39.91           C  
+ATOM    161  CD  LYS A  23       4.704 102.867  69.790  1.00 58.31           C  
+ATOM    162  CE  LYS A  23       3.224 102.586  69.671  1.00 71.72           C  
+ATOM    163  NZ  LYS A  23       2.915 101.249  69.098  1.00 72.06           N  
+END                                                                             
+""")
+    f.close()
+
+    f = open('dialanine.xyz', 'w')
+    f.write("""23
+
+N       0.97280732       0.73537547       0.03408123
+H       0.33743395       0.04973960       0.45249170
+H       1.73319634       0.82429562       0.71833093
+C       2.39168837       1.22701642      -1.90058653
+H       1.78621751       2.12994815      -2.04776317
+H       3.26758017       1.49017277      -1.28867103
+H       2.75668458       0.88009116      -2.87706875
+C       1.54424739       0.16640181      -1.18473409
+C       2.39345347      -1.09809018      -0.91593123
+H       0.70597089      -0.11721773      -1.84374712
+O       2.78627527      -1.39752392       0.21229639
+C       3.66617759      -2.91250919      -1.98101717
+C       4.72107905      -2.62836309      -3.04102219
+N       2.66506334      -1.85958295      -2.02551493
+O       4.56822496      -1.89170803      -3.99699206
+H       4.13265868      -2.86478311      -0.98518915
+H       2.50907074      -1.45042396      -2.94679813
+O       5.85982586      -3.33781244      -2.81160980
+H       6.46407233      -3.11928450      -3.55895889
+C       3.05615196      -4.30706571      -2.19293690
+H       3.82835149      -5.08472715      -2.13258703
+H       2.56819458      -4.36693631      -3.17606991
+H       2.30387296      -4.48773848      -1.41554000
+""")
+    f.close()
 
 
 def _tearDown_doctest(test):

@@ -1,8 +1,9 @@
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2014 by Christoph R. Jacob, S. Maya Beyhan,
+# Copyright (C) 2006-2020 by Christoph R. Jacob, S. Maya Beyhan,
 # Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Michal Handzlik,
-# Karin Kiewisch, Moritz Klammler, Jetze Sikkema, and Lucas Visscher
+# Karin Kiewisch, Moritz Klammler, Lars Ridder, Jetze Sikkema,
+# Lucas Visscher, and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -42,7 +43,6 @@ from Errors import PyAdfError
 
 
 class TurboObject(object):
-
     """
     Mother class for historical reason.
 
@@ -126,7 +126,6 @@ class TurboObject(object):
 
 
 class TurboDefinition(TurboObject):
-
     """
     Actually handles I{define} on a sub-user level.
 
@@ -154,7 +153,7 @@ class TurboDefinition(TurboObject):
 
         try:
             self.setCoordFile(self.settings.coordfilename)
-        except:
+        except IOError:
             self._report("Error setting `" + str(self.settings.coordfilename) + "' as input file.", -3)
             self.coordfilename = None
             self.atom_checksum = float('NaN')
@@ -237,7 +236,7 @@ class TurboDefinition(TurboObject):
                              + str(returncode) + "'. I didn't even look at "
                              + "the results.", -2)
 
-            if (tmdefine_status and sanitize_status):
+            if tmdefine_status and sanitize_status:
                 return returncode
             else:
                 message = ("ERROR: Some checks of the output of `define' were not successful. There is no point "
@@ -289,7 +288,7 @@ class TurboDefinition(TurboObject):
 
         toadd = ''
         if self.settings.disp is None:
-            return
+            pass
         elif self.settings.disp == 'dft-d1':
             toadd += '$olddisp' + '\n'
         elif self.settings.disp == 'dft-d2':
@@ -299,8 +298,13 @@ class TurboDefinition(TurboObject):
         else:
             raise PyAdfError("Unknown value `" + str(self.settings.disp) + "' for dispersion correction.")
 
+        if self.settings.scfconv is None:
+            pass
+        else:
+            toadd += '$scfconv ' + str(self.settings.scfconv) + '\n'
+
         if self.settings.scfiterlimit is None:
-            return
+            pass
         else:
             toadd += '$scfiterlimit ' + str(self.settings.scfiterlimit) + '\n'
 
@@ -434,7 +438,7 @@ class TurboDefinition(TurboObject):
             # See if  we were using `turbomole  6.3.x'.  We have  to escape the
             # `.' in  the regexp! We hope that  a "wrong" version is  not a big
             # problem.
-            if self._checkfor("TURBOMOLE V6\.3"):
+            if self._checkfor(r"TURBOMOLE V6\.3"):
                 self._report(sanitizeprompt + "Found `turbomole 6.3' as "
                              + "expected.", 3)
             else:
@@ -474,12 +478,12 @@ class TurboDefinition(TurboObject):
                 # `turbomole' said  "write onto file".  Since this  is a little
                 # strange  and hence likely  to change,  we also  accept "write
                 # into file".
-                if self._checkfor(" writing data block \$user-defined bonds "
+                if self._checkfor(r" writing data block \$user-defined bonds "
                                   + "(o|i)nto file <coord>"):
                     self._report(sanitizeprompt + "`define' says, he wrote "
                                  + "user-defined bonds to the `coord' file.", 3)
                 else:
-                    #success = False
+                    # success = False
                     self._report(sanitizeprompt + "`define' says "
                                  + "nothing about user-defined bonds, this "
                                  + "should be okay in versions >6.3.x.", 3)
@@ -555,7 +559,7 @@ class TurboDefinition(TurboObject):
                                  + "`eht' but I have used it.", -3)
 
                 # Note that we have to escape the parenthesis.
-                if self._checkfor("ENTER THE MOLECULAR CHARGE \(DEFAULT=0\)"):
+                if self._checkfor(r"ENTER THE MOLECULAR CHARGE \(DEFAULT=0\)"):
                     self._report(sanitizeprompt + "`define' asked for the charge "
                                  + "as I expected.", 3)
                 else:
@@ -575,8 +579,8 @@ class TurboDefinition(TurboObject):
 
                 # The default value is not arethesized here (as commonly done).
                 # We will accept both.  (Note the `?'  is escaped once!)
-                if self._checkfor("DO YOU ACCEPT THIS OCCUPATION\? "
-                                  + "\(?DEFAULT=y\)?"):
+                if self._checkfor(r"DO YOU ACCEPT THIS OCCUPATION\? "
+                                  + r"\(?DEFAULT=y\)?"):
                     self._report(sanitizeprompt + "`define' was asking me to "
                                  + "accept the occupation just as expected.", 3)
                 else:
@@ -693,7 +697,7 @@ class TurboDefinition(TurboObject):
                                  + "changed. I couldn't enter the `ricc2' "
                                  + "menu.", -3)
                 # Note the escape of `(' and `)'.
-                if (self._checkfor("cbas : ASSIGN AUXILIARY \(CBAS\) BASIS SETS") and
+                if (self._checkfor(r"cbas : ASSIGN AUXILIARY \(CBAS\) BASIS SETS") and
                         self._checkfor("AUXILIARY BASIS SET DEFINITION MENU")):
                     self._report(sanitizeprompt + "`define' still seems to "
                                  + "accept `cbas' as keyword to assign auxiliary "
@@ -705,7 +709,7 @@ class TurboDefinition(TurboObject):
                                  + "menu.", -3)
                 # Note the escape of `(' and `)'.
                 if (self._checkfor("memory : SET MAXIMUM CORE MEMORY") and
-                        self._checkfor("memory which should be used \(in MB\)")):
+                        self._checkfor(r"memory which should be used \(in MB\)")):
                     self._report(sanitizeprompt + "`define' still seems to "
                                  + "accept `memory' as keyword to enter the "
                                  + "menu to specify the memory for MP2.", 3)
@@ -715,8 +719,8 @@ class TurboDefinition(TurboObject):
                                  + "changed. I couldn't enter the menu to "
                                  + "set the memory for MP2.", -3)
                 # Note the escape of `$', `(' and `)'.
-                if (self._checkfor("ricc2 : DATA GROUP \$ricc2 \(MODELS AND GLOBAL OPTIONS\)") and
-                        self._checkfor("\*,end : write \$ricc2 to file and leave the menu")):
+                if (self._checkfor(r"ricc2 : DATA GROUP \$ricc2 \(MODELS AND GLOBAL OPTIONS\)") and
+                        self._checkfor(r"\*,end : write \$ricc2 to file and leave the menu")):
                     self._report(sanitizeprompt + "`define' still seems to "
                                  + "accept `ricc2' as keyword to enter the "
                                  + "menu for `ricc2' models and global options.", 3)
@@ -728,7 +732,7 @@ class TurboDefinition(TurboObject):
 
             # Look for  the final statement. The number  of asterisks shouldn't
             # bother us.
-            if self._checkfor("\*+  define : all done  \*+"):
+            if self._checkfor(r"\*+  define : all done  \*+"):
                 self._report(sanitizeprompt + "I found the familiar "
                              + "`**** define : all done ****' statement.", 3)
             else:
@@ -783,11 +787,10 @@ class TurboDefinition(TurboObject):
         @type  text: L{str}
         @returns:    Compacted text
         @rtype:      L{str}
-        @deprecated: Redundant, c.f. L{_compressPattern}
 
         """
 
-        whitespace_pattern = re.compile('\s+')  # includes `\n'
+        whitespace_pattern = re.compile(r'\s+')  # includes `\n'
         text = re.sub(whitespace_pattern, '', text)
         text = text.lower()
         return text
@@ -797,7 +800,7 @@ class TurboDefinition(TurboObject):
         Generates the input string to be passed to I{define}.
 
         @returns: Input sequence
-        @rtype:   L{str}
+        @rtype:   L{list} of strings
 
         """
 
@@ -823,8 +826,7 @@ class TurboDefinition(TurboObject):
 
         """
 
-        sequence = []
-        sequence.append('')  # skip it...
+        sequence = ['']
         return sequence
 
     def _assembleSetTitleInputSequence(self):
@@ -837,8 +839,7 @@ class TurboDefinition(TurboObject):
 
         """
 
-        sequence = []
-        sequence.append('')  # skip it...
+        sequence = ['']
         return sequence
 
     def _assembleGeometryMenuInputSequence(self):
@@ -851,8 +852,7 @@ class TurboDefinition(TurboObject):
 
         """
 
-        sequence = []
-        sequence.append('a ' + self.coordfilename)
+        sequence = ['a ' + self.coordfilename]
         if self.settings.ired:
             sequence.append('ired')
             sequence.append('*')
@@ -876,10 +876,7 @@ class TurboDefinition(TurboObject):
         #       NON-STANDARD  ATOMIC MASSES,  USING  EFFECTIVE CORE  POTENTIALS
         #       ETC.
 
-        sequence = []
-        sequence.append('b')
-        sequence.append('all ' + self.settings.basis_set_all)
-        sequence.append('*')
+        sequence = ['b', 'all ' + self.settings.basis_set_all, '*']
         return sequence
 
     def _assembleMolecularOrbitalMenuInputSequence(self):
@@ -943,33 +940,6 @@ class TurboDefinition(TurboObject):
         sequence.append('*')
         return sequence
 
-    def _compressPattern(self, pattern):
-        """
-        Strip whitespace and the like from a string.
-
-        Converts a string into a form such that two initially not necessairly
-        identical string which -- for humans -- would look equivalent in
-        meaning are more likely to match afterwards. The returned object is a
-        String not a compiled regexp!
-
-        @param pattern: Pattern with whitespace, mixed case, etc.
-        @type  pattern: L{str}
-        @returns:       Compressed Pattern
-        @rtype:         L{str}
-        @deprecated:    Redundant, c.f. L{_compact}
-
-        """
-
-        # It is likely that future versions of `define' have minor changes such
-        # as more / less indent or  spacing. Giving up just because of an extra
-        # blank would be cowardy.
-        pattern = re.sub('\s', '', pattern)
-
-        # The same is true for capitalization.
-        pattern = pattern.lower()
-
-        return pattern
-
     def _countAtoms(self, coordfilename):
         """
         Counts and returns the number of atoms in the C{coord} file.
@@ -991,9 +961,9 @@ class TurboDefinition(TurboObject):
         i = float('NaN')  # number of atoms
         with open(coordfilename, 'r') as coordfile:
             for line in coordfile:
-                if re.match('\$coord.*', line):
+                if re.match(r'\$coord.*', line):
                     i = -1  # this line doesn't count
-                if i > 0 and re.match('\$.*', line):
+                if i > 0 and re.match(r'\$.*', line):
                     return i
                 i += 1
             raise PyAdfError("The file `" + coordfilename

@@ -15,10 +15,10 @@ testobj.assertAlmostEqualMolecules(an, an_out)
 # get all the water solute molecules
 solvent = m.get_residues(restype='TIP')
 
-for i, s in enumerate(solvent[0:5]) :
+for i, s in enumerate(solvent[0:5]):
     print s
 
-    s_out = molecule(os.path.join(pyadfenv.outdir, 's_%i.xyz'%i))
+    s_out = molecule(os.path.join(pyadfenv.outdir, 's_%i.xyz' % i))
     testobj.assertAlmostEqualMolecules(s, s_out)
 
 ##########################################################
@@ -40,24 +40,24 @@ for i, s in enumerate(mols[1:6]) :
 ############################################################
 # remove alternate locations in pdb files 
 
-filename = os.path.join(pyadfenv.outdir, '1X3O.pdb')
-
-m = molecule(filename,'pdb')
+m = molecule(os.path.join(pyadfenv.outdir, '1X3O.pdb'), 'pdb')
 m.delete_residue(restype='HOH')
 
-no_atoms_old  = m.get_number_of_atoms()
+# no_atoms_old = m.get_number_of_atoms()
+#
+# atomlist= m.get_alternate_locations(filename)
+# lenatomlist = len(atomlist)
+# print "List of atoms that represent alternate locations"
+# print atomlist
+#
+# m.delete_atoms(atomlist)
+#
+# no_atoms_new  = m.get_number_of_atoms()
+#
+# print "old no of atoms, no of deleted atoms, new number of atoms"
+# print no_atoms_old, lenatomlist, no_atoms_new
 
-atomlist= m.get_alternate_locations(filename)
-lenatomlist = len(atomlist)
-print "List of atoms that represent alternate locations"
-print atomlist
-
-m.delete_atoms(atomlist)
-
-no_atoms_new  = m.get_number_of_atoms()
-
-print "old no of atoms, no of deleted atoms, new number of atoms"
-print no_atoms_old, lenatomlist, no_atoms_new
+m.write(os.path.join(pyadfenv.outdir, 'bla.xyz'), 'xyz')
 
 m_mod = molecule(os.path.join(pyadfenv.outdir, '1X3O_mod.xyz'))
 

@@ -1,8 +1,9 @@
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2014 by Christoph R. Jacob, S. Maya Beyhan,
+# Copyright (C) 2006-2020 by Christoph R. Jacob, S. Maya Beyhan,
 # Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Michal Handzlik,
-# Karin Kiewisch, Moritz Klammler, Jetze Sikkema, and Lucas Visscher
+# Karin Kiewisch, Moritz Klammler, Lars Ridder, Jetze Sikkema,
+# Lucas Visscher, and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -20,13 +21,13 @@
 Defines classes for functions defined on grids.
 """
 
+import numbers
 import numpy
 from itertools import izip
 
 from ..Errors import PyAdfError
 
 import Grids
-from Properties import PlotProperty
 
 
 class GridFunction(object):
@@ -164,6 +165,19 @@ class GridFunction(object):
         if not (self.values.shape == other.values.shape):
             raise PyAdfError('gridfunctions must have the same dimensions for binary operation')
 
+    def _add_constant(self, const):
+
+        new_values = self.values + const
+
+        # calculate checksum for added density
+        import hashlib
+        m = hashlib.md5()
+        m.update("Grid function obtained by adding :\n")
+        m.update(self.get_checksum())
+        m.update("Constant shift %18.10f" % const)
+
+        return self._result_gridfunction_for_operators(new_values, m.digest())
+
     def _add_with_factor(self, other, fact=1.0):
 
         self._check_match_for_operators(other)
@@ -201,10 +215,15 @@ class GridFunction(object):
             >>> dens_tot.get_cubfile('total_density.cub')
 
         """
-        if isinstance(other, GridFunction):
+        if isinstance(other, numbers.Number):
+            return self._add_constant(other)
+        elif isinstance(other, GridFunction):
             return self._add_with_factor(other)
         else:
-            return other.__radd__(self)
+            return NotImplemented
+
+    def __radd__(self, other):
+        return self.__add__(other)
 
     def __sub__(self, other):
         """
@@ -228,10 +247,18 @@ class GridFunction(object):
             >>> print "RMS density deviation: ", math.sqrt(diffdens.integral(lambda x: x*x))
 
         """
-        if isinstance(other, GridFunction):
+        if isinstance(other, numbers.Number):
+            return self._add_constant(-other)
+        elif isinstance(other, GridFunction):
             return self._add_with_factor(other, fact=-1.0)
         else:
-            return other.__rsub__(self)
+            return NotImplemented
+
+    def __rsub__(self, other):
+        """
+        Calculate other - self.
+        """
+        return -self.__sub__(other)
 
     def _mul_with_constant(self, fact):
 
@@ -256,10 +283,10 @@ class GridFunction(object):
         For two instances of C{GridFunction1D}, a multiplication
         is defined pointwise. The two instances must use the same grid.
         """
-        if isinstance(other, float):
+        if isinstance(other, numbers.Number):
             return self._mul_with_constant(other)
         else:
-            return other.__rmul__(self)
+            return NotImplemented
 
     def __rmul__(self, other):
         return self.__mul__(other)
@@ -277,10 +304,10 @@ class GridFunction(object):
         For two instances of C{GridFunction1D}, a division
         is defined pointwise. The two instances must use the same grid.
         """
-        if isinstance(other, float):
+        if isinstance(other, numbers.Number):
             return self._mul_with_constant(1.0 / other)
         else:
-            return other.__rdiv__(self)
+            return NotImplemented
 
     def apply_function(self, func):
         """
@@ -401,44 +428,6 @@ class GridFunction1D(GridFunction):
 
         return self._result_gridfunction_for_operators(new_values, m.digest())
 
-    def _add_constant(self, const):
-
-        new_values = self.values + const
-
-        # calculate checksum for added density
-        import hashlib
-        m = hashlib.md5()
-        m.update("Grid function obtained by adding :\n")
-        m.update(self.get_checksum())
-        m.update("Constant shift %18.10f" % const)
-
-        return self._result_gridfunction_for_operators(new_values, m.digest())
-
-    def __add__(self, other):
-        if isinstance(other, float):
-            return self._add_constant(other)
-        elif isinstance(other, GridFunction):
-            return self._add_with_factor(other)
-        else:
-            return other.__radd__(self)
-
-    def __radd__(self, other):
-        return self.__add__(other)
-
-    def __sub__(self, other):
-        if isinstance(other, float):
-            return self._add_constant(-other)
-        elif isinstance(other, GridFunction):
-            return self._add_with_factor(other, fact=-1.0)
-        else:
-            return other.__rsub__(self)
-
-    def __rsub__(self, other):
-        """
-        Calculate other - self.
-        """
-        return -self.__sub__(other)
-
     def _mul(self, other):
         """
         Pointwise multiplication of grid functions.
@@ -457,20 +446,20 @@ class GridFunction1D(GridFunction):
         return self._result_gridfunction_for_operators(new_values, m.digest(), other)
 
     def __mul__(self, other):
-        if isinstance(other, float):
+        if isinstance(other, numbers.Number):
             return self._mul_with_constant(other)
         elif isinstance(other, GridFunction):
             return self._mul(other)
         else:
-            return other.__rmul__(self)
+            return NotImplemented
 
     def __div__(self, other):
-        if isinstance(other, float):
+        if isinstance(other, numbers.Number):
             return self._mul_with_constant(1.0 / other)
         elif isinstance(other, GridFunction):
             return self._mul(other ** (-1.0))
         else:
-            return other.__rsub__(self)
+            return NotImplemented
 
     def __rdiv__(self, other):
         """
@@ -504,8 +493,8 @@ class GridFunction1D(GridFunction):
 
             >>> # 'dens' is an instance of densfresults
             >>>
-            >>> int = dens.integral(f=lambda x: x*x, ignore=(dens.get_values() < 0))
-            >>> print "Integral of the squared density: ", int
+            >>> ii = dens.integral(f=lambda x: x*x, ignore=(dens.get_values() < 0))
+            >>> print "Integral of the squared density: ", ii
 
         @param func:
             A function of one variable that is applied to the density
@@ -536,18 +525,20 @@ class GridFunction1D(GridFunction):
             filtered_gf = self.filter_volume(involume)
             ii = filtered_gf.integral(func=func, ignore=ignore)
         else:
-
-            if func is None:
-                func = lambda x: x
-            ii = 0.0
-
-            if ignore is None:
-                for w, val in izip(self.grid.weightiter(), self.valueiter()):
-                    ii += w * func(val)
+            if ignore is not None:
+                ig = ignore.reshape((ignore.size,))
+                w = numpy.where(ig, 0.0, self.grid.weights)
             else:
-                for w, val, ig in izip(self.grid.weightiter(), self.valueiter(), ignore.flat):
-                    if not ig:
-                        ii += w * func(val)
+                w = self.grid.weights
+
+            if func is not None:
+                vfunc = numpy.vectorize(func)
+                v = vfunc(self.values)
+            else:
+                v = self.values
+
+            ii = numpy.dot(w, v) 
+
         return ii
 
     def integral_voronoi(self, atoms, func=None):
@@ -580,7 +571,7 @@ class GridFunction1D(GridFunction):
         for w, val, v in izip(self.grid.weightiter(), self.valueiter(), self.grid.voronoiiter()):
 
             for iatom in range(len(atoms)):
-                if (atoms[iatom] == v):
+                if atoms[iatom] == v:
                     vor_int[iatom] += w * func(val)
 
         return vor_int
@@ -643,7 +634,7 @@ class GridFunction1D(GridFunction):
                                       endmarker=endmarker, add_comment=add_comment)
 
     def interpolate(self, int_grid):
-        '''
+        """
         Convert the 1D gridfunction to another grid using interpolation.
 
         This method returns the same density, but on another grid.
@@ -659,7 +650,7 @@ class GridFunction1D(GridFunction):
 
         @return: the interpolated gridfunction
         @rtype:  L{GridFiunction1D}
-        '''
+        """
         new_values = numpy.empty((int_grid.npoints,))
 
         interp = Grids.interpolation(self)
@@ -678,11 +669,11 @@ class GridFunction1D(GridFunction):
         return GridFunction1D(int_grid, new_values, m.digest())
 
     def get_value_at_point(self, point):
-        '''
+        """
         Get value at one point by interpolation.
 
         @param point: the point for which the interpolated gridfunction is needed.
-        '''
+        """
         interp = Grids.interpolation(self)
         return interp.get_value_at_point(point)
 
@@ -805,7 +796,7 @@ class GridFunctionDensity(GridFunction1D):
                                  self.grid.coorditer(bohr=True), self.grid.voronoiiter()):
 
             for iatom in range(len(atoms)):
-                if (atoms[iatom] == v):
+                if atoms[iatom] == v:
                     voronoidip[iatom][0] += -w * val * c[0]
                     voronoidip[iatom][1] += -w * val * c[1]
                     voronoidip[iatom][2] += -w * val * c[2]
@@ -830,17 +821,17 @@ class GridFunctionDensity(GridFunction1D):
         @rtype: numpy.array of float
 
         """
-        E_x = E_y = E_z = 0.0
+        e_x = e_y = e_z = 0.0
         for w, val, c in izip(self.grid.weightiter(), self.valueiter(),
                               self.grid.coorditer(bohr=True)):
             dist = numpy.sqrt((c[0] - pointcoord[0]) ** 2
                               + (c[1] - pointcoord[1]) ** 2
                               + (c[2] - pointcoord[2]) ** 2)
-            E_x += - w * val * (c[0] - pointcoord[0]) / dist ** 3
-            E_y += - w * val * (c[1] - pointcoord[1]) / dist ** 3
-            E_z += - w * val * (c[2] - pointcoord[2]) / dist ** 3
+            e_x += - w * val * (c[0] - pointcoord[0]) / dist ** 3
+            e_y += - w * val * (c[1] - pointcoord[1]) / dist ** 3
+            e_z += - w * val * (c[2] - pointcoord[2]) / dist ** 3
 
-        return numpy.array([E_x, E_y, E_z])
+        return numpy.array([e_x, e_y, e_z])
 
 
 class GridFunctionPotential(GridFunction1D):
@@ -885,11 +876,19 @@ class _GridFunctionContainerMetaclass(type):
             if isinstance(other, GridFunctionContainer):
                 for gf1, gf2 in zip(self.wrapped, other.wrapped):
                     method = getattr(gf1, methodname)
-                    res.append(method(gf2, *args, **kwargs))
+                    rr = method(gf2, *args, **kwargs)
+                    if rr is NotImplemented :
+                        return NotImplemented
+                    else:
+                        res.append(rr)
             else:
                 for gf in self.wrapped:
                     method = getattr(gf, methodname)
-                    res.append(method(other, *args, **kwargs))
+                    rr = method(other, *args, **kwargs)
+                    if rr is NotImplemented :
+                        return NotImplemented
+                    else:
+                        res.append(rr)
             return self.__class__(res)
 
         return _delegate_binary

@@ -1,8 +1,9 @@
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2014 by Christoph R. Jacob, S. Maya Beyhan,
+# Copyright (C) 2006-2020 by Christoph R. Jacob, S. Maya Beyhan,
 # Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Michal Handzlik,
-# Karin Kiewisch, Moritz Klammler, Jetze Sikkema, and Lucas Visscher
+# Karin Kiewisch, Moritz Klammler, Lars Ridder, Jetze Sikkema,
+# Lucas Visscher, and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -31,16 +32,13 @@ from ADF_Densf import densfjob
 from Errors import PyAdfError
 
 from Plot.Properties import PlotPropertyFactory
-from Plot.GridFunctions import GridFunctionFactory, GridFunctionDensityWithDerivatives
-from Plot.FileWriters import GridWriter
-
+from Plot.GridFunctions import GridFunctionDensityWithDerivatives
 
 import copy
 import os.path
 
 
 class fragment(object):
-
     """
     A class representing a fragment (a fragment type, to be more precise).
 
@@ -167,7 +165,7 @@ class fragment(object):
                         """)
 
     def has_frag_results(self):
-        return not (self._frag_results == None)
+        return self._frag_results is not None
 
     def get_molecules(self):
         """
@@ -185,7 +183,7 @@ class fragment(object):
         A molecule consisting of all the copies of this fragment is returned.
 
         @returns: the total molecule
-        @rtype:   \L{molecule}s
+        @rtype:   L{molecule}s
         """
         return reduce(lambda x, y: x + y, self._mols)
 
@@ -226,7 +224,7 @@ class fragment(object):
         """
         Returns True if fragoccupation data is present.
         """
-        return (len(self._occ) > 0)
+        return len(self._occ) > 0
 
     def get_num_frags(self):
         """
@@ -250,9 +248,9 @@ class fragment(object):
 
     def has_fdeoption(self, opt):
         if opt.upper() in ['REALX', 'USEBASIS', 'XC', 'DENSTYPE']:
-            return (opt.upper() in self._fdeoptions)
+            return opt.upper() in self._fdeoptions
         else:
-            return (opt in self._fdeoptions)
+            return opt in self._fdeoptions
 
     def delete_fdeoption(self, opt):
         if opt.upper() in ['REALX', 'USEBASIS', 'XC', 'DENSTYPE']:
@@ -269,18 +267,18 @@ class fragment(object):
             self._fdeoptions[opt] = val
 
     def set_fragoptions(self, opts):
-        for k, v in fragoptions.iteritems():
+        for k, v in opts.iteritems():
             self._fragoptions[k.lower()] = v
 
     def has_fragoption(self, opt):
-        return (opt.lower() in self._fragoptions)
+        return opt.lower() in self._fragoptions
 
     def delete_fragoption(self, opt):
         if opt.lower() in self._fragoptions:
             del self._fragoptions[opt.lower()]
 
     def add_fragoption(self, opt, val):
-        if opt.lower() in self._frags:
+        if opt.lower() in self._fragoptions:
             self._fragoptions[opt.lower()] = val
         else:
             self._fragoptions[opt.lower()] = val
@@ -295,11 +293,11 @@ class fragment(object):
             FrozenFDEOptions = ""
 
             for opt, value in self._fdeoptions.iteritems():
-                if (opt not in ['LBdamp', 'CapRadius', 'ScfConvThresh', 'NoCapSepConv', 'LBmaxStep', 'FullGrid']):
+                if opt not in ['LBdamp', 'CapRadius', 'ScfConvThresh', 'NoCapSepConv', 'LBmaxStep', 'FullGrid']:
                     if isinstance(value, float):
-                        FrozenFDEOptions += "           " + opt + "    " + "%.2f \n" % (value)
+                        FrozenFDEOptions += "           " + opt + "    " + "%.2f \n" % value
                     if isinstance(value, str):
-                        FrozenFDEOptions += "           " + opt + "    " + "%s \n" % (value)
+                        FrozenFDEOptions += "           " + opt + "    " + "%s \n" % value
             if FrozenFDEOptions != "":
                 print "        FDE options: "
                 print FrozenFDEOptions
@@ -310,14 +308,16 @@ class fragment(object):
             for fdeoption in ['LBdamp', 'CapRadius', 'ScfConvThresh', 'NoCapSepConv', 'LBmaxStep', 'FullGrid']:
                 if fdeoption in self._fdeoptions:
                     if isinstance(self._fdeoptions[fdeoption], float):
-                        NonFrozenFDEOptions += "           " + fdeoption + "    " + "%.2f \n" % (self._fdeoptions[fdeoption])
+                        NonFrozenFDEOptions += "           " + fdeoption + "    " + "%.2f \n" % \
+                                               (self._fdeoptions[fdeoption])
                     if isinstance(self._fdeoptions[fdeoption], str):
-                        NonFrozenFDEOptions += "           " + fdeoption + "    " + "%s   \n" % (self._fdeoptions[fdeoption])
+                        NonFrozenFDEOptions += "           " + fdeoption + "    " + "%s   \n" % \
+                                               (self._fdeoptions[fdeoption])
             if NonFrozenFDEOptions != "":
                 print "        FDE options: "
                 print NonFrozenFDEOptions
 
-            if (len(self._fragoptions) > 0):
+            if len(self._fragoptions) > 0:
                 print "        Fragment settings : "
             for opt, value in self._fragoptions.iteritems():
                 print "           ", opt, "  ", value
@@ -371,7 +371,7 @@ class fragment(object):
             else:
                 block += self.get_fragment_filename()
 
-            if (self.is_fde_fragment() == True):
+            if self.is_fde_fragment():
                 if self._subfrag:
                     block += " subfrag=" + self._subfrag
                 else:
@@ -398,7 +398,7 @@ class fragment(object):
                 options += 'USEBASIS '
             if 'RELAX' in self._fdeoptions:
                 options += 'RELAX '
-            if (len(options) > 0):
+            if len(options) > 0:
                 block += "     fdeoptions " + options + "\n"
             if 'DENSTYPE' in self._fdeoptions:
                 block += "     fdedenstype "
@@ -410,7 +410,7 @@ class fragment(object):
     def get_fragoccupations_block(self):
         block = ''
         if self.has_occupations():
-            block += "  %s \n" % (self.fragname)
+            block += "  %s \n" % self.fragname
             for irrep in self._occ:
                 block += "   %s %i // %i\n" % (irrep[0], irrep[1], irrep[2])
             block += "  SubEnd \n"
@@ -433,14 +433,13 @@ class fragment(object):
         @type  context: dict
         """
 
-        if context == None:
+        if context is None:
             context = {}
         # pylint: disable-msg=W0142
         self.results = func(self._mols[0], **context)
 
 
-class fragmentlist (object):
-
+class fragmentlist(object):
     """
     A class repesenting a list of fragments, as used in L{adffragmentsjob}s.
 
@@ -455,7 +454,7 @@ class fragmentlist (object):
         @param frags: the list of L{fragment}s or C{None}
         @type frags: list
         """
-        if frags == None:
+        if frags is None:
             self._frags = []
         else:
             self._frags = frags
@@ -484,13 +483,13 @@ class fragmentlist (object):
         """
         Returns a list of the frozen fragments.
         """
-        return [f for f in self._frags if (f.isfrozen == True)]
+        return [f for f in self._frags if f.isfrozen]
 
     def get_nonfrozen_frags(self):
         """
         Returns a list of the nonfrozen fragments.
         """
-        return [f for f in self._frags if (f.isfrozen == False)]
+        return [f for f in self._frags if not f.isfrozen]
 
     def get_total_molecule(self):
         """
@@ -634,8 +633,7 @@ class fragmentlist (object):
             f.calculate(func, context)
 
 
-class adffragmentsresults (adfsinglepointresults):
-
+class adffragmentsresults(adfsinglepointresults):
     """
     Results of a L{adffragmentsjob}.
 
@@ -656,12 +654,12 @@ class adffragmentsresults (adfsinglepointresults):
         @rtype:   list of L{fragment}s
         """
 
-        frags = []
-        frags.append(fragment(None, self.job.get_nonfrozen_molecule(), subfrag="active"))
+        frags = [fragment(None, self.job.get_nonfrozen_molecule(), subfrag="active")]
 
         return frags
 
-    def export_embedding_data(self, filename_potential='embpot_adfgrid', filename_density='frzdens_adfgrid', hessian=False):
+    def export_embedding_data(self, filename_potential='embpot_adfgrid', filename_density='frzdens_adfgrid',
+                              hessian=False):
         """
         Export the embedding potential and optionally frozen densities and gradients to
         a text file (for use with Dalton/Dirac)
@@ -675,7 +673,8 @@ class adffragmentsresults (adfsinglepointresults):
         The density and gradient will be given in a separate file, that also contains
         the integration grid and weights, in the following format
         First line: number of points, number of properties exported (densities, gradients)
-        Following lines: x,y,z coordinates of the grid point, w in this point, density(a+b), grd.grd (averaged) in this point
+        Following lines: x,y,z coordinates of the grid point, w in this point, density(a+b),
+        grd.grd (averaged) in this point
         TODO: in the case of unrestricted calculations, see whether to export
         density_a, density_b, grd_a.grd_a, grd_b.grd_b, grd_a.grd_b in
         this point separately (that is, without generating the total ones)
@@ -687,7 +686,7 @@ class adffragmentsresults (adfsinglepointresults):
         @type filename_density:  str
         """
 
-        if (not self.job.is_fde_job()):
+        if not self.job.is_fde_job():
             raise PyAdfError('export_embedding_data called, but calculation is no FDE job')
 
         nspin = self.get_result_from_tape('General', 'nspin')
@@ -702,24 +701,24 @@ class adffragmentsresults (adfsinglepointresults):
 
         # exported_properties reflects the number of quantities, apart from the grid and weights, we are exporting
         #
-        # this number is related to the following at the moment (columns mean the columns after the grid point coordinates
-        # and weights):
+        # this number is related to the following at the moment (columns mean the columns after the grid point
+        # coordinates and weights):
         #
         # columns 5-6: electrostatic potentials (5:coulomb+nuclear,
         #              6:point charges) of frozen subsystems/surroundings
         # columns 6-9: 6:frozen density and  7:x, 8:y, 9:z frozen density gradient components
         # columns 10-15: frozen density hessian components, if we are to export that
 
-        if hessian :
+        if hessian:
             exported_properties = 10
-        else :
+        else:
             exported_properties = 6
 
         dens_outfile.write("%d     %d\n" % (nblock * npoints, exported_properties))
 
         PointsData = self.get_result_from_tape('Points', 'Data', tape=10, always_array=True)
-         # andre: as far as i see, v_nuc is always together with v_H
-        elpotFD = self.get_result_from_tape('FrozenDensityElpot', 'ElpotFD', tape=10, always_array=True)  
+        # andre: as far as i see, v_nuc is always together with v_H
+        elpotFD = self.get_result_from_tape('FrozenDensityElpot', 'ElpotFD', tape=10, always_array=True)
         efieldpot = self.get_result_from_tape('Efield', 'Efield', tape=10, always_array=True)
         xckinpotFD = self.get_result_from_tape('FrozenDensityXcKinpot', 'XcKinPotFD', tape=10, always_array=True)
 
@@ -755,24 +754,28 @@ class adffragmentsresults (adfsinglepointresults):
                 densgrd = densgrd[:, :, 0] + densgrd[:, :, 1]
 
             for c, w, e, ef, x in zip(coords, weights, potel, potefld, potxc):
-                vemb_outfile.write("%25.18e  %25.18e  %25.18e  %25.18e %25.18e \n" % (c[0], c[1], c[2], w, (e + ef + x)))
+                vemb_outfile.write(
+                    "%25.18e  %25.18e  %25.18e  %25.18e %25.18e \n" % (c[0], c[1], c[2], w, (e + ef + x)))
                 vemb_points_written += 1
 
-            if hessian :
+            if hessian:
                 denshes = frzdenshes[ipoint * nspin * 6:(ipoint + npoints) * nspin * 6]
                 denshes = denshes.reshape((npoints, 6, nspin), order='Fortran')
                 if nspin == 2:
                     denshes = denshes[:, :, 0] + denshes[:, :, 1]
 
                 for c, w, e, ef, n, dg, dh in zip(coords, weights, potel, potefld, dens, densgrd, denshes):
-                    lineformat = " %25.18e   %25.18e   %25.18e   %25.18e      " \
-                                 " %25.18e   %25.18e     " \
-                                 " %25.18e   %25.18e  %25.18e  %25.18e   %25.18e  %25.18e  %25.18e %25.18e  %25.18e  %25.18e\n"
-                    dens_outfile.write(lineformat % (c[0], c[1], c[2], w, e, ef, n, dg[0], dg[1], dg[2], dh[0], dh[1], dh[2], dh[3], dh[4], dh[5]))
+                    lineformat = " %25.18e   %25.18e   %25.18e   %25.18e       %25.18e   %25.18e     " \
+                                 " %25.18e   %25.18e  %25.18e  %25.18e   %25.18e  %25.18e  %25.18e" \
+                                 " %25.18e  %25.18e  %25.18e\n"
+                    dens_outfile.write(lineformat % (c[0], c[1], c[2], w, e, ef, n,
+                                                     dg[0], dg[1], dg[2], dh[0], dh[1],
+                                                     dh[2], dh[3], dh[4], dh[5]))
                     dens_points_written += 1
-            else :
+            else:
                 for c, w, e, ef, n, dg in zip(coords, weights, potel, potefld, dens, densgrd):
-                    lineformat = " %25.18e   %25.18e   %25.18e   %25.18e       %25.18e   %25.18e      %25.18e   %25.18e  %25.18e  %25.18e\n"
+                    lineformat = " %25.18e   %25.18e   %25.18e   %25.18e       %25.18e   %25.18e      %25.18e" \
+                                 " %25.18e  %25.18e  %25.18e\n"
                     dens_outfile.write(lineformat % (c[0], c[1], c[2], w, e, ef, n, dg[0], dg[1], dg[2]))
                     dens_points_written += 1
 
@@ -793,16 +796,16 @@ class adffragmentsresults (adfsinglepointresults):
     def get_frozen_molecule(self):
         return self.job.get_frozen_molecule()
 
-#   @use_default_grid
+    #   @use_default_grid
     def get_fragment_density(self, grid=None, fit=False, orbs=None, order=None, frag=None):
 
-        if (orbs is not None) and (not 'Loc' in orbs.keys()):
-            if (order is not None) and (order > 1):
+        if (orbs is not None) and ('Loc' not in orbs.keys()):
+            if (order is not None) and (order >= 1):
                 raise PyAdfError("Derivatives not implemented for orbital densities.")
-            if (frag is not None) and not (frag == 'active') :
+            if (frag is not None) and not (frag == 'active'):
                 raise PyAdfError("Orbital densities only available for acyive fragment")
             return self.get_orbital_density(grid, orbs)
-        elif (order is not None) and (order > 1):
+        elif (order is not None) and (order >= 1):
             # the density itself
             prop = PlotPropertyFactory.newDensity('dens', fit=fit, orbs=orbs)
             dres = densfjob(self, prop, grid=grid, frag=frag).run()
@@ -895,7 +898,7 @@ class adffragmentsresults (adfsinglepointresults):
             return self.get_nonfrozen_density(grid=grid, fit=fit, orbs=orbs, order=order)
         else:
             return self.get_nonfrozen_density(grid=grid, fit=fit, order=order) + \
-                self.get_frozen_density(grid=grid, fit=fit, order=order)
+                   self.get_frozen_density(grid=grid, fit=fit, order=order)
 
     @use_default_grid
     def get_embedding_potential(self, grid=None, pot="total"):
@@ -964,8 +967,7 @@ class adffragmentsresults (adfsinglepointresults):
         return res.get_gridfunction()
 
 
-class adffragmentsjob (adfsinglepointjob):
-
+class adffragmentsjob(adfsinglepointjob):
     """
     ADF fragments analysis job.
 
@@ -1008,7 +1010,7 @@ class adffragmentsjob (adfsinglepointjob):
                                    pointcharges=pointcharges, fitbas=fitbas, options=options)
 
         if self._fragments.has_fde_fragments():
-            if not 'ALLOW PARTIALSUPERFRAGS' in self._options:
+            if 'ALLOW PARTIALSUPERFRAGS' not in self._options:
                 self._options.append('ALLOW PARTIALSUPERFRAGS')
 
     def create_results_instance(self):
@@ -1037,7 +1039,7 @@ class adffragmentsjob (adfsinglepointjob):
 
     def print_jobtype(self):
 
-        if (self.is_fde_job()):
+        if self.is_fde_job():
             jobtype = "ADF NewFDE job"
         else:
             jobtype = "ADF fragments analysis job"
@@ -1084,7 +1086,7 @@ class adffragmentsjob (adfsinglepointjob):
             print "   FDE settings"
             print "   ============"
             print
-            if not 'TNAD' in self._fde:
+            if 'TNAD' not in self._fde:
                 print '   TNAD  PW91k'
             for k, v in self._fde.iteritems():
                 print '   %s  %s' % (k, v)

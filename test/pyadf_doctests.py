@@ -1,8 +1,9 @@
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2011 by Christoph R. Jacob, S. Maya Beyhan,
-# Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Karin Kiewisch,
-# Jetze Sikkema, and Lucas Visscher
+# Copyright (C) 2006-2020 by Christoph R. Jacob, S. Maya Beyhan,
+# Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Michal Handzlik,
+# Karin Kiewisch, Moritz Klammler, Lars Ridder, Jetze Sikkema,
+# Lucas Visscher, and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -22,8 +23,7 @@ import unittest
 import re
 
 
-class AlmostEqualChecker (doctest.OutputChecker):
-
+class AlmostEqualChecker(doctest.OutputChecker):
     """
     Derived OutputChecker to deal with floating point numbers in doctests.
 
@@ -32,7 +32,11 @@ class AlmostEqualChecker (doctest.OutputChecker):
     them with a normalized form of the number using 8 decimals.
     """
 
-    def normalize(self, string):
+    def __init__(self):
+        pass
+
+    @staticmethod
+    def normalize(string):
         """
         Some clever regular explession stuff for normalizing the numbers
         """
@@ -52,17 +56,24 @@ class AlmostEqualChecker (doctest.OutputChecker):
                                                        optionflags)
 
 
-def make_doctest_suite():
-
+def make_doctest_suite(molclass="openbabel"):
     try:
-        import pyadf.Molecule.OBMolecule
+        if molclass == "openbabel":
+            import pyadf.Molecule.OBMolecule as Molecule
+        elif molclass == "rdkit":
+            import pyadf.Molecule.RDMolecule as Molecule
+        elif molclass == "obfree":
+            import pyadf.Molecule.OBFreeMolecule as Molecule
 
-        molecule_doctests = \
-            doctest.DocTestSuite(pyadf.Molecule.OBMolecule,
-                                 setUp=pyadf.Molecule.OBMolecule._setUp_doctest,
-                                 tearDown=pyadf.Molecule.OBMolecule._tearDown_doctest,
-                                 optionflags=doctest.NORMALIZE_WHITESPACE,
-                                 checker=AlmostEqualChecker())
+        if molclass == "obfree" :
+            molecule_doctests = None
+        else:
+            molecule_doctests = \
+                doctest.DocTestSuite(Molecule,
+                                     setUp=Molecule._setUp_doctest,
+                                     tearDown=Molecule._tearDown_doctest,
+                                     optionflags=doctest.NORMALIZE_WHITESPACE,
+                                     checker=AlmostEqualChecker())
     except ImportError:
         molecule_doctests = None
 

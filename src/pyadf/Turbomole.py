@@ -1,8 +1,9 @@
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2014 by Christoph R. Jacob, S. Maya Beyhan,
+# Copyright (C) 2006-2020 by Christoph R. Jacob, S. Maya Beyhan,
 # Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Michal Handzlik,
-# Karin Kiewisch, Moritz Klammler, Jetze Sikkema, and Lucas Visscher
+# Karin Kiewisch, Moritz Klammler, Lars Ridder, Jetze Sikkema,
+# Lucas Visscher, and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -45,18 +46,15 @@ Support for various flavours of I{Turbomole} computations.
 
 """
 
-from Errors import PyAdfError
 from BaseJob import results, job
-from Utils import newjobmarker, f2f
+from Utils import f2f
 
 from TurboDefinition import *
-
 
 _nan = float('NaN')
 
 
 class TurbomoleResults(results):
-
     """
     Results of a I{Turbomole} computation.
 
@@ -86,7 +84,10 @@ class TurbomoleResults(results):
         self.compression = 'gz'
 
         if self.job is not None:
-            self.method = self.job.settings.method
+            if isinstance(self.job, TurbomoleForceFieldJob):
+                self.method = 'uff'
+            else:
+                self.method = self.job.settings.method
 
     def get_molecule(self):
         """
@@ -102,16 +103,12 @@ class TurbomoleResults(results):
         """
 
         import os
-        import sys
         from Molecule import molecule
 
-        mol = None
-        try:
-            temp_coordfilename = self.get_temp_result_filename('coord')
-            mol = molecule(filename=temp_coordfilename, inputformat='tmol')
-            os.remove(temp_coordfilename)
-        except Exception as e:
-            sys.stderr.write(str(e) + '\n')
+        temp_coordfilename = self.get_temp_result_filename('coord')
+        mol = molecule(filename=temp_coordfilename, inputformat='tmol')
+        os.remove(temp_coordfilename)
+
         return mol
 
     # Since Turbomole produces many files and we keep them as one `tar' archive
@@ -260,7 +257,6 @@ class TurbomoleResults(results):
 # prefixing  their names  with  an underscore.  A  user should  NEVER use  them
 # directly.
 class _TurbomolePlainResults(TurbomoleResults):
-
     """
     Clone of parent class.
 
@@ -274,7 +270,6 @@ class _TurbomolePlainResults(TurbomoleResults):
 
 
 class _TurbomoleDensityResults(TurbomoleResults):
-
     """
     Intermediate class to let results classes for computations that yield a
     density inherit from.
@@ -305,8 +300,6 @@ class _TurbomoleDensityResults(TurbomoleResults):
         import re
 
         if not any(self.dipole_vector):
-            attention_on_pattern = re.compile('dipole\s+moment')
-            attention_off_pattern = re.compile('quadrupole\s+moment')
             tmoutput = self.get_output()
             dipole_vector = [_nan, _nan, _nan]
             attention = 0
@@ -315,11 +308,11 @@ class _TurbomoleDensityResults(TurbomoleResults):
                 if attention >= 5:
                     break
                 elif attention == 0:
-                    if re.search('electrostatic\s+moments', line):
+                    if re.search(r'electrostatic\s+moments', line):
                         attention = 1
                         continue
                 elif attention == 1:
-                    if re.search('dipole\s+moment', line):
+                    if re.search(r'dipole\s+moment', line):
                         attention = 2
                         continue
                 else:
@@ -359,12 +352,11 @@ class _TurbomoleDensityResults(TurbomoleResults):
 
         sqared = 0.0
         for component in self.get_dipole_vector():
-            sqared += component ** 2
+            sqared += component**2
         return math.sqrt(sqared)
 
 
 class _TurbomoleEnergyResults(TurbomoleResults):
-
     """
     Intermediate class to let results classes for computations that yield an
     energy inherit from.
@@ -414,11 +406,10 @@ class _TurbomoleEnergyResults(TurbomoleResults):
                             transfer_mode = True
                             continue
                         elif str(words[0]) == '$end':
-                            transfer_mode = False
                             break
                         if transfer_mode:
                             self.scf_energies.append(f2f(words[1]))
-            except:
+            except IOError:
                 self.scf_energies = []
             finally:
                 try:
@@ -477,7 +468,7 @@ class _TurbomoleEnergyResults(TurbomoleResults):
 
         """
 
-        #import re
+        # import re
         #
         # if not self.mp2energy or readagain:
         #
@@ -510,7 +501,6 @@ class _TurbomoleEnergyResults(TurbomoleResults):
                             transfer_mode = True
                             continue
                         elif str(words[0]) == '$end':
-                            transfer_mode = False
                             break
                         if transfer_mode:
                             energies.append(f2f(words[4]))
@@ -527,7 +517,6 @@ class _TurbomoleEnergyResults(TurbomoleResults):
 
 
 class _TurbomoleForceResults(TurbomoleResults):
-
     """
     Intermediate class to let results classes for computations that yield a
     "force" (physically correct but unusual replacement for the word "gradient"
@@ -624,13 +613,12 @@ class _TurbomoleForceResults(TurbomoleResults):
 
             self.gradients = []  # for each iteration step
             gradient = []  # for each atom
-            atom_gradient = []  # for each dimension \in (x, y, z)
             atom = 0
 
             try:
                 with open(temp_gradient_filename, 'r') as infile:
                     for line in infile:
-                        if re.match('\s*cycle', line):
+                        if re.match(r'\s*cycle', line):
                             coord_block = True
                             atom = 0
                         elif coord_block:
@@ -717,7 +705,6 @@ class _TurbomoleForceResults(TurbomoleResults):
 
 
 class TurbomoleSinglePointResults(_TurbomoleDensityResults, _TurbomoleEnergyResults):
-
     """
     Results of a L{TurbomoleSinglePointJob}.
 
@@ -729,7 +716,6 @@ class TurbomoleSinglePointResults(_TurbomoleDensityResults, _TurbomoleEnergyResu
 
 
 class TurbomoleGeometryOptimizationResults(_TurbomoleDensityResults, _TurbomoleEnergyResults, _TurbomoleForceResults):
-
     """
     Results of a L{TurbomoleGeometryOptimizationJob}.
 
@@ -741,7 +727,6 @@ class TurbomoleGeometryOptimizationResults(_TurbomoleDensityResults, _TurbomoleE
 
 
 class TurbomoleGradientResults(_TurbomoleDensityResults, _TurbomoleEnergyResults, _TurbomoleForceResults):
-
     """
     Results of a L{TurbomoleGradientJob}.
 
@@ -753,7 +738,6 @@ class TurbomoleGradientResults(_TurbomoleDensityResults, _TurbomoleEnergyResults
 
 
 class TurbomoleForceFieldResults(_TurbomolePlainResults):
-
     """
     Results of a L{TurbomoleForceFieldJob} (using I{uff}).
 
@@ -763,7 +747,6 @@ class TurbomoleForceFieldResults(_TurbomolePlainResults):
 
 
 class TurbomoleSettings(object):
-
     """
     Container class for settings.
 
@@ -845,7 +828,6 @@ class TurbomoleSettings(object):
 
 
 class _TurbomoleAbInitioSettings(TurbomoleSettings):
-
     """
     Intermediate class to let settings for I{ab initio} jobs inherit from.
 
@@ -869,6 +851,7 @@ class _TurbomoleAbInitioSettings(TurbomoleSettings):
         self.disp = None
         self.guess_initial_occupation_by = None
         self.ired = None
+        self.scfconv = None
         self.scfiterlimit = None
 
     def generate_summary(self):
@@ -887,6 +870,10 @@ class _TurbomoleAbInitioSettings(TurbomoleSettings):
         self.summary.append(["Basis set", self.basis_set_all])
         self.summary.append(["Guess initial occupation by", self.guess_initial_occupation_by])
         self.summary.append(["Use red. int. coordinates", self.ired])
+        if self.scfconv is None:
+            self.summary.append(["SCF convergence criterion scfconv", "default"])
+        else:
+            self.summary.append(["SCF convergence criterion scfconv", self.scfconv])
         self.summary.append(["Limit of the number of the SCF iterations", self.scfiterlimit])
 
     def _set_method(self, method):
@@ -1016,6 +1003,15 @@ class _TurbomoleAbInitioSettings(TurbomoleSettings):
 
         self.disp = correction
 
+    def set_scfconv(self, conv):
+        """
+        Set SCF convergence criterion.
+
+        @param conv: SCF convergence criterion
+        @type conv: L{int}
+        """
+        self.scfconv = int(conv)
+
     def set_scfiterlimit(self, maxit):
         """
         Set a maximal number of SCF iterations.
@@ -1064,7 +1060,6 @@ class _TurbomoleAbInitioSettings(TurbomoleSettings):
 
 
 class TurbomoleSinglePointSettings(_TurbomoleAbInitioSettings):
-
     """
     Settings for a L{TurbomoleSinglePointJob}.
 
@@ -1074,7 +1069,6 @@ class TurbomoleSinglePointSettings(_TurbomoleAbInitioSettings):
 
 
 class TurbomoleGeometryOptimizationSettings(_TurbomoleAbInitioSettings):
-
     """
     Intermediate class to let user level I{Turbomole} setting classes inherit
     from.
@@ -1141,7 +1135,6 @@ class TurbomoleGeometryOptimizationSettings(_TurbomoleAbInitioSettings):
 
 
 class TurbomoleGradientSettings(_TurbomoleAbInitioSettings):
-
     """
     Settings for a L{TurbomoleGradientJob}.
 
@@ -1151,14 +1144,12 @@ class TurbomoleGradientSettings(_TurbomoleAbInitioSettings):
 
 
 class TurbomoleForceFieldSettings(TurbomoleSettings):
-
     """
     Settings for a L{TurbomoleForceFieldJob}.
 
     """
 
     def __init__(self, verbose_level=1):
-
         super(TurbomoleForceFieldSettings, self).__init__(verbose_level=verbose_level)
 
         self.max_iterations = None
@@ -1188,7 +1179,6 @@ class TurbomoleForceFieldSettings(TurbomoleSettings):
 
 
 class TurbomoleJob(job):
-
     """
     Base class for all I{Turbomole} jobs and friends.
 
@@ -1283,7 +1273,7 @@ class TurbomoleJob(job):
         # The  `restart.get_temp_result_filename'   method  gracefully  returns
         # `None' in case the file can't be found.
 
-        if self.restart_mos == None:
+        if self.restart_mos is None:
             raise PyAdfError("Can't grab the `mos' file from the result "
                              + "object you've asked me to restart from.")
 
@@ -1309,7 +1299,7 @@ class TurbomoleJob(job):
                 shutil.move(self.restart_mos, 'mos')
             except IOError:  # Yes, `IOError', I've checked that.
                 # This means  that we couldn't  copy the old `mos'  file. Crap,
-                # the old one is allready deleted!
+                # the old one is already deleted!
                 raise PyAdfError("""I deleted the `mos' file written by
                 `define' and now it turned out that I can't copy the old `mos'
                 file from the previous job you told me to restart from... Sorry
@@ -1510,9 +1500,6 @@ class TurbomoleJob(job):
 
         import os
 
-        success = False
-        fail = True
-
         if self.file_on_success is None:
             success = True
         else:
@@ -1590,7 +1577,6 @@ class TurbomoleJob(job):
 
 
 class TurbomoleSinglePointJob(TurbomoleJob):
-
     """
     Compute densities and energies for a fixed geometry with I{Turbomole} using
     DFT or MP2 methods.
@@ -1671,7 +1657,6 @@ class TurbomoleSinglePointJob(TurbomoleJob):
 
 
 class TurbomoleGeometryOptimizationJob(TurbomoleJob):
-
     """
     Optimize moecular geometries with I{Turbomole} using DFT or MP2 methods.
 
@@ -1722,7 +1707,6 @@ class TurbomoleGeometryOptimizationJob(TurbomoleJob):
         if self.settings.guess_initial_occupation_by is None:
             self.settings.set_initial_occupation_guess_method('eht')
         if self.settings.ired is None:
-
             # Turbomole is likely to mess up if `ired' is used for a linear
             # molecule. I don't know any common*) linear molecule with more
             # than 3 atoms. For such small atoms, ired doesn't help much
@@ -1765,7 +1749,6 @@ class TurbomoleGeometryOptimizationJob(TurbomoleJob):
 
 
 class TurbomoleGradientJob(TurbomoleJob):
-
     """
     Compute gradients for fixed geometries with I{Turbomole} using DFT or MP2
     methods.
@@ -1836,7 +1819,6 @@ class TurbomoleGradientJob(TurbomoleJob):
 
 
 class TurbomoleForceFieldJob(TurbomoleJob):
-
     """
     Preoptimize molecular geometries using I{uff} - the I{Turbomole} force
     field client.
@@ -1890,11 +1872,11 @@ class TurbomoleForceFieldJob(TurbomoleJob):
         # where MAXCYCLES is a number > 1.
 
         self.execute.append('uff')
-        self.execute.append(("sed -i 's/"
-                             + "^[ ]*\([0-9]\+\)[ ]*\([0-9]\+\)[ ]*\([0-9]\+\)[ !]*\(maxcycle,modus,nqeq\)"  # old
-                             + "/"
-                             + "\\t{cycles}\\t\\2\\t\\3\\t! \\4"  # new
-                             + "/g' control").format(cycles=self.settings.max_iterations))
+        self.execute.append((r"sed -i 's/"
+                             + r"^[ ]*\([0-9]\+\)[ ]*\([0-9]\+\)[ ]*\([0-9]\+\)[ !]*\(maxcycle,modus,nqeq\)"  # old
+                             + r"/"
+                             + r"\t{cycles}\t\2\t\3\t! \4"  # new
+                             + r"/g' control").format(cycles=self.settings.max_iterations))
         self.execute.append('uff')
 
     def set_restart(self, restart):

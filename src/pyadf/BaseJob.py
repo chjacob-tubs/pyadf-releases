@@ -1,8 +1,9 @@
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2014 by Christoph R. Jacob, S. Maya Beyhan,
+# Copyright (C) 2006-2020 by Christoph R. Jacob, S. Maya Beyhan,
 # Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Michal Handzlik,
-# Karin Kiewisch, Moritz Klammler, Jetze Sikkema, and Lucas Visscher
+# Karin Kiewisch, Moritz Klammler, Lars Ridder, Jetze Sikkema,
+# Lucas Visscher, and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -30,8 +31,7 @@
 """
 
 
-class results (object):
-
+class results(object):
     """
     An abstract class for results of a calculation.
 
@@ -70,7 +70,7 @@ class results (object):
         from Files import adf_filemanager
         self.files = adf_filemanager()
 
-        if j == None:
+        if j is None:
             self.job = None
         else:
             self.job = copy.deepcopy(j)
@@ -93,7 +93,7 @@ class results (object):
         @returns: the checksum
         @rtype:   str
         """
-        if self._checksum == None:
+        if self._checksum is None:
             self._checksum = self.job.get_checksum()
         return self._checksum
 
@@ -104,7 +104,7 @@ class results (object):
         @returns: the lines of the job output
         @rtype:   list of str
         """
-        if self.fileid == None:
+        if self.fileid is None:
             return None
         else:
             return self.files.get_output(self.fileid)
@@ -132,13 +132,12 @@ class results (object):
         # pylint: disable-msg=W1111
         dipole = self.get_dipole_vector()
         if dipole is not None:
-            return math.sqrt(dipole[0] ** 2 + dipole[1] ** 2 + dipole[2] ** 2)
+            return math.sqrt(dipole[0]**2 + dipole[1]**2 + dipole[2]**2)
         else:
             return None
 
 
-class job (object):
-
+class job(object):
     """
     An abstract job base class.
 
@@ -235,8 +234,7 @@ class job (object):
         return res
 
 
-class metajob (job):
-
+class metajob(job):
     """
     An abstract base class for meta jobs.
 

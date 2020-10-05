@@ -1,8 +1,9 @@
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2014 by Christoph R. Jacob, S. Maya Beyhan,
+# Copyright (C) 2006-2020 by Christoph R. Jacob, S. Maya Beyhan,
 # Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Michal Handzlik,
-# Karin Kiewisch, Moritz Klammler, Jetze Sikkema, and Lucas Visscher
+# Karin Kiewisch, Moritz Klammler, Lars Ridder, Jetze Sikkema,
+# Lucas Visscher, and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -32,11 +33,10 @@ from Errors import PyAdfError
 import os
 
 
-class adfimportgridjob (adfspjobdecorator):
-
-    '''
+class adfimportgridjob(adfspjobdecorator):
+    """
     ADF job using the IMPORTGRID option.
-    '''
+    """
 
     def __init__(self, wrappedjob, grid):
         adfspjobdecorator.__init__(self, wrappedjob)
@@ -59,17 +59,11 @@ class adfimportgridjob (adfspjobdecorator):
         adfspjobdecorator.after_run(self)
         os.remove('grid.t10')
 
-    def convert_results(self, results):
-        res = adfspjobdecorator.convert_results(self, results)
-        res._grid = self._grid
-        return res
 
-
-class adfpotentialjob (adfimportgridjob):
-
-    '''
+class adfpotentialjob(adfimportgridjob):
+    """
     ADF potential reconstruction job.
-    '''
+    """
 
     def __init__(self, wrappedjob, refdens, startpot=None, potoptions=None):
         if not isinstance(refdens.grid, adfgrid):
@@ -140,13 +134,12 @@ class adfpotentialjob (adfimportgridjob):
             os.remove('startpot.t41')
 
 
-class adfimportembpotjob (adfimportgridjob):
-
-    '''
+class adfimportembpotjob(adfimportgridjob):
+    """
     ADF job importing an external embedding potential.
 
     FIXME: Only nspin=1 case implemented in ADF.
-    '''
+    """
 
     def __init__(self, wrappedjob, embpot):
         if not isinstance(embpot.grid, adfgrid):
@@ -173,7 +166,7 @@ class adfimportembpotjob (adfimportgridjob):
         else:
             values = self._embpot.get_values()
             f.writereals('Potential', 'EmbeddingPot',
-                        values.reshape((values.size,), order='Fortran'))
+                         values.reshape((values.size,), order='Fortran'))
         f.close()
 
     def after_run(self):

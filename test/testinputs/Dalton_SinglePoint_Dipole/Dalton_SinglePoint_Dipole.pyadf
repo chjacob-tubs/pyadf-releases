@@ -62,4 +62,3 @@ dipole_vect = results.get_dipole_vector ()
 dipole_magn = results.get_dipole_magnitude ()
 
 check_results_bp86 (testobj, energy, dipole_vect, dipole_magn)
-       

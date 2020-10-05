@@ -1,0 +1,56 @@
+
+def check_results (testobj, toten, dipole_vect, dipole_magn):
+    testobj.assertAlmostEqual(toten,       -76.35412933, 6)
+    testobj.assertAlmostEqual(dipole_magn, 0.7085354807, 6)
+    testobj.assertAlmostEqual(dipole_vect, [0.0, 0.0, 0.7085354807], 6)
+
+def check_results_pc (testobj, toten, dipole_vect, dipole_magn):
+    testobj.assertAlmostEqual(toten,       -76.34848046, 6)
+    testobj.assertAlmostEqual(dipole_magn, 0.7675032358, 6)
+    testobj.assertAlmostEqual(dipole_vect, [0.0, 0.0, 0.7675032358], 6)
+
+h2o = molecule (os.path.join(pyadfenv.outdir, 'FDE-mol.xyz'))
+h2o.set_symmetry('NOSYM')
+
+settings=adfsettings(functional='PBE')
+
+results = adfsinglepointjob( h2o, 'DZP', settings=settings, options=['TOTALENERGY']).run()
+
+toten = results.get_result_from_tape('Total Energy', 'Total energy')
+dipole_vect = results.get_dipole_vector ()
+dipole_magn = results.get_dipole_magnitude ()
+
+print "Total energy: %12.6f" % toten
+print "Dipole moment magnitude: %12.6f" % dipole_magn
+print "Dipole monent vector: [%12.6f, %12.6f, %12.6f]" % (dipole_vect[0], dipole_vect[1], dipole_vect[2])
+
+if 'unittesting' in pyadfenv.options :
+    check_results (testobj, toten, dipole_vect, dipole_magn)
+
+h2o_1 = molecule (os.path.join(pyadfenv.outdir, 'FDE-H2O-1.xyz'))
+h2o_2 = molecule (os.path.join(pyadfenv.outdir, 'FDE-H2O-2.xyz'))
+
+pc = []
+for m in [h2o_1, h2o_2]:
+    cc = m.get_coordinates()
+    sym = m.get_atom_symbols()
+    for s, c in zip(sym, cc) :
+        if s == 'H' :
+            charge = 0.417
+        elif s == 'O' :
+            charge = -0.834
+        pc.append(c + [charge])
+
+results = adfsinglepointjob( h2o, 'DZP', settings=settings, 
+                             pointcharges=pc, options=['TOTALENERGY']).run()
+
+toten = results.get_result_from_tape('Total Energy', 'Total energy')
+dipole_vect = results.get_dipole_vector ()
+dipole_magn = results.get_dipole_magnitude ()
+
+print "Total energy: %12.6f" % toten
+print "Dipole moment magnitude: %12.6f" % dipole_magn
+print "Dipole monent vector: [%12.6f, %12.6f, %12.6f]" % (dipole_vect[0], dipole_vect[1], dipole_vect[2])
+
+if 'unittesting' in pyadfenv.options :
+    check_results_pc (testobj, toten, dipole_vect, dipole_magn)

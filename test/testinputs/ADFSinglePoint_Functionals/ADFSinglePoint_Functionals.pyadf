@@ -1,22 +1,40 @@
-def check_results (fun, testobj, dipole_vect, dipole_magn):
+def check_results (fun, testobj, dipole_vect, dipole_magn, energy):
     if fun == 'LDA':
-       magn = 1.68496462
-       vect = [0.0, 0.0, -1.6849646]
-    if fun == 'PW91':
-       magn = 1.61554188
-       vect = [0.0, 0.0, -1.61554188]
-    if fun == 'PBE0':
-       magn = 1.65745144
-       vect = [0.0, 0.0, -1.65745144]
-    if fun == 'M06L':
-       magn = 1.66845259
-       vect = [0.0, 0.0, -1.66845259]
-    if fun == 'M06-2X':
-       magn = 1.68248777
-       vect = [0.0, 0.0, -1.68248777]
+        magn = 1.68496462
+        vect = [0.0, 0.0, -1.6849646]
+        en = -15.29630274
+    elif fun == 'PW91':
+        magn = 1.61554188
+        vect = [0.0, 0.0, -1.61554188]
+        en = -14.48584073
+    elif fun == 'PBE':
+        magn = 1.61078638
+        vect = [0.0, 0.0, -1.610786]
+        en = -14.43449961
+    elif fun == 'PBE0':
+        magn = 1.65745144
+        vect = [0.0, 0.0, -1.65745144]
+        en = -19.12389407
+    elif fun == 'M06L':
+        magn = 1.66845259
+        vect = [0.0, 0.0, -1.66845259]
+        en = -15.25313504
+    elif fun == 'M06-2X':
+        magn = 1.68248777
+        vect = [0.0, 0.0, -1.68248777]
+        en = -23.32173722
+    elif fun == 'PBE-D':
+        magn = 1.61078638
+        vect = [0.0, 0.0, -1.610786]
+        en = -14.43576587
+    elif fun == 'PBE-D3':
+        magn = 1.61078638
+        vect = [0.0, 0.0, -1.610786]
+        en = -14.43465791
 
     testobj.assertAlmostEqual(dipole_magn, magn, 6)
     testobj.assertAlmostEqual(dipole_vect, vect, 6)
+    testobj.assertAlmostEqual(energy, en, 6)
 
 ##########################################################
 
@@ -24,20 +42,49 @@ h2o = molecule (os.path.join(pyadfenv.outdir, 'H2O.xyz'))
 
 settings = adfsettings()
 
-for fun in ['LDA', 'PW91', 'PBE0', 'M06L', 'M06-2X']:
+for fun in ['LDA', 'PW91', 'PBE', 'PBE0', 'M06L', 'M06-2X']:
 
     settings.set_functional(fun)
     settings.set_integration(4.0)
 
     results = adfsinglepointjob(h2o, 'SZ', settings=settings).run()
 
-    dipole_vect = results.get_dipole_vector ()
-    dipole_magn = results.get_dipole_magnitude ()
+    dipole_vect = results.get_dipole_vector() * au_in_Debye
+    dipole_magn = results.get_dipole_magnitude() * au_in_Debye
 
-#   convert do debye
-    dipole_vect = dipole_vect * au_in_Debye
-    dipole_magn = dipole_magn * au_in_Debye
+    energy = results.get_bond_energy() * au_in_eV
 
     print fun, ': ', dipole_vect, '  ', dipole_magn
-    check_results (fun, testobj, dipole_vect, dipole_magn)
+    check_results (fun, testobj, dipole_vect, dipole_magn, energy)
 
+# PBE-D
+
+settings.set_functional('PBE')
+settings.set_dispersion('')
+settings.set_integration(4.0)
+
+results = adfsinglepointjob(h2o, 'SZ', settings=settings).run()
+
+dipole_vect = results.get_dipole_vector () * au_in_Debye
+dipole_magn = results.get_dipole_magnitude () * au_in_Debye
+
+energy = results.get_bond_energy() * au_in_eV
+
+print fun, ': ', dipole_vect, '  ', dipole_magn
+check_results ('PBE-D', testobj, dipole_vect, dipole_magn, energy)
+
+# PBE-D3
+
+settings.set_functional('PBE')
+settings.set_dispersion('Grimme3')
+settings.set_integration(4.0)
+
+results = adfsinglepointjob(h2o, 'SZ', settings=settings).run()
+
+dipole_vect = results.get_dipole_vector () * au_in_Debye
+dipole_magn = results.get_dipole_magnitude () * au_in_Debye
+
+energy = results.get_bond_energy() * au_in_eV
+
+print fun, ': ', dipole_vect, '  ', dipole_magn
+check_results ('PBE-D3', testobj, dipole_vect, dipole_magn, energy)

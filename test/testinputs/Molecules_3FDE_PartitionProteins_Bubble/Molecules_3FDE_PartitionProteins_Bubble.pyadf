@@ -1,0 +1,65 @@
+import os
+import zipfile
+
+
+def write_fragmentation_files(frags, zipname):
+    with zipfile.ZipFile(os.path.join(pyadfenv.outdir, zipname), 'w') as zf:
+        for i, f in enumerate(frags.fragiter()):
+            atblock = f.get_atoms_block()
+            zf.writestr('frag%i.out' % i, atblock)
+        for i, c in enumerate(frags.capiter()):
+            atblock = c.get_atoms_block()
+            zf.writestr('cap%i.out' % i, atblock)
+
+
+def compare_atblocks(first, second):
+    for line1, line2 in zip(sorted(first), sorted(second)):
+        l1 = line1.strip().split()
+        l2 = line2.strip().split()
+        testobj.assertEqual(l1[0], l2[0])
+        testobj.assertAlmostEqual(float(l1[1]), float(l2[1]), 3)
+        testobj.assertAlmostEqual(float(l1[2]), float(l2[2]), 3)
+        testobj.assertAlmostEqual(float(l1[3]), float(l2[3]), 3)
+
+def compare_fragmentation_results(frags, zip_orig):
+    with zipfile.ZipFile(os.path.join(pyadfenv.outdir, zip_orig), 'r') as zf:
+        for i, f in enumerate(frags.fragiter()):
+            atblock_orig = zf.open('frag%i.out' % i).readlines()
+            atblock = f.get_atoms_block().splitlines()
+            compare_atblocks(atblock_orig, atblock)
+        for i, c in enumerate(frags.capiter()):
+            atblock_orig = zf.open('cap%i.out' % i).readlines()
+            atblock = c.get_atoms_block().splitlines()
+            compare_atblocks(atblock_orig, atblock)
+
+
+bubble = molecule(os.path.join(pyadfenv.outdir, 'bubble_hydrogens.pdb'), 'pdb')
+
+# MFCC fragmentation 1
+frags = cappedfragmentlist()
+frags.partition_protein(bubble, fragsize=1)
+
+write_fragmentation_files(frags, 'fragmentation_mfcc_one.zip')
+compare_fragmentation_results(frags, 'fragmentation_mfcc_one_orig.zip')
+
+# MFCC fragmentation 5
+frags = cappedfragmentlist()
+frags.partition_protein(bubble, fragsize=5)
+
+write_fragmentation_files(frags, 'fragmentation_mfcc_five.zip')
+compare_fragmentation_results(frags, 'fragmentation_mfcc_five_orig.zip')
+
+
+# Hydrogen caps fragmentation 1
+frags = cappedfragmentlist()
+frags.partition_protein(bubble, fragsize=1, caps='hydrogen')
+
+write_fragmentation_files(frags, 'fragmentation_hcaps_one.zip')
+compare_fragmentation_results(frags, 'fragmentation_hcaps_one_orig.zip')
+
+# Hydrogen caps fragmentation 5
+frags = cappedfragmentlist()
+frags.partition_protein(bubble, fragsize=5, caps='hydrogen')
+
+write_fragmentation_files(frags, 'fragmentation_hcaps_five.zip')
+compare_fragmentation_results(frags, 'fragmentation_hcaps_five_orig.zip')

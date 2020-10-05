@@ -1,8 +1,9 @@
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2011 by Christoph R. Jacob, S. Maya Beyhan,
-# Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Karin Kiewisch,
-# Jetze Sikkema, and Lucas Visscher
+# Copyright (C) 2006-2020 by Christoph R. Jacob, S. Maya Beyhan,
+# Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Michal Handzlik,
+# Karin Kiewisch, Moritz Klammler, Lars Ridder, Jetze Sikkema,
+# Lucas Visscher, and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -18,12 +19,12 @@
 #    along with PyADF.  If not, see <http://www.gnu.org/licenses/>.
 
 import unittest
-from unittests.PyAdfTestCase import PyAdfTestCase
+from pyadf_unittests.PyAdfTestCase import PyAdfTestCase
 
 try:
-    import profile
+    import cProfile as profile
 except ImportError:
-    pass
+    profile = None
 
 import os
 import shutil
@@ -31,16 +32,16 @@ import glob
 
 
 class PyADFInputTestCase(PyAdfTestCase):
-# pylint: disable=R0904
+    # pylint: disable=R0904
 
     def __init__(self, methodName='runTest', testname='bla', keep=False,
-                 prof=False, forceopenbabel=None):
+                 prof=False, molclass="openbabel"):
 
         unittest.TestCase.__init__(self, methodName)
         self._testname = testname
         self._keep = keep
         self._profile = prof
-        self._forceopenbabel = forceopenbabel
+        self._molclass = molclass
         self._cwd = os.getcwd()
 
     def __str__(self):
@@ -51,7 +52,7 @@ class PyADFInputTestCase(PyAdfTestCase):
         os.chdir(self._cwd)
 
         self._pyadfpath = os.path.join(os.environ['PYADFHOME'], 'src', 'scripts')
-        if not 'pyadf' in os.listdir(self._pyadfpath):
+        if 'pyadf' not in os.listdir(self._pyadfpath):
             self.fail('pyadf not found')
 
         # make a temporary directory
@@ -90,7 +91,7 @@ class PyADFInputTestCase(PyAdfTestCase):
     def runTest(self):
 
         globs = {'pyadfinput': self._testname + ".pyadf", 'testobj': self,
-                 'testing_force_openbabel': self._forceopenbabel}
+                 'testing_molclass': self._molclass}
 
         if not self._profile:
             execfile(os.path.join(self._pyadfpath, 'pyadf'), globs, {})
@@ -103,7 +104,7 @@ class PyADFInputTestCase(PyAdfTestCase):
 
 def make_testinputs_suite(tests="all", testnames=None, dalton=True, dirac=True, nwchem=True,
                           espresso=True, molcas=True, turbomole=True, openbabel=True,
-                          keep=False, prof=False, forceopenbabel=None):
+                          keep=False, prof=False, molclass="openbabel"):
 
     testsetorder = ['short', 'medium', 'long', 'all']
 
@@ -124,11 +125,11 @@ def make_testinputs_suite(tests="all", testnames=None, dalton=True, dirac=True, 
 
         if os.path.exists(os.path.join(testdir, testname, testname + '.pyadf')):
 
-            if (os.path.exists(os.path.join(testdir, testname, 'short'))):
+            if os.path.exists(os.path.join(testdir, testname, 'short')):
                 testset = 'short'
-            elif (os.path.exists(os.path.join(testdir, testname, 'medium'))):
+            elif os.path.exists(os.path.join(testdir, testname, 'medium')):
                 testset = 'medium'
-            elif (os.path.exists(os.path.join(testdir, testname, 'long'))):
+            elif os.path.exists(os.path.join(testdir, testname, 'long')):
                 testset = 'long'
 
             use_test = False
@@ -166,6 +167,6 @@ def make_testinputs_suite(tests="all", testnames=None, dalton=True, dirac=True, 
 
             if use_test:
                 suite.addTest(PyADFInputTestCase(testname=testname, keep=keep, prof=prof,
-                                                 forceopenbabel=forceopenbabel))
+                                                 molclass=molclass))
 
     return suite

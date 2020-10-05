@@ -1,0 +1,19 @@
+h2o = molecule (os.path.join(pyadfenv.outdir, 'H2O.xyz'))
+h2o.set_symmetry('.NOSYM')
+
+# HF single point calculation
+
+settings = diracsettings(method='CCSD', hamiltonian='DC', nucmod='finite')
+results = diracsinglepointjob(h2o, 'STO-3G', settings=settings).run()
+
+scfenergy = results.get_energy()
+ccenergies = results.get_ccenergies()
+
+testobj.assertAlmostEqual(scfenergy, -75.0052742393)
+testobj.assertAlmostEqual(ccenergies['SCF energy'], -75.0052742393, 6)
+
+testobj.assertAlmostEqual(ccenergies['MP2 energy'], -75.04354563480258, 6)
+testobj.assertAlmostEqual(ccenergies['CCSD energy'], -75.05925431811357, 6)
+testobj.assertAlmostEqual(ccenergies['CCSD-T energy'], -75.05932786339001, 6)
+testobj.assertAlmostEqual(ccenergies['CCSD+T energy'],  -75.05934920057044, 6)
+testobj.assertAlmostEqual(ccenergies['CCSD(T) energy'], -75.05933635249593, 6)

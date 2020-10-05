@@ -1,8 +1,9 @@
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2014 by Christoph R. Jacob, S. Maya Beyhan,
+# Copyright (C) 2006-2020 by Christoph R. Jacob, S. Maya Beyhan,
 # Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Michal Handzlik,
-# Karin Kiewisch, Moritz Klammler, Jetze Sikkema, and Lucas Visscher
+# Karin Kiewisch, Moritz Klammler, Lars Ridder, Jetze Sikkema,
+# Lucas Visscher, and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -106,7 +107,6 @@ from Plot.GridFunctions import GridFunctionFactory
 
 
 class densfresults(adfresults):
-
     """
     Class representing densities (and related quantities) as produced
     by the ADF utility program C{densf} (or its replacement C{cjdensf}).
@@ -236,7 +236,6 @@ class densfresults(adfresults):
 
 
 class densfjob(adfjob):
-
     """
     A class for densf jobs.
 
@@ -292,7 +291,7 @@ class densfjob(adfjob):
 
         if self.prop.pclass == 'potential':
             if 'func' in self.prop.opts:
-                if not self.prop.ptype in ['kinpot', 'nadkin']:
+                if self.prop.ptype not in ['kinpot', 'nadkin']:
                     raise PyAdfError("Functional cannot be selected in CJDENSF "
                                      "with this potential type")
 

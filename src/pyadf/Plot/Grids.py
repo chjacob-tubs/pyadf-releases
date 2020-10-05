@@ -1,8 +1,9 @@
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2014 by Christoph R. Jacob, S. Maya Beyhan,
+# Copyright (C) 2006-2020 by Christoph R. Jacob, S. Maya Beyhan,
 # Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Michal Handzlik,
-# Karin Kiewisch, Moritz Klammler, Jetze Sikkema, and Lucas Visscher
+# Karin Kiewisch, Moritz Klammler, Lars Ridder, Jetze Sikkema,
+# Lucas Visscher, and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -30,7 +31,6 @@
 """
 
 from ..Utils import Units
-from ..Errors import PyAdfError
 from FileWriters import GridWriter
 
 import numpy
@@ -38,7 +38,6 @@ import math
 
 
 class grid(object):
-
     """
     Abstract base class representing a grid.
 
@@ -70,6 +69,7 @@ class grid(object):
         """
         self._mol = None
         self._checksum = None
+        self._weights = None
 
     def __copy__(self):
         return self
@@ -168,14 +168,27 @@ class grid(object):
             coords[i, :] = c
         return coords
 
+    def _get_weights(self):
+        """
+        Read / calculate the weights. 
+
+        This is called if self._weights is not available yet. Dont call this
+        function directly, but use the weights property or get_weights
+        """
+        pass
+
     def get_weights(self):
         """
         Returns an array with the grid point weights.
         """
-        weights = numpy.zeros((self.npoints,))
-        for i, w in enumerate(self.weightiter()):
-            weights[i] = w
-        return weights
+        if self._weights is None:
+            self._weights = self._get_weights()
+        return self._weights
+
+    weights = property(get_weights, None, None)
+    """
+    The weights of the gridpoints in a numpy array. Read-only.
+    """
 
     def coorditer(self, bohr=False):
         """
@@ -215,11 +228,10 @@ class grid(object):
 
         @rtype: iterator
         """
-        pass
+        return self.weights.__iter__()
 
 
 class cubegrid(grid):
-
     """
     Class to represent an evenly spaced cubic grid.
     """
@@ -321,10 +333,10 @@ class cubegrid(grid):
 
         # line 3: no of atoms, grid origin
         header += "%5d%12.6f%12.6f%12.6f\n" % \
-            (self._mol.get_number_of_atoms(),
-             self._startpoint[0] * Units.conversion('angstrom', 'bohr'),
-             self._startpoint[1] * Units.conversion('angstrom', 'bohr'),
-             self._startpoint[2] * Units.conversion('angstrom', 'bohr'))
+                  (self._mol.get_number_of_atoms(),
+                   self._startpoint[0] * Units.conversion('angstrom', 'bohr'),
+                   self._startpoint[1] * Units.conversion('angstrom', 'bohr'),
+                   self._startpoint[2] * Units.conversion('angstrom', 'bohr'))
         # lines 4-6: no grid points in x,y,z direction + unit vector
         header += "%5d%12.6f%12.6f%12.6f\n" % \
                   (self._npoints[0], self._spacing * Units.conversion('angstrom', 'bohr'),
@@ -386,15 +398,15 @@ class cubegrid(grid):
         header += 'DATAGRID_3D_this_is_3Dgrid#1\n'
         header += " %5d %5d %5d \n" % (self._npoints[0], self._npoints[1], self._npoints[2])
         header += " %12.6f %12.6f %12.6f \n" % \
-            (self._startpoint[0] * Units.conversion('angstrom', 'bohr'),
-             self._startpoint[1] * Units.conversion('angstrom', 'bohr'),
-             self._startpoint[2] * Units.conversion('angstrom', 'bohr'))
+                  (self._startpoint[0] * Units.conversion('angstrom', 'bohr'),
+                   self._startpoint[1] * Units.conversion('angstrom', 'bohr'),
+                   self._startpoint[2] * Units.conversion('angstrom', 'bohr'))
         header += " %12.6f %12.6f %12.6f \n" % \
-            (self._spacing * Units.conversion('angstrom', 'bohr'), 0.0, 0.0)
+                  (self._spacing * Units.conversion('angstrom', 'bohr'), 0.0, 0.0)
         header += " %12.6f %12.6f %12.6f \n" % \
-            (0.0, self._spacing * Units.conversion('angstrom', 'bohr'), 0.0)
+                  (0.0, self._spacing * Units.conversion('angstrom', 'bohr'), 0.0)
         header += " %12.6f %12.6f %12.6f \n" % \
-            (0.0, 0.0, self._spacing * Units.conversion('angstrom', 'bohr'))
+                  (0.0, 0.0, self._spacing * Units.conversion('angstrom', 'bohr'))
 
         return header
 
@@ -423,14 +435,12 @@ class cubegrid(grid):
                     yield coord * conv
         return
 
-    def weightiter(self):
-        import itertools
-        return itertools.repeat(pow(self._spacing * Units.conversion('angstrom', 'bohr'), 3),
-                                self._npoints[0] * self._npoints[1] * self._npoints[2])
+    def _get_weights(self):
+        return numpy.ones((self._npoints[0] * self._npoints[1] * self._npoints[2],)) * \
+               (self._spacing * Units.conversion('angstrom', 'bohr'))**3
 
 
 class adfgrid(grid):
-
     """
     Class to represent the integration grid as used by ADF.
 
@@ -507,9 +517,9 @@ class adfgrid(grid):
         else:
             conv = Units.conversion('bohr', 'angstrom')
 
-        PointsData = self._adfres.get_result_from_tape('Points', 'Data', tape=10)
+        points_data = self._adfres.get_result_from_tape('Points', 'Data', tape=10)
         if self._eqvblocks > 1:
-            EqvPointsData = self._adfres.get_result_from_tape('PointsEquiv', 'Data', tape=10)
+            eqv_points_data = self._adfres.get_result_from_tape('PointsEquiv', 'Data', tape=10)
 
         ipoint = 0
         ipointeqv = 0
@@ -517,7 +527,7 @@ class adfgrid(grid):
         # pylint: disable=W0612
         for iblock in range(1, self._nblocks + 1):
 
-            coords = PointsData[ipoint:ipoint + 3 * self._npoints]
+            coords = points_data[ipoint:ipoint + 3 * self._npoints]
             coords = coords.reshape((self._npoints, 3), order='Fortran')
             coords = coords * conv
 
@@ -530,7 +540,7 @@ class adfgrid(grid):
                 # pylint: disable=W0612
                 for ieqv in range(1, self._eqvblocks):
 
-                    coords = EqvPointsData[ipointeqv:ipointeqv + self._npoints * 3]
+                    coords = eqv_points_data[ipointeqv:ipointeqv + self._npoints * 3]
                     coords = coords.reshape((self._npoints, 3), order='Fortran')
                     coords = coords * conv
 
@@ -540,18 +550,21 @@ class adfgrid(grid):
                         yield c
         return
 
-    def weightiter(self):
-        PointsData = self._adfres.get_result_from_tape('Points', 'Data', tape=10)
+    def _get_weights(self):
+        weights = numpy.zeros((self._nblocks * self._npoints * self._eqvblocks,))
 
+        points_data = self._adfres.get_result_from_tape('Points', 'Data', tape=10)
+
+        ipoint2 = 0
         for iblock in range(1, self._nblocks + 1):
             ipoint = self._npoints * (iblock - 1)
-            weights = PointsData[ipoint * 4 + 3 * self._npoints:ipoint * 4 + 4 * self._npoints]
+            w = points_data[ipoint * 4 + 3 * self._npoints:ipoint * 4 + 4 * self._npoints] / self._eqvblocks
 
-            # pylint: disable=W0612
             for ieqv in range(self._eqvblocks):
-                for w in weights:
-                    yield w / self._eqvblocks
-        return
+                weights[ipoint2:ipoint2 + self._npoints] = w
+                ipoint2 = ipoint2 + self._npoints
+
+        return weights
 
     def voronoiiter(self):
         """
@@ -572,7 +585,7 @@ class adfgrid(grid):
             dists = []
             atomindices = []
             for coord, atomnumber in zip(coords, atomnumbers):
-                d = (coord[0] - c[0]) ** 2 + (coord[1] - c[1]) ** 2 + (coord[2] - c[2]) ** 2
+                d = (coord[0] - c[0])**2 + (coord[1] - c[1])**2 + (coord[2] - c[2])**2
                 dists.append(d)
                 atomindices.append(atomnumber)
             dindex = dists.index(min(dists))
@@ -582,7 +595,6 @@ class adfgrid(grid):
 
 
 class customgrid(grid):
-
     """
     Class to represent a custom integration grid.
     """
@@ -602,9 +614,12 @@ class customgrid(grid):
         grid.__init__(self)
         self._mol = mol
         self._coords = coords
-        self._weights = weights
 
         self._npoints = self._coords.shape[0]
+        if weights is None:
+            self._weights = numpy.ones((self._npoints,))
+        else:
+            self._weights = weights
 
     def get_number_of_points(self):
         return self._npoints
@@ -621,10 +636,7 @@ class customgrid(grid):
             m = hashlib.md5()
             m.update('Custom Grid with data:')
             m.update(self._coords.data)
-            if self._weights is None:
-                m.update('Weights: None')
-            else:
-                m.update(self._weights.data)
+            m.update(self._weights.data)
             self._checksum = m.hexdigest()
 
         return self._checksum
@@ -651,33 +663,25 @@ class customgrid(grid):
             yield self._coords[i, :] * conv
         return
 
-    def weightiter(self):
-        for i in range(self._npoints):
-            if self._weights is None:
-                yield 1.0
-            else:
-                yield self._weights[i]
-        return
-
 
 class interpolation(object):
-    '''
+    """
     Class for performing interpolation of values on a general 3d-grid.
-    '''
+    """
 
     def __init__(self, gf):
-        '''
+        """
         Constructor to initialize the interpolation.
 
         @param gf: The density/potential to be interpolated
         @type  gf: L{GridFunction1D}
-        '''
+        """
         self.v = gf.get_values()
         self.z = gf.grid.get_coordinates()
         self.mol = gf.grid.mol
 
     def get_value_at_point(self, point, npoints=200):
-        '''
+        """
         Calculated the interpolated value at one given point.
 
         The routine uses a modufied verson of the IMLS algorithm.
@@ -694,7 +698,7 @@ class interpolation(object):
 
         @param point: the point for which the interpolated value is needed
         @type  point: array[3]
-        '''
+        """
 
         # FIXME: there room for performance improvements, method should be carefully profiles
 
@@ -704,8 +708,8 @@ class interpolation(object):
         p = numpy.empty_like(self.z)
         for i in range(3):
             p[:, i] = point[i]
-        dist = numpy.sqrt(((self.z - p) ** 2).sum(axis=1))
-        w = 1.0 / (dist ** 6 + 1e-7)
+        dist = numpy.sqrt(((self.z - p)**2).sum(axis=1))
+        w = 1.0 / (dist**6 + 1e-7)
 
         # use only the closest points
         indices = w.argsort()[-npoints:]
@@ -734,8 +738,8 @@ class interpolation(object):
         b[:, 0] = numpy.ones_like(w.shape[0])
         for i in range(3):
             b[:, i + 1] = z[:, i]
-            b[:, i + 4] = z[:, i] ** 2
-            b[:, i + 10] = z[:, i] ** 3
+            b[:, i + 4] = z[:, i]**2
+            b[:, i + 10] = z[:, i]**3
         b[:, 7] = z[:, 0] * z[:, 1]
         b[:, 8] = z[:, 1] * z[:, 2]
         b[:, 9] = z[:, 0] * z[:, 2]
@@ -749,9 +753,9 @@ class interpolation(object):
         b[:, 19] = z[:, 2] * z[:, 2] * z[:, 1]
 
         bz = numpy.array([1.0, point[0], point[1], point[2],
-                          point[0] ** 2, point[1] ** 2, point[2] ** 2,
+                          point[0]**2, point[1]**2, point[2]**2,
                           point[0] * point[1], point[1] * point[2], point[0] * point[2],
-                          point[0] ** 3, point[1] ** 3, point[2] ** 3,
+                          point[0]**3, point[1]**3, point[2]**3,
                           point[0] * point[1] * point[2],
                           point[0] * point[0] * point[1], point[0] * point[0] * point[2],
                           point[1] * point[1] * point[0], point[1] * point[1] * point[2],

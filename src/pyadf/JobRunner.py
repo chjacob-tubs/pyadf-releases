@@ -1,8 +1,9 @@
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2014 by Christoph R. Jacob, S. Maya Beyhan,
+# Copyright (C) 2006-2020 by Christoph R. Jacob, S. Maya Beyhan,
 # Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Michal Handzlik,
-# Karin Kiewisch, Moritz Klammler, Jetze Sikkema, and Lucas Visscher
+# Karin Kiewisch, Moritz Klammler, Lars Ridder, Jetze Sikkema,
+# Lucas Visscher, and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -29,8 +30,7 @@ from PatternsLib import Singleton
 from Errors import PyAdfError
 
 
-class JobRunner (object):
-
+class JobRunner(object):
     """
     Abstract base class for job runners.
     """
@@ -43,8 +43,7 @@ class JobRunner (object):
         pass
 
 
-class SerialJobRunner (JobRunner):
-
+class SerialJobRunner(JobRunner):
     """
     Serial job Runner.
 
@@ -89,7 +88,7 @@ class SerialJobRunner (JobRunner):
 
         os.remove(rsname)
 
-        if (retcode != 0):
+        if retcode != 0:
             raise PyAdfError("Error running job (non-zero return code)")
         if not job.check_success(self._files.outputfilename, self._files.errfilename):
             raise PyAdfError("Error running job (check_sucess failed)")
@@ -110,7 +109,7 @@ class SerialJobRunner (JobRunner):
         checksum = job.get_checksum()
         fileid = self._files.get_id(checksum)
 
-        if (fileid is None):
+        if fileid is None:
             print " Running main job ..."
 
             cwd = os.getcwd()
@@ -148,5 +147,6 @@ class SerialJobRunner (JobRunner):
         print
 
         return r
+
 
 DefaultJobRunner = SerialJobRunner

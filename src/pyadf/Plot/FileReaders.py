@@ -1,8 +1,9 @@
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2014 by Christoph R. Jacob, S. Maya Beyhan,
+# Copyright (C) 2006-2020 by Christoph R. Jacob, S. Maya Beyhan,
 # Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Michal Handzlik,
-# Karin Kiewisch, Moritz Klammler, Jetze Sikkema, and Lucas Visscher
+# Karin Kiewisch, Moritz Klammler, Lars Ridder, Jetze Sikkema,
+# Lucas Visscher, and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -20,14 +21,42 @@
 Classes for writing grids and grid functions to file.
 """
 
-import kf
 import re
 import os.path
 import numpy
 
-from ..Errors import PyAdfError
 import Grids
 from GridFunctions import GridFunctionFactory, GridFunctionContainer
+
+
+class GridReader(object):
+
+    @classmethod
+    def read_xyzw(cls, filename_full):
+
+        npoints_re = re.compile(r"^\s*(\d+)\s*$", re.IGNORECASE)
+        xyzw_re = re.compile(r"^\s*(-?[0-9a-zA-Z+-.]+)\s+(-?[0-9a-zA-Z+-.]+)" +
+                             r"\s+(-?[0-9a-zA-Z+-.]+)\s+(-?[0-9a-zA-Z+-.]+)", re.IGNORECASE)
+
+        i = 0
+        with open(filename_full) as f:
+            for line in f:
+                if npoints_re.match(line):
+                    npoints = numpy.int(npoints_re.match(line).group(1))
+                    v = numpy.zeros((npoints,))
+                    xyz = numpy.zeros((npoints, 3))
+                    w = numpy.zeros((npoints,))
+
+                if xyzw_re.match(line):
+                    xyz[i, :] = [xyzw_re.match(line).group(1),
+                                 xyzw_re.match(line).group(2),
+                                 xyzw_re.match(line).group(3)]
+                    w[i] = xyzw_re.match(line).group(4)
+
+                    i = i + 1
+
+        grid = Grids.customgrid(None, xyz, w)
+        return grid
 
 
 class GridFunctionReader(object):
@@ -35,8 +64,10 @@ class GridFunctionReader(object):
     @classmethod
     def read_xyzwv(cls, filename_full, gf_type=None):
 
-        npoints_re = re.compile(r'' + "^\s*(\d+)\s*$" + '', re.IGNORECASE)
-        xyzwv_re = re.compile(r'' + "^\s*(-?[0-9a-zA-Z+-.]+)\s+(-?[0-9a-zA-Z+-.]+)\s+(-?[0-9a-zA-Z+-.]+)\s+(-?[0-9a-zA-Z+-.]+)\s+(-?[0-9a-zA-Z+-.]+)" + '', re.IGNORECASE)
+        npoints_re = re.compile(r"^\s*(\d+)\s*$", re.IGNORECASE)
+        xyzwv_re = re.compile(r"^\s*(-?[0-9a-zA-Z+-.]+)\s+(-?[0-9a-zA-Z+-.]+)" +
+                              r"\s+(-?[0-9a-zA-Z+-.]+)\s+(-?[0-9a-zA-Z+-.]+)\s+(-?[0-9a-zA-Z+-.]+)",
+                              re.IGNORECASE)
 
         i = 0
         with open(filename_full) as f:
@@ -73,9 +104,17 @@ class GridFunctionReader(object):
         FIXME: This needs a docstring explaining the file format!
         """
 
-        npoints_re = re.compile(r'' + "^\s*(\d+)\s+\d" + '', re.IGNORECASE)
-        density_re = re.compile(r'' + "^\s*(-?[0-9a-zA-Z+-.]+)\s+(-?[0-9a-zA-Z+-.]+)\s+(-?[0-9a-zA-Z+-.]+)\s+(-?[0-9a-zA-Z+-.]+)\s+(-?[0-9a-zA-Z+-.]+)\s+(-?[0-9a-zA-Z+-.]+)\s+(-?[0-9a-zA-Z+-.]+)\s+(-?[0-9a-zA-Z+-.]+)\s+(-?[0-9a-zA-Z+-.]+)\s+(-?[0-9a-zA-Z+-.]+)" + '', re.IGNORECASE)
-        ngngnn_re = re.compile(r'' + "^\s*(-?[0-9a-zA-Z+-.]+)\s+(-?[0-9a-zA-Z+-.]+)\s+(-?[0-9a-zA-Z+-.]+)\s+(-?[0-9a-zA-Z+-.]+)\s+(-?[0-9a-zA-Z+-.]+)\s+(-?[0-9a-zA-Z+-.]+)\s+(-?[0-9a-zA-Z+-.]+)\s+(-?[0-9a-zA-Z+-.]+)\s+(-?[0-9a-zA-Z+-.]+)\s+(-?[0-9a-zA-Z+-.]+)\s+(-?[0-9a-zA-Z+-.]+)\s+(-?[0-9a-zA-Z+-.]+)\s+(-?[0-9a-zA-Z+-.]+)\s+(-?[0-9a-zA-Z+-.]+)\s+(-?[0-9a-zA-Z+-.]+)\s+(-?[0-9a-zA-Z+-.]+)" + '', re.IGNORECASE)
+        npoints_re = re.compile(r"^\s*(\d+)\s+\d", re.IGNORECASE)
+        density_re = re.compile(r"^\s*(-?[0-9a-zA-Z+-.]+)\s+(-?[0-9a-zA-Z+-.]+)\s+(-?[0-9a-zA-Z+-.]+)" +
+                                r"\s+(-?[0-9a-zA-Z+-.]+)\s+(-?[0-9a-zA-Z+-.]+)\s+(-?[0-9a-zA-Z+-.]+)" +
+                                r"\s+(-?[0-9a-zA-Z+-.]+)\s+(-?[0-9a-zA-Z+-.]+)\s+(-?[0-9a-zA-Z+-.]+)" +
+                                r"\s+(-?[0-9a-zA-Z+-.]+)", re.IGNORECASE)
+        ngngnn_re = re.compile(r"^\s*(-?[0-9a-zA-Z+-.]+)\s+(-?[0-9a-zA-Z+-.]+)\s+(-?[0-9a-zA-Z+-.]+)" +
+                               r"\s+(-?[0-9a-zA-Z+-.]+)\s+(-?[0-9a-zA-Z+-.]+)\s+(-?[0-9a-zA-Z+-.]+)" +
+                               r"\s+(-?[0-9a-zA-Z+-.]+)\s+(-?[0-9a-zA-Z+-.]+)\s+(-?[0-9a-zA-Z+-.]+)" +
+                               r"\s+(-?[0-9a-zA-Z+-.]+)\s+(-?[0-9a-zA-Z+-.]+)\s+(-?[0-9a-zA-Z+-.]+)" +
+                               r"\s+(-?[0-9a-zA-Z+-.]+)\s+(-?[0-9a-zA-Z+-.]+)\s+(-?[0-9a-zA-Z+-.]+)" +
+                               r"\s+(-?[0-9a-zA-Z+-.]+)", re.IGNORECASE)
 
         i = 0
         with open(filename_full) as f:
@@ -83,7 +122,7 @@ class GridFunctionReader(object):
                 if npoints_re.match(line):
                     npoints = numpy.int(npoints_re.match(line).group(1))
                     rho = numpy.zeros((npoints, 10))
-                    elpot = numpy.zeros((npoints))
+                    elpot = numpy.zeros((npoints,))
                     grid_xyzw = numpy.zeros((npoints, 4))
                 if density_re.match(line):
                     # leaving space for the hessian of the density, force zeros for those
