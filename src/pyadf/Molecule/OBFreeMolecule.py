@@ -1,9 +1,12 @@
+# -*- coding: utf-8 -*-
+
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2020 by Christoph R. Jacob, S. Maya Beyhan,
-# Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Michal Handzlik,
-# Karin Kiewisch, Moritz Klammler, Lars Ridder, Jetze Sikkema,
-# Lucas Visscher, and Mario Wolter.
+# Copyright (C) 2006-2021 by Christoph R. Jacob, Tobias Bergmann,
+# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Thomas Dresselhaus,
+# Andre S. P. Gomes, Andreas Goetz, Michal Handzlik, Karin Kiewisch,
+# Moritz Klammler, Lars Ridder, Jetze Sikkema, Lucas Visscher, and
+# Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -943,13 +946,29 @@ class OBFreeMolecule(BaseMolecule):
         return mol
 
     def find_adjacent_hydrogens(self, atoms):
+        return self.find_adjacent_atoms(atoms, atnum=1)
+
+    def find_adjacent_atoms(self, atoms, atnum=None):
         atoms = self._get_atoms(atoms)
-        hydrogens = []
+        adjacent = []
         for at in atoms:
             for b in at.bonds:
                 adj = b.other_end(at)
-                if adj.atnum == 1:
-                    hydrogens.append(adj)
+                if (atnum is None) or (adj.atnum == atnum):
+                    adjacent.append(adj)
+        return adjacent
+
+    def get_hetero_hydrogen_list(self):
+        hetero_hydrogen_list = []
+
+        for i, at in enumerate(self.atoms):
+            if at.atnum == 1:
+                for b in at.bonds:
+                    if not b.other_end(at).atnum == 6:
+                        hetero_hydrogen_list.append(i+1)
+                        break
+
+        return hetero_hydrogen_list
 
     def guess_bonds(self, eff=1.15, addd=0.9):
         from math import floor

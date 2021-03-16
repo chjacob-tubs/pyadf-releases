@@ -1,16 +1,23 @@
 import math
-import copy
-import numpy
 
-supermol = molecule (os.path.join(pyadfenv.outdir, 'cys_cys.pdb'), 'pdb')
+supermol = molecule(os.path.join(pyadfenv.outdir, 'cys_cys.pdb'), 'pdb')
 supermol.set_spin(0)
-
-settings = adfsettings()
-settings.set_functional('BP86')
-settings.set_integration(accint=2.0)
 
 basis = 'SZ'
 core = 'Large'
+
+settings = adfsettings(zlmfit=False)
+settings.set_functional('BP86')
+settings.set_integration(accint=4.0)
+settings.set_save_tapes([21, 10])
+
+settings.set_ncycles(1)  # do not converge SCF, we only need the grid
+supermol_results = adfsinglepointjob(supermol, basis, core=core, settings=settings).run()
+agrid = adfgrid(supermol_results)
+
+settings = adfsettings(zlmfit=False)
+settings.set_functional('BP86')
+settings.set_integration(accint=2.0)
 
 # supermolecule calculation
 supermol_results = adfsinglepointjob(supermol, basis, core=core, settings=settings).run()
@@ -22,29 +29,67 @@ frags.partition_protein(supermol)
 # MFCC calculation
 mfcc_results = adfmfccjob(frags, basis, core=core, settings=settings).run()
 mfcc_dipole = mfcc_results.get_dipole_vector()
+mfcc_dens = mfcc_results.get_density(grid=agrid)
+
 mfcc_frags = mfcc_results.get_fragmentlist()
 
 # 3-FDE (0) calculation
-# settings.set_ncycles(1000)
-# settings.set_mixing(0.1)
-# settings.set_convergence(converge=1.0e-4)
 fde_results = adf3fdejob(mfcc_frags, basis, core=core, settings=settings,
                           fde={'RHO1FITTED': '', 'CapDensConv': 1e-3},
                           fdeoptions={'DENSTYPE': 'SCFfitted'}).run()
 
 fde_dipole = fde_results.get_dipole_vector()
-fde_dens= fde_results.get_density(spacing=0.2, fit=True)
+fde_dens = fde_results.get_density(grid=agrid, fit=True)
 
-supermol_dens = supermol_results.get_density(grid=fde_dens.grid, fit=True)
+supermol_dens = supermol_results.get_density(grid=agrid, fit=True)
 
-diff_dens = fde_dens - supermol_dens
-diff_dens.get_cubfile(os.path.join(pyadfenv.outdir, 'diff-dens.cub'))
+# first test supermol, MFCC, 3-FDE densities and potentials
 
-print "Dipole moment (a.u.): " 
+testobj.assertAlmostEqual(supermol_dens.integral(), 126.0, 2)
+testobj.assertAlmostEqual(mfcc_dens.integral(), 126.0, 2)
+testobj.assertAlmostEqual(fde_dens.integral(), 126.0, 2)
+
+mfcc_fitdens = mfcc_results.get_density(grid=agrid, fit=True)
+fde_fitdens = fde_results.get_density(grid=agrid, fit=True)
+
+testobj.assertAlmostEqual(mfcc_fitdens.integral(), 126.0, 2)
+testobj.assertAlmostEqual(fde_fitdens.integral(), 126.0, 2)
+
+supermol_nucpot = supermol_results.get_potential(pot='nuc')
+
+supermol_coulpot = supermol_results.get_potential(pot='coul')
+mfcc_coulpot = mfcc_results.get_potential(pot='coul')
+fde_coulpot = fde_results.get_potential(pot='coul')
+
+elnuc_super = (supermol_coulpot * supermol_nucpot).integral()
+elnuc_mfcc = (mfcc_coulpot * supermol_nucpot).integral()
+elnuc_fde = (fde_coulpot * supermol_nucpot).integral()
+
+print "Electon-Nuclear interaction energy (a.u.)"
+print "Supermolecule: ", elnuc_super
+print "MFCC:          ", elnuc_mfcc - elnuc_super
+print "3-FDE:         ", elnuc_fde - elnuc_super
+print
+
+testobj.assertAlmostEqual(elnuc_super, -1261649.2420240438, 4)
+testobj.assertAlmostEqual(elnuc_mfcc - elnuc_super, 11.236410662, 4)
+testobj.assertAlmostEqual(elnuc_fde - elnuc_super, 18.465913598, 4)
+
+# second, test dipole moments
+
+print "Dipole moment (a.u.): "
 print "Supermolecule: ", supermol_dipole
 print "MFCC:          ", mfcc_dipole
 print "3-FDE:         ", fde_dipole
 print
+
+testobj.assertAlmostEqual([-0.38075328, -0.45339284,  0.17361213], supermol_dipole, 4)
+testobj.assertAlmostEqual([-0.37046405, -0.46913567,  0.19081197], mfcc_dipole, 4)
+testobj.assertAlmostEqual([-0.41064078, -0.46165079,  0.22611683], fde_dipole, 4)
+
+# now finally test 3-FDE difference densities and potential
+
+diff_dens = fde_dens - supermol_dens
 
 sqrt_error = math.sqrt(diff_dens.integral(func=lambda x: x*x))
 abs_error = diff_dens.integral(func=lambda x: abs(x))
@@ -53,10 +98,6 @@ print " fde Diff Dens Int        : ", diff_dens.integral()
 print " fde Diff Dens Int (Sqr.) : ", sqrt_error
 print " fde Diff Dens Int (Abs.) : ", abs_error
 
-testobj.assertAlmostEqual (sqrt_error, 0.00642199, 5)
-testobj.assertAlmostEqual (abs_error,  0.07751428, 5)
-
-testobj.assertAlmostEqual([-0.38075312, -0.45339314,  0.17361172], supermol_dipole, 4)
-testobj.assertAlmostEqual([-0.37046423, -0.46913504,  0.19081185], mfcc_dipole, 4)
-testobj.assertAlmostEqual([-0.41064079, -0.46165078,  0.22611683], fde_dipole, 4)
+testobj.assertAlmostEqual(sqrt_error, 0.00635101, 5)
+testobj.assertAlmostEqual(abs_error,  0.07764864, 5)
 

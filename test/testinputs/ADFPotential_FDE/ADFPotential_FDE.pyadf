@@ -91,7 +91,7 @@ print " Error (FDE) : ", error_fde
 # now run FDE with potential reconstruction
 ##########################################################################
 
-settings.set_ncycles(100)
+settings.set_ncycles(500)
 
 frags = [fragment(h2o1_res, [h2o1], isfrozen=False),
          fragment(h2o2_res, [h2o2], isfrozen=True) ]
@@ -99,7 +99,8 @@ frags = [fragment(h2o1_res, [h2o1], isfrozen=False),
 # no startpot is given: use potential from first SCF iteration
 fdepot_job = adffragmentsjob(frags, basis="DZ", settings=settings)
 fdepot_job = adfpotentialjob(fdepot_job, refdens, 
-                             potoptions={'EIGENSHIFT':0.1, 'CONVERGE':1e-5, 'CUTNEGATIVEDENS':'1E-8'})
+                             potoptions={'EIGENSHIFT':0.1, 'CONVERGE':2e-3, 'LAMBDA':0.0,
+                                         'FIXEDLAMBDA':'', 'CUTNEGATIVEDENS':'1E-8'})
 fdepot_res = fdepot_job.run()
 
 # density from reconstructed potential

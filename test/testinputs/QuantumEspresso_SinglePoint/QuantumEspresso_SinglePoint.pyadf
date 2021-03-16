@@ -1,0 +1,20 @@
+import os
+
+file_mol = os.path.join (pyadfenv.outdir, 'water.xyz')
+m_mol = molecule(file_mol)
+
+pw_control = {'calculation': 'scf'}
+pw_system = {'ibrav': 1, 'cell_dim': [12.0], 'ecutwfc': 80}
+
+pw_settings = QESettings()
+
+pw_settings.set_control(pw_control)
+pw_settings.set_system(pw_system)
+
+qeres = QESinglePointJob(m_mol, pseudo='pbe-rrkjus.UPF', settings=pw_settings).run()
+
+energy = qeres.get_energy()
+print "Total Energy :", energy
+
+if 'unittesting' in pyadfenv.options :
+    testobj.assertAlmostEqual(energy,        -33.68132945, 6)

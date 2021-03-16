@@ -2,9 +2,10 @@ import math
 
 supermol = molecule(os.path.join(pyadfenv.outdir, 'dialanine.xyz'))
 
-settings = adfsettings()
+settings = adfsettings(zlmfit=False)
 settings.set_functional('BP86')
 settings.set_integration(accint=2.0)
+settings.set_save_tapes([21, 10])
 
 supermol_results = adfsinglepointjob(supermol, 'SZ', core='Large', settings=settings).run()
 
@@ -34,14 +35,20 @@ print "Mulliken charges: "
 fde_results.print_mulliken_charges()
 print
 
-fde_dens = fde_results.get_density(spacing=0.2, fit=True)
-fde_pot = fde_results.get_potential(grid=fde_dens.grid)
+agrid = adfgrid(supermol_results)
 
-supermol_dens = supermol_results.get_density(grid=fde_dens.grid, fit=True)
-supermol_pot = supermol_results.get_potential(grid=fde_dens.grid)
+fde_dens = fde_results.get_density(grid=agrid, fit=True)
+fde_dens_cub = fde_results.get_density(spacing=0.2, fit=True)
+fde_pot = fde_results.get_potential(grid=agrid)
+
+supermol_dens = supermol_results.get_density(grid=agrid, fit=True)
+supermol_dens_cub = supermol_results.get_density(grid=fde_dens_cub.grid, fit=True)
+supermol_pot = supermol_results.get_potential(grid=agrid)
 
 diff_dens = fde_dens - supermol_dens
-diff_dens.get_cubfile(os.path.join(pyadfenv.outdir, 'diff-dens.cub'))
+
+diff_dens_cub = fde_dens_cub - supermol_dens_cub
+diff_dens_cub.get_cubfile(os.path.join(pyadfenv.outdir, 'diff-dens.cub'))
 
 sqrt_error = math.sqrt(diff_dens.integral(func=lambda x: x * x))
 abs_error = diff_dens.integral(func=lambda x: abs(x))
@@ -50,8 +57,8 @@ print " Diff Dens Int        : ", diff_dens.integral()
 print " Diff Dens Int (Sqr.) : ", sqrt_error
 print " Diff Dens Int (Abs.) : ", abs_error
 
-testobj.assertAlmostEqual(sqrt_error, 0.00703035, 5)
-testobj.assertAlmostEqual(abs_error, 0.07179732, 5)
+testobj.assertAlmostEqual(sqrt_error, 0.00651792, 5)
+testobj.assertAlmostEqual(abs_error, 0.07108415, 5)
 
 testobj.assertAlmostEqual([0.56467118, -0.69386790, -0.73352803], supermol_dipole, 4)
 testobj.assertAlmostEqual([0.56601593, -0.69271897, -0.71130688], mfcc_dipole, 4)
@@ -61,7 +68,7 @@ diff_pot = fde_pot - supermol_pot
 pot_error = (diff_pot * supermol_dens).integral(func=lambda x: abs(x))
 
 print " Diff Pot Error (Abs.) : ", pot_error
-testobj.assertAlmostEqual(pot_error, 0.190299, 5)
+testobj.assertAlmostEqual(pot_error, 0.141973, 5)
 
 # normal FT
 
@@ -71,7 +78,7 @@ fde_results = adf3fdejob(frags, 'SZ', core='Large', settings=settings,
                          fdeoptions={'DENSTYPE': 'SCFfitted'}).run()
 
 fde_dipole = fde_results.get_dipole_vector()
-fde_dens = fde_results.get_density(spacing=0.2, fit=True)
+fde_dens = fde_results.get_density(grid=agrid, fit=True)
 
 diff_dens = fde_dens - supermol_dens
 
@@ -85,8 +92,8 @@ print " Diff Dens Int        : ", diff_dens.integral()
 print " Diff Dens Int (Sqr.) : ", sqrt_error
 print " Diff Dens Int (Abs.) : ", abs_error
 
-testobj.assertAlmostEqual(sqrt_error, 0.0068318, 5)
-testobj.assertAlmostEqual(abs_error, 0.0658243, 5)
+testobj.assertAlmostEqual(sqrt_error, 0.0062879, 5)
+testobj.assertAlmostEqual(abs_error, 0.0651071, 5)
 testobj.assertAlmostEqual([0.58296498, -0.70185472, -0.70691394], fde_dipole, 4)
 
 # mixed FT
@@ -99,7 +106,7 @@ fde_results = adf3fdejob(frags, 'SZ', core='Large', settings=settings,
                          fdeoptions={'DENSTYPE': 'SCFfitted'}).run()
 
 fde_dipole = fde_results.get_dipole_vector()
-fde_dens = fde_results.get_density(spacing=0.2, fit=True)
+fde_dens = fde_results.get_density(grid=agrid, fit=True)
 
 diff_dens = fde_dens - supermol_dens
 
@@ -113,6 +120,6 @@ print " Diff Dens Int        : ", diff_dens.integral()
 print " Diff Dens Int (Sqr.) : ", sqrt_error
 print " Diff Dens Int (Abs.) : ", abs_error
 
-testobj.assertAlmostEqual(sqrt_error, 0.00564830, 5)
-testobj.assertAlmostEqual(abs_error, 0.05240008, 5)
+testobj.assertAlmostEqual(sqrt_error, 0.00506578, 5)
+testobj.assertAlmostEqual(abs_error, 0.05195744, 5)
 testobj.assertAlmostEqual([0.5713133, -0.69835467, -0.75275672], fde_dipole, 4)

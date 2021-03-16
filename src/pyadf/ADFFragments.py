@@ -1,9 +1,12 @@
+# -*- coding: utf-8 -*-
+
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2020 by Christoph R. Jacob, S. Maya Beyhan,
-# Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Michal Handzlik,
-# Karin Kiewisch, Moritz Klammler, Lars Ridder, Jetze Sikkema,
-# Lucas Visscher, and Mario Wolter.
+# Copyright (C) 2006-2021 by Christoph R. Jacob, Tobias Bergmann,
+# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Thomas Dresselhaus,
+# Andre S. P. Gomes, Andreas Goetz, Michal Handzlik, Karin Kiewisch,
+# Moritz Klammler, Lars Ridder, Jetze Sikkema, Lucas Visscher, and
+# Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -1135,6 +1138,11 @@ class adffragmentsjob(adfsinglepointjob):
         return block
 
     def get_fde_block(self):
+
+        for k, v in self._fde.iteritems():
+            if k in ['COULOMB', 'THOMASFERMI', 'PW91K', 'PW91Kscaled', 'TW02', 'TF9W', 'PBE2', 'PBE3', 'PBE4'] and v is '' :
+                raise PyAdfError('   Incorrect definition of KEF. Use the TNAD keyword to specify the functional')
+
         block = " FDE\n"
         if 'TNAD' in self._fde:
             block += '   ' + self._fde['TNAD'] + '\n'

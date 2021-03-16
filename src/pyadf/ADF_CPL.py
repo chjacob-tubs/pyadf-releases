@@ -1,9 +1,12 @@
+# -*- coding: utf-8 -*-
+
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2020 by Christoph R. Jacob, S. Maya Beyhan,
-# Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Michal Handzlik,
-# Karin Kiewisch, Moritz Klammler, Lars Ridder, Jetze Sikkema,
-# Lucas Visscher, and Mario Wolter.
+# Copyright (C) 2006-2021 by Christoph R. Jacob, Tobias Bergmann,
+# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Thomas Dresselhaus,
+# Andre S. P. Gomes, Andreas Goetz, Michal Handzlik, Karin Kiewisch,
+# Moritz Klammler, Lars Ridder, Jetze Sikkema, Lucas Visscher, and
+# Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -360,10 +363,10 @@ class adfcplresults(adfresults):
         section = 'NMR Coupling %s const InputOrder' % unit
         clist = self.get_result_from_tape('Properties', section, 21)
 
-        # Alternatively we can use adfreport to extract data
+        # Alternatively we can use amsreport to extract data
         # Note: Then we need to convert the return value to
         # alternative: from os import popen
-        # alternative: command = 'adfreport %s nmr-j-coupling-constant' % self.get_tape_filename(21)
+        # alternative: command = 'amsreport %s nmr-j-coupling-constant' % self.get_tape_filename(21)
         # alternative: f = popen(command)
         # alternative: clist = f.read().replace('\n','').split(' ')
         # alternative: f.close()
@@ -507,9 +510,9 @@ class adfcpljob(adfjob):
     def create_results_instance(self):
         return adfcplresults(self)
 
-    def get_runscript(self):
+    def get_runscript(self, nproc=1):
         # pylint: disable-msg=W0221
-        return adfjob.get_runscript(self, program='cpl')
+        return adfjob.get_runscript(self, nproc=nproc, program='cpl')
 
     def get_input(self):
         cplinput = ''

@@ -1,9 +1,12 @@
+# -*- coding: utf-8 -*-
+
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2020 by Christoph R. Jacob, S. Maya Beyhan,
-# Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Michal Handzlik,
-# Karin Kiewisch, Moritz Klammler, Lars Ridder, Jetze Sikkema,
-# Lucas Visscher, and Mario Wolter.
+# Copyright (C) 2006-2021 by Christoph R. Jacob, Tobias Bergmann,
+# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Thomas Dresselhaus,
+# Andre S. P. Gomes, Andreas Goetz, Michal Handzlik, Karin Kiewisch,
+# Moritz Klammler, Lars Ridder, Jetze Sikkema, Lucas Visscher, and
+# Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -57,7 +60,7 @@ class adfsettings(object):
         __init__,
         set_functional, set_dispersion, set_integration,
         set_convergence, set_mixing, set_diis, set_lshift,
-        set_unrestricted, set_occupations, set_cosmo,
+        set_unrestricted, set_occupations, set_cosmo, set_cosmosurf,
         set_lmo, set_basispath, set_printing, set_ncycles,
         set_dependency, set_ZORA, set_exactdensity,
         set_save_tapes, set_noncollinear
@@ -67,7 +70,7 @@ class adfsettings(object):
         __str__
     """
 
-    def __init__(self, functional='LDA', accint=4.0, converge=1e-6, ncycles=100,
+    def __init__(self, functional='LDA', accint=4.0, converge=1e-6, ncycles=100, cosmosurf='Delley',
                  dep=False, ZORA=False, SpinOrbit=False, mix=0.2, unrestricted=False, noncollinear=False,
                  occupations=None, cosmo=None, lmo=False, basispath=None, zlmfit=False,
                  printing=False):
@@ -98,6 +101,7 @@ class adfsettings(object):
         @type  noncollinear: bool
         @param occupations: orbital occupations, see L{set_occupations}
         @param cosmo: COSMO solvation setting, see L{set_cosmo}
+        @param cosmosurf: COSMO solvation surface option, see L{set_cosmosurf}
         @param lmo: switch on calculation of localized orbitals
         @type  lmo: bool
         @param basispath: path to basis sets, see L{set_basispath}
@@ -123,6 +127,7 @@ class adfsettings(object):
         self.occupations = None
         self.lmo = None
         self.cosmo = None
+        self.cosmosurf = None
         self.basispath = None
         self.printing = None
         self.printcharge = None
@@ -152,6 +157,7 @@ class adfsettings(object):
         self.set_noncollinear(noncollinear)
         self.set_occupations(occupations)
         self.set_cosmo(cosmo)
+        self.set_cosmosurf(cosmosurf)
         self.set_basispath(basispath)
         self.set_lmo(lmo)
         self.set_printing(printing)
@@ -374,6 +380,18 @@ class adfsettings(object):
         @type cosmo: boolean, str, or list
         """
         self.cosmo = cosmo
+                
+    def set_cosmosurf(self, cosmosurf):
+        """
+        COSMO surface type.
+        By default Delley is used.
+
+        See SOLVATION block in the ADF manual.
+
+        @param cosmosurf: Wsurf, Asurf, Esurf, Klamt, or Delley
+        @type cosmosurf: str
+        """
+        self.cosmosurf = cosmosurf
 
     def set_lmo(self, lmo):
         """
@@ -618,12 +636,14 @@ class adfsettings(object):
                 # If the parameter is a boolean, an empty solvation block should be printed (or not).
                 if self.cosmo:
                     sblock += " SOLVATION\n"
+                    sblock += " surf %s\n" % self.cosmosurf
                     sblock += " END\n\n"
             elif isinstance(self.cosmo, str):
                 # If the parameter is a string, it contains the name of the solvent
                 sblock += " SOLVATION\n"
                 if self.cosmo != 'True':
                     sblock += " solv name=%s\n" % self.cosmo
+                    sblock += " surf %s\n" % self.cosmosurf
                 sblock += " END\n\n"
             elif isinstance(self.cosmo, list):
                 # If the parameter is a list, it should either contain only the name of the solvent,
@@ -645,8 +665,9 @@ class adfsettings(object):
                             raise PyAdfError("Cosmo input list should contain either the solvent name, "
                                              "or the eps and rad parameters!")
                     sblock += " eps=%f rad=%f\n" % (self.cosmo[0], self.cosmo[1])
+                    sblock += " surf %s\n" % self.cosmosurf
                 sblock += " END\n\n"
-
+   
         # exact density
         if self.exactdens:
             sblock += " EXACTDENSITY\n\n"
@@ -897,6 +918,15 @@ class adfsinglepointresults(adfresults):
         @rtype: float
         """
         return self.get_result_from_tape('Energy', 'Bond Energy')
+
+    def get_total_energy(self):
+        """
+        Return the total energy (requires TOTALENERGY option).
+
+        @returns: the total energy in atomic units
+        @rtype: float
+        """
+        return self.get_result_from_tape('Total Energy', 'Total energy')
 
     def get_voronoi_charges(self, vdd=False):
         """

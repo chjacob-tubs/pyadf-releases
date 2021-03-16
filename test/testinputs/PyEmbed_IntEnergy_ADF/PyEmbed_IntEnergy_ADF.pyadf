@@ -15,13 +15,13 @@ settings.set_integration(4.0, becke='Normal')
 settings.set_save_tapes([21, 10])
 
 # supermolecular calculation
-res_super = adfsinglepointjob(mol, basis='TZP',
+res_super = adfsinglepointjob(mol, basis='TZP', core='Large',
                               settings=settings, options=['TOTALENERGY', 'NumericalQuality Normal']).run()
 
 # calculations for the two fragments
-res_h2o = adfsinglepointjob(mol_a, basis='TZP',
+res_h2o = adfsinglepointjob(mol_a, basis='TZP', core='Large',
                             settings=settings, options=['TOTALENERGY', 'NumericalQuality Normal']).run()
-res_nh3 = adfsinglepointjob(mol_b, basis='TZP',
+res_nh3 = adfsinglepointjob(mol_b, basis='TZP', core='Large',
                             settings=settings, options=['TOTALENERGY', 'NumericalQuality Normal']).run()
 
 # we use the total energy here (not ADF's bond energy)
@@ -33,7 +33,7 @@ inten = toten_supermol - toten_h2o - toten_nh3
 print "Interaction energy from supermolecular calc. (Total Energy): ", inten * au_in_eV
 
 if 'unittesting' in pyadfenv.options:
-    testobj.assertAlmostEqual(inten * au_in_eV, -0.26932696539450973, 4)
+    testobj.assertAlmostEqual(inten * au_in_eV, -0.27060473030104576, 4)
 
 # now do the same with ADF's bond energy for comparison
 
@@ -45,7 +45,7 @@ inten = toten_supermol - toten_h2o - toten_nh3
 print "Interaction energy from supermolecular calc. (Bond Energy): ", inten * au_in_eV
 
 if 'unittesting' in pyadfenv.options:
-    testobj.assertAlmostEqual(inten * au_in_eV, -0.26796716943609755, 4)
+    testobj.assertAlmostEqual(inten * au_in_eV, -0.2655600708882117, 4)
 
 
 ######################################################################
@@ -139,8 +139,8 @@ inten_tot = inten_elstat + inten_xc + inten_kin
 print "Total interaction energy (PyEmbed): ", inten_tot * au_in_eV
 
 if 'unittesting' in pyadfenv.options:
-    testobj.assertAlmostEqual(inten_elstat * au_in_eV, -0.45866923990568437, 4)
-    testobj.assertAlmostEqual(inten_xc * au_in_eV, -0.23147394405805322, 4)
-    testobj.assertAlmostEqual(inten_kin * au_in_eV,  0.5056988721742307, 4)
+    testobj.assertAlmostEqual(inten_elstat * au_in_eV, -0.46258769075449185, 4)
+    testobj.assertAlmostEqual(inten_xc * au_in_eV, -0.2318183354695573, 4)
+    testobj.assertAlmostEqual(inten_kin * au_in_eV,  0.5064002682438619, 4)
 
-    testobj.assertAlmostEqual(inten_tot * au_in_eV,  -0.18444431178950682, 4)
+    testobj.assertAlmostEqual(inten_tot * au_in_eV,  -0.1880057579797906, 4)

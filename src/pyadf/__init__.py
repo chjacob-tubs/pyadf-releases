@@ -1,9 +1,12 @@
+# -*- coding: utf-8 -*-
+
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2020 by Christoph R. Jacob, S. Maya Beyhan,
-# Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Michal Handzlik,
-# Karin Kiewisch, Moritz Klammler, Lars Ridder, Jetze Sikkema,
-# Lucas Visscher, and Mario Wolter.
+# Copyright (C) 2006-2021 by Christoph R. Jacob, Tobias Bergmann,
+# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Thomas Dresselhaus,
+# Andre S. P. Gomes, Andreas Goetz, Michal Handzlik, Karin Kiewisch,
+# Moritz Klammler, Lars Ridder, Jetze Sikkema, Lucas Visscher, and
+# Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -206,6 +209,7 @@ from Utils import pse, Bohr_in_Angstrom, au_in_eV, au_in_Debye, conversion
 from Molecule import molecule, MoleculeFactory
 
 from Files import adf_filemanager
+from JobRunnerConfiguration import JobRunnerConfiguration
 from JobRunner import DefaultJobRunner, SerialJobRunner
 from BaseJob import job, results
 from ADFBase import adfjob, adfresults
@@ -220,21 +224,28 @@ from ADF_CPL import cplsettings, adfcpljob, adfcplresults
 from ADF_DFTB import dftbsettings, dftbsinglepointjob, dftbgeometryjob, dftbfreqjob
 from ADFNumDiff import numgradsettings, adfnumgradjob, adfnumgradsjob
 
-from DaltonSinglePoint import daltonsettings, daltonsinglepointjob
+from DaltonSinglePoint import daltonsettings, daltonjob, daltonsinglepointjob
 from DaltonCC2 import daltonCC2settings, daltonCC2job
 
+from Orca import OrcaSettings, OrcaJob, OrcaSinglePointJob, OrcaGeometryOptimizationJob, OrcaResults
+
 from Dirac import diracsettings, diracjob, diracsinglepointjob
+from QuantumEspresso import QEJob, QESinglePointJob, QEResults, QESettings
+from QuantumEspresso_PostProc import QEPostProcJob, QEPostProcResults, QEPostProcSettings
+
+
+from Molcas import MolcasJob, MolcasSinglePointJob, MolcasResults, MolcasSettings
 
 from NWChem import nwchemsettings, nwchemjob, nwchemsinglepointjob
 from NWChemCC2 import nwchemCC2job
 
 from Turbomole import TurbomoleSinglePointSettings, TurbomoleGeometryOptimizationSettings, \
     TurbomoleGradientSettings, TurbomoleForceFieldSettings, \
-    TurbomoleSinglePointJob, \
+    TurbomoleJob, TurbomoleSinglePointJob, \
     TurbomoleGeometryOptimizationJob, TurbomoleGradientJob, \
     TurbomoleForceFieldJob
 
-# from SNF               import SNFJob
+from SNF import SNFJob, SNFResults
 
 from ADF_FDE import adffdejob, adffderesults, adffdesettings
 
@@ -258,5 +269,6 @@ from ADFPotential import adfimportgridjob, adfpotentialjob, adfimportembpotjob
 try:
     import xcfun
     from PyEmbed import *
+    from ManyBodyExpansion import MBEJob, MBEResults, DensityBasedMBEJob, DensityBasedMBEResults
 except ImportError:
     pass

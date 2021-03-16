@@ -1,9 +1,12 @@
+# -*- coding: utf-8 -*-
+
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2020 by Christoph R. Jacob, S. Maya Beyhan,
-# Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Michal Handzlik,
-# Karin Kiewisch, Moritz Klammler, Lars Ridder, Jetze Sikkema,
-# Lucas Visscher, and Mario Wolter.
+# Copyright (C) 2006-2021 by Christoph R. Jacob, Tobias Bergmann,
+# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Thomas Dresselhaus,
+# Andre S. P. Gomes, Andreas Goetz, Michal Handzlik, Karin Kiewisch,
+# Moritz Klammler, Lars Ridder, Jetze Sikkema, Lucas Visscher, and
+# Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -33,8 +36,8 @@
 """
 from Errors import PyAdfError
 from BaseJob import results, job
+from Plot.GridFunctions import GridFunction1D
 from Utils import newjobmarker
-from xml.dom.minidom import parse
 import os
 import re
 
@@ -141,6 +144,7 @@ class diracsinglepointresults(diracresults):
 
         @rtype: float
         """
+        from xml.dom.minidom import parse
         dom = parse(self.get_xml_filename())
 
         ccenergies = {}
@@ -243,11 +247,22 @@ class diracsinglepointresults(diracresults):
         """
         Export the density and potential (GRIDOUT) to an ADF TAPE10-like file.
         """
+        import kf
+        import subprocess
         from xml2kf import xml2kf
 
         xml2kf(self.get_gridout_filename(), outfile)
-        os.system("$ADFBIN/cpkf  %s %s 'Num Int Params' >/dev/null 2>/dev/null"
-                  % (self.fdeout.get_tape_filename(tape=10), outfile))
+
+        if kf.kffile.env is not None:
+            env = kf.kffile.env
+        else:
+            env = os.environ
+
+        cpkfCmd = [os.path.join(env.setdefault('ADFBIN', ''), 'cpkf'),
+                   self.fdeout.get_tape_filename(tape=10), outfile, 'Num Int Params']
+
+        DEVNULL = open(os.devnull, 'wb')
+        subprocess.Popen(cpkfCmd, stdout=DEVNULL, stderr=DEVNULL, env=env)
 
 
 class diracjob(job):
@@ -300,12 +315,12 @@ class diracjob(job):
 
         return m.digest()
 
-    def get_runscript(self, nproc=None):
+    def get_runscript(self, nproc=1):
 
         put_files = ['DFCOEF', 'FRZDNS', 'EMBPOT', 'GRIDOUT']
         get_files = ['DFCOEF', 'GRIDOUT', 'dirac.xml']
 
-        runscript = "#!/bin/bash \n\n"
+        runscript = ""
 
         runscript += "cat <<eor >DIRAC.inp \n"
         runscript += self.get_diracfile()
@@ -318,12 +333,12 @@ class diracjob(job):
         runscript += "cat MOLECULE.xyz \n"
 
         runscript += "$DIRACBIN/pam "
-        if nproc is not None:
+        if nproc > 1:
             runscript += '--mpi=%i ' % nproc
         runscript += ' --put="' + " ".join([pf for pf in put_files if os.path.exists(pf)]) + '"'
         runscript += ' --get="' + " ".join([gf for gf in get_files]) + '"'
-        if 'DIRMAX_GB' in os.environ :
-            runscript += ' --ag='+os.environ['DIRMAX_GB']
+        if 'DIRMAX_GB' in os.environ:
+            runscript += ' --ag=' + os.environ['DIRMAX_GB']
         runscript += " --mol=MOLECULE.xyz --inp=DIRAC.inp \n"
         runscript += " retcode=$? \n"
 
@@ -378,7 +393,8 @@ class diracsettings(object):
     """
 
     def __init__(self, method='DFT', hamiltonian='DC', functional='LDA', dftgrid=None,
-                 properties=None, transform=None, nucmod=None):
+                 properties=None, uncontracted=False, transform=None, nucmod=None,
+                 scf_subblock=None, wf_options=None, nosym=False, dossss=False):
         """
         Constructor for diracsettings.
 
@@ -408,7 +424,18 @@ class diracsettings(object):
         self.ccsort = None
 
         self.hamiltonian = None
+        self.dossss = dossss
         self.dossc = True
+        if self.dossss:
+            self.dossc = False
+
+        self.uncontracted = uncontracted
+
+        # scf_subblock is a dictionary with the keywords and values;
+        # in the case the key has multiple values, like the definition
+        # of open shells, each line is passed as a member of a list
+        self.scf_subblock_options = scf_subblock
+        self.wf_options = wf_options
 
         self.domoltra = False
         self.moltra_active = None
@@ -422,6 +449,8 @@ class diracsettings(object):
         self.fun_xc = None
         self.dftgrid = None
         self.nucmod = None
+
+        self.nosym = nosym
 
         self.set_method(method)
         self.set_hamiltonian(hamiltonian)
@@ -447,8 +476,11 @@ class diracsettings(object):
 
         if self.method in ('HF', 'DFT'):
             self.exportfde_level = 'DHF'
-        elif self.method in ('MP2', 'CCSD', 'CCSDt', 'FSCC', 'IHFSCC'):
+        elif self.method == 'MP2':
             self.exportfde_level = 'MP2'
+            self.domoltra = True
+        elif self.method in ('CCSD', 'CCSDt', 'FSCC', 'IHFSCC'):
+            self.exportfde_level = 'CCSD'
             self.domoltra = True
 
     def set_hamiltonian(self, hamiltonian):
@@ -561,7 +593,7 @@ class diracsettings(object):
         @param export: Whether to export the density and Coulomb potential.
         @type  export: bool
         @param level:
-            Which density to export. Possible choices: DHF, MP2
+            Which density to export. Possible choices: DHF, MP2, CCSD
         @type  level: str
         """
         self.exportfde = export
@@ -576,12 +608,12 @@ class diracsettings(object):
         # setting up the cc namelist options
         self.ccmain = {'TIMING': 'T', 'IPRNT': '2', 'DOSORT': 'T', 'DOENER': 'T', 'DOFOPR': 'F', 'DOSOPR': 'F'}
         self.ccener = {'DOMP2': 'T', 'DOCCSD': 'F', 'DOCCSDT': 'F', 'MAXIT': '100'}
-        self.ccfopr = {'DOMP2G': 'T'}
+        self.ccfopr = {'DOMP2G': 'T', 'DOCCSDG': 'T'}
         self.ccsort = {}
 
         if self.method in ('HF', 'DFT'):
             pass
-        elif self.method == 'MP2':
+        elif self.method in ('MP2', 'CCSD'):
             if self.exportfde or self.doprop:
                 self.ccmain['DOFOPR'] = 'T'
         elif self.method == 'CCSD':
@@ -592,14 +624,29 @@ class diracsettings(object):
         else:
             raise PyAdfError("Unsupported method for Dirac single point runs")
 
+    @staticmethod
+    def get_option_block_from_dict(options):
+        block = ""
+        for k, v in options.iteritems():
+            block += k + "\n"
+            if isinstance(v, list):
+                for e in v:
+                    if e is not '':
+                        block += e + "\n"
+            elif v is not '':
+                block += v + "\n"
+        return block
+
     def get_relccsd_block(self):
         block = "**RELCCSD\n"
-        if self.method == 'MP2':
-            if self.exportfde or self.doprop:
-                block += '.GRADIENT\n'
-                block += '*CCFOPR\n'
+        if self.exportfde or self.doprop:
+            block += '.GRADIENT\n'
+            block += '*CCFOPR\n'
+            if self.method == 'MP2':
                 block += '.RELAXED\n'
                 block += '.MP2G\n'
+            elif self.method == 'CCSD':
+                block += '.CCSDG\n'
         # at the moment, the ccsd and ccsd(T) energies are always switched on
         #        elif self.method == 'CCSD' :
         #            block += '.DOCCSD\n'
@@ -611,7 +658,11 @@ class diracsettings(object):
     def get_hamiltonian_block(self):
         block = ""
         if self.dossc:
-            block += '.LVCORR\n'
+            # if we had set ssss and ssc, we override the latter
+            if self.dossss:
+                block += '.DOSSSS\n'
+            else:
+                block += '.LVCORR\n'
         if self.hamiltonian == 'MMF':
             block += '.X2Cmmf\n'
         if self.hamiltonian == 'DCG' or self.hamiltonian == 'MMF':
@@ -629,13 +680,17 @@ class diracsettings(object):
 
         if self.method == 'DFT':
             block += ".DFT\n"
-            block += " " + str(self.fun_xc) + "\n"
+            if str(self.fun_xc) == "SAOP!":
+                block += "GLLBhole\n*DFT\n.SAOP!\n"
+            else:
+                block += " " + str(self.fun_xc) + "\n"
         return block
 
     def get_integrals_block(self):
         block = ""
-        if self.nucmod is not None:
+        if self.nucmod is not None or self.uncontracted:
             block += "**INTEGRALS\n"
+        if self.nucmod is not None:
             block += ".NUCMOD\n"
             if self.nucmod.lower() == 'point':
                 block += '1\n'
@@ -643,6 +698,8 @@ class diracsettings(object):
                 block += '2\n'
             else:
                 raise PyAdfError('Invalid nuclear model chosen')
+        if self.uncontracted:
+            block += "*READIN\n.UNCONTRACT\n"
         return block
 
     def get_fdeexportlevel_block(self):
@@ -782,8 +839,8 @@ class diracsinglepointjob(diracjob):
             self.settings.set_exportfde(True)
 
         # FIXME: Symmetry in Dirac hardcoded
-        if self.fdein:
-            self.mol.set_symmetry('.NOSYM')
+        if self.fdein or self.settings.nosym:
+            self.mol.set_symmetry('NOSYM')
 
         if options is None:
             self._options = []
@@ -793,11 +850,7 @@ class diracsinglepointjob(diracjob):
     def create_results_instance(self):
         return diracsinglepointresults(self)
 
-    def get_runscript(self):
-        if ('DIRAC_PARALLEL' in os.environ) and ('NSCM' in os.environ):
-            nproc = int(os.environ['NSCM'])
-        else:
-            nproc = None
+    def get_runscript(self, nproc=1):
         return diracjob.get_runscript(self, nproc=nproc)
 
     # FIXME: restart with Dirac not implemented
@@ -815,7 +868,8 @@ class diracsinglepointjob(diracjob):
     def get_molecule(self):
         return self.mol
 
-    def get_dirac_title(self):
+    @staticmethod
+    def get_dirac_title():
         block = ".TITLE\n"
         block += "Input file generated by pyadf.\n"
         return block
@@ -833,8 +887,12 @@ class diracsinglepointjob(diracjob):
             if self._checksum_only:
                 block += self.fdein.get_checksum()
         if self.fdeout is not None:
-            block += ".GRIDOUT\n"
+            if self.fdein is None:
+                block += '.EXONLY\n'
+            else:
+                block += ".GRIDOUT\n"
             block += "GRIDOUT\n"
+            block += ".OLDESP\n"
             if self._checksum_only:
                 block += self.fdeout.get_checksum()
             block += self.settings.get_fdeexportlevel_block()
@@ -846,7 +904,8 @@ class diracsinglepointjob(diracjob):
         block += self.settings.get_dirproperties_block()
         return block
 
-    def get_xml_block(self):
+    @staticmethod
+    def get_xml_block():
         block = ".XMLOUT\n"
         return block
 
@@ -855,6 +914,11 @@ class diracsinglepointjob(diracjob):
         block += ".SCF\n"
         if self.settings.method in ('MP2', 'CCSD', 'CCSDt', 'FSCC', 'IHFSCC'):
             block += ".RELCCSD\n"
+        if self.settings.wf_options is not None:
+            block += self.settings.get_option_block_from_dict(self.settings.wf_options)
+        if self.settings.scf_subblock_options is not None:
+            block += "*SCF\n"
+            block += self.settings.get_option_block_from_dict(self.settings.scf_subblock_options)
         return block
 
     def get_molecule_block(self):
@@ -863,7 +927,15 @@ class diracsinglepointjob(diracjob):
         block += self.basis + "\n"
         if self.mol.symmetry:
             block += "*SYMMETRY\n"
-            block += self.mol.symmetry + "\n"
+            if self.mol.symmetry.upper() == 'NOSYM':
+                symm = '.NOSYM'
+            else:
+                symm = self.mol.symmetry
+            block += symm + "\n"
+        if self.mol.get_charge() != 0:
+            block += "*CHARGE\n"
+            block += ".CHARGE\n"
+            block += str(self.mol.get_charge()) + "\n"
         return block
 
     def get_moltra_block(self):
@@ -877,7 +949,8 @@ class diracsinglepointjob(diracjob):
             block += opt + "\n"
         return block
 
-    def get_other_blocks(self):
+    @staticmethod
+    def get_other_blocks():
         return ""
 
     def get_diracfile(self):
@@ -911,8 +984,13 @@ class diracsinglepointjob(diracjob):
     def before_run(self):
         diracjob.before_run(self)
 
+        if self.restart is not None:
+            self.restart.copy_dfcoef()
         if self.fdein is not None:
-            self.fdein.export_embedding_data('EMBPOT')
+            if isinstance(self.fdein, GridFunction1D):
+                self.fdein.get_xyzwvfile('EMBPOT', add_comment=False, endmarker=True)
+            else:  # adffragmentsresults
+                self.fdein.export_embedding_data('EMBPOT')
 
         if self.fdeout is not None:
             self.fdeout.export_grid('GRIDOUT')

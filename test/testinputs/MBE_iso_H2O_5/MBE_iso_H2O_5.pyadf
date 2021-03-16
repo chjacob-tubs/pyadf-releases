@@ -1,0 +1,155 @@
+max_order = 3
+
+# read coordinates of (H2O)5 cluster
+mol_tot = molecule(os.path.join(pyadfenv.outdir, 'h2o_5.xyz'))
+
+# generate list of monomer fragments
+mol_list = mol_tot.separate()
+
+
+def calculate_mol(mol, frozen_mols=None, savetape10=False):
+    """
+    This function is passed to MBEJob as an argument.
+
+    It takes a molecule and returns a results object.
+    How this is done is completely irrelevant to MBEJob.
+    """
+    mol.set_symmetry('NOSYM')
+    settings = adfsettings(zlmfit=True)
+    settings.set_functional('BP86')
+    settings.set_integration(4.0, becke='Basic')
+    if savetape10:
+        settings.set_save_tapes([21, 10])
+
+    job = adfsinglepointjob(mol, basis='SZ', core='Medium', settings=settings,
+                            options=['TOTALENERGY', 'TOL 1e-6'])
+    res = job.run()
+    return res
+
+
+# conversion factor from Hartree to kJ/mol
+kJmol = conversion('Hartree', 'kJ/mol')
+
+# perform calculation of the supermolecule as reference
+res_supermol = calculate_mol(mol_tot, savetape10=True)
+toten_supermol = res_supermol.get_total_energy()
+
+print "Total energy supermolecule (Hartree): ", toten_supermol
+print
+
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(toten_supermol, -380.14175922954365, 6)
+
+###############################################
+# A) energy-based MBE
+###############################################
+
+# perform MBE calculations (up to third order)
+mbejob = MBEJob(mol_list, calculate_mol, order=max_order)
+mberes = mbejob.run()
+
+tot_energy_eb = mberes.get_total_energy()
+tot_energy_monomers = mberes.get_total_energy(order=1)
+int_energy_eb = mberes.get_interaction_energy()
+
+print "Total energy eb-MBE-3 (Hartree)       : ", tot_energy_eb
+print "Total energy monomers (Hartree)       : ", tot_energy_monomers
+print "Interaction energy eb-MBE-3 (Hartree) : ", int_energy_eb
+print
+
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(tot_energy_eb, -380.142032702575, 6)
+    testobj.assertAlmostEqual(tot_energy_monomers, -380.0754443036032, 6)
+    testobj.assertAlmostEqual(int_energy_eb, -0.066588398971831, 6)
+
+tot_energy_eb_by_order = mberes.get_total_energies_by_order()
+
+print "Total energy eb-MBE-1 (Hartree)       : ", tot_energy_eb_by_order[0]
+print "Total energy eb-MBE-2 (Hartree)       : ", tot_energy_eb_by_order[1]
+print "Total energy eb-MBE-3 (Hartree)       : ", tot_energy_eb_by_order[2]
+
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(tot_energy_eb_by_order[0], -380.0754443036032, 6)
+    testobj.assertAlmostEqual(tot_energy_eb_by_order[1], -380.1370360383919, 6)
+    testobj.assertAlmostEqual(tot_energy_eb_by_order[2], -380.142032702575, 6)
+
+int_energy_eb_by_order = mberes.get_interaction_energies_by_order()
+
+print "Interaction energy eb-MBE, 1st order contribution (kJ/mol) : ", int_energy_eb_by_order[0]
+print "Interaction energy eb-MBE, 2nd order contribution (kJ/mol) : ", int_energy_eb_by_order[1]
+print "Interaction energy eb-MBE, 3rd order contribution (kJ/mol) : ", int_energy_eb_by_order[2]
+
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(int_energy_eb_by_order[0], 0.0, 6)
+    testobj.assertAlmostEqual(int_energy_eb_by_order[1], -0.061591734788720, 6)
+    testobj.assertAlmostEqual(int_energy_eb_by_order[2], -0.066588398971831, 6)
+
+int_energy_supermol = (toten_supermol - tot_energy_monomers)
+
+error_eb_1 = (int_energy_eb_by_order[0] - int_energy_supermol) * kJmol
+error_eb_2 = (int_energy_eb_by_order[1] - int_energy_supermol) * kJmol
+error_eb_3 = (int_energy_eb_by_order[2] - int_energy_supermol) * kJmol
+
+print "Error compared to supermol, eb-MBE-1 (kJ/mol): ", error_eb_1
+print "Error compared to supermol, eb-MBE-2 (kJ/mol): ", error_eb_2
+print "Error compared to supermol, eb-MBE-3 (kJ/mol): ", error_eb_3
+
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(error_eb_1, 174.1098139231353, 4)
+    testobj.assertAlmostEqual(error_eb_2,  12.4007362739690, 4)
+    testobj.assertAlmostEqual(error_eb_3,  -0.7180034439005, 4)
+
+###############################################
+# B) density-based MBE
+###############################################
+
+grid = adfgrid(res_supermol)
+
+dbmbe_job = DensityBasedMBEJob(mberes, grid=grid, nadxc=None, nadkin=None)
+dbmbe_res = dbmbe_job.run()
+
+tot_energy_db = dbmbe_res.get_total_energy()
+int_energy_db = dbmbe_res.get_interaction_energy()
+
+print "Total energy db-MBE-3 (Hartree)       : ", tot_energy_db
+print "Interaction energy db-MBE-3 (Hartree) : ", int_energy_db
+print
+
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(tot_energy_db, -380.1414849625731, 6)
+    testobj.assertAlmostEqual(int_energy_db, -0.066040658969897, 6)
+
+tot_energy_db_by_order = dbmbe_res.get_total_energies_by_order()
+
+print "Total energy db-MBE-1 (Hartree)       : ", tot_energy_db_by_order[0]
+print "Total energy db-MBE-2 (Hartree)       : ", tot_energy_db_by_order[1]
+print "Total energy db-MBE-3 (Hartree)       : ", tot_energy_db_by_order[2]
+
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(tot_energy_db_by_order[0], -380.0907077886078, 6)
+    testobj.assertAlmostEqual(tot_energy_db_by_order[1], -380.1414756917218, 6)
+    testobj.assertAlmostEqual(tot_energy_db_by_order[2], -380.1414849625731, 6)
+
+int_energy_db_by_order = dbmbe_res.get_interaction_energies_by_order()
+
+print "Interaction energy db-MBE, 1st order contribution (kJ/mol) : ", int_energy_db_by_order[0]
+print "Interaction energy db-MBE, 2nd order contribution (kJ/mol) : ", int_energy_db_by_order[1]
+print "Interaction energy db-MBE, 3rd order contribution (kJ/mol) : ", int_energy_db_by_order[2]
+
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(int_energy_db_by_order[0], -0.015263485004645, 6)
+    testobj.assertAlmostEqual(int_energy_db_by_order[1], -0.066031388118609, 6)
+    testobj.assertAlmostEqual(int_energy_db_by_order[2], -0.066040658969897, 6)
+
+error_db_1 = (int_energy_db_by_order[0] - int_energy_supermol) * kJmol
+error_db_2 = (int_energy_db_by_order[1] - int_energy_supermol) * kJmol
+error_db_3 = (int_energy_db_by_order[2] - int_energy_supermol) * kJmol
+
+print "Error compared to supermol, db-MBE-1 (kJ/mol): ", error_db_1
+print "Error compared to supermol, db-MBE-2 (kJ/mol): ", error_db_2
+print "Error compared to supermol, db-MBE-3 (kJ/mol): ", error_db_3
+
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(error_db_1, 134.035540022800, 4)
+    testobj.assertAlmostEqual(error_db_2,   0.744720077765, 4)
+    testobj.assertAlmostEqual(error_db_3,   0.720381157279, 4)

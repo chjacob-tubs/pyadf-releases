@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2
 
 """
 kf.py - Implementation of a Python interface to read and write KF files.
@@ -206,10 +206,15 @@ class kffile:
     dmpkf, udmpkf, and cpkf.
     """
 
+    env = None
+
     def __init__(self, fileName):
         import os
         self._fileName = fileName
-        self._kfpath = os.environ.setdefault('ADFBIN', '')
+        if self.env is not None:
+            self._kfpath = self.env.setdefault('ADFBIN', '')
+        else:
+            self._kfpath = os.environ.setdefault('ADFBIN', '')
         self._contentsdict = None
 
         self._kftools_file = _kftools.KFFile(fileName)
@@ -224,17 +229,18 @@ class kffile:
 
     def _readcontents(self):
         """Read the table of contents using dmpkf."""
-        import os
+        import os, subprocess
         curdir = os.getcwd()
         try:
             newdir = os.path.dirname(self._fileName)  # to shorten the filename. dmpkf does not like names too long
             if newdir != '':
                 os.chdir(newdir)
             dumpCmd = os.path.join(self._kfpath, 'dmpkf')
-            dumpCmd = '"%s" "%s" --xmltoc 2>/dev/null' % (dumpCmd, os.path.basename(self._fileName))
-            outPipe = os.popen(dumpCmd)
-            s = outPipe.read()
-            outPipe.close()
+            dumpCmd = [dumpCmd, os.path.basename(self._fileName), '--xmltoc']
+
+            DEVNULL = open(os.devnull, 'wb')
+            s = subprocess.Popen(dumpCmd, stdout=subprocess.PIPE, stderr=DEVNULL,
+                                 env=self.env).communicate()[0]
         except:
             os.chdir(curdir)
             raise
@@ -324,16 +330,17 @@ class kffile:
         Copies the string passed, into the binary kf file.
         Assumes udmpkf can parse the string.
         """
-        import os
+        import os, subprocess
         import tempfile
 
         # Undump string data with udmpkf
         path = tempfile.mktemp(dir=os.getcwd())
 
         udumpCmd = os.path.join(self._kfpath, 'udmpkf')
-        tochild = os.popen(udumpCmd + ' "' + path + '" 2>/dev/null', 'w')
-        tochild.write(sstr)
-        tochild.close()
+
+        DEVNULL = open(os.devnull, 'wb')
+        subprocess.Popen([udumpCmd, path], stdin=subprocess.PIPE, stderr=DEVNULL,
+                         env=self.env).communicate(input=sstr)
 
         # Work around start script bug: __0 files only renamed in current directory
         if os.path.isfile(path + '__0'):
@@ -341,12 +348,17 @@ class kffile:
 
         # Use cpkf to merge the two binary files
         copyCmd = os.path.join(self._kfpath, 'cpkf')
-        copyCmd = copyCmd + ' ' + path + ' ' + self._fileName + " '" + sec + '%' + var + "'" + ' 2> /dev/null'
+        copyCmd = [copyCmd, path, self._fileName,  sec + '%' + var]
 
-        os.system(copyCmd)
+        DEVNULL = open(os.devnull, 'wb')
+        subprocess.Popen(copyCmd, stderr=DEVNULL, env=self.env).wait()
 
         # Close temporary file
         os.remove(path)
+
+
+def setup_kf_environment(env):
+    kffile.env = env
 
 
 # ---------------

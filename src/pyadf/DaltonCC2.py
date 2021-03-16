@@ -1,9 +1,12 @@
+# -*- coding: utf-8 -*-
+
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2020 by Christoph R. Jacob, S. Maya Beyhan,
-# Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Michal Handzlik,
-# Karin Kiewisch, Moritz Klammler, Lars Ridder, Jetze Sikkema,
-# Lucas Visscher, and Mario Wolter.
+# Copyright (C) 2006-2021 by Christoph R. Jacob, Tobias Bergmann,
+# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Thomas Dresselhaus,
+# Andre S. P. Gomes, Andreas Goetz, Michal Handzlik, Karin Kiewisch,
+# Moritz Klammler, Lars Ridder, Jetze Sikkema, Lucas Visscher, and
+# Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -240,9 +243,11 @@ class daltonCC2job(daltonsinglepointjob):
         daltonsinglepointjob.__init__(self, mol, basis, fdein=fdein,
                                       settings=self.settings, options=options)
 
-    def get_runscript(self):
-        # CC is not available in MPI parallel runs
-        return daltonjob.get_runscript(self, nproc=None, memory=self.settings.memory)
+    # CC is not available in MPI parallel runs
+    only_serial = True
+
+    def get_runscript(self, nproc):
+        return daltonjob.get_runscript(self, nproc=nproc, memory=self.settings.memory)
 
     def _get_nexci(self):
         return self.settings.nexci

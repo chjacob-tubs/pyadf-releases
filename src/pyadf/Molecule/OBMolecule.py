@@ -1,9 +1,12 @@
+# -*- coding: utf-8 -*-
+
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2020 by Christoph R. Jacob, S. Maya Beyhan,
-# Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Michal Handzlik,
-# Karin Kiewisch, Moritz Klammler, Lars Ridder, Jetze Sikkema,
-# Lucas Visscher, and Mario Wolter.
+# Copyright (C) 2006-2021 by Christoph R. Jacob, Tobias Bergmann,
+# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Thomas Dresselhaus,
+# Andre S. P. Gomes, Andreas Goetz, Michal Handzlik, Karin Kiewisch,
+# Moritz Klammler, Lars Ridder, Jetze Sikkema, Lucas Visscher, and
+# Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -1128,7 +1131,10 @@ class OBMolecule(ProteinMoleculeMixin, BaseMolecule):
         res_list = []
         for at in atoms:
             chain_id, res_name, res_num = self.get_atom_resinfo(at)
-            residx = self.get_residx_from_resinfo(chain_id, res_name, res_num, chaininfo=ci)
+            if (chain_id is None) or (res_name is None) or (res_num is None):
+                residx = -1
+            else:
+                residx = self.get_residx_from_resinfo(chain_id, res_name, res_num, chaininfo=ci)
             res_list.append(residx)
         return res_list
 
@@ -1465,7 +1471,7 @@ class OBMolecule(ProteinMoleculeMixin, BaseMolecule):
 
     def find_adjacent_atoms(self, atoms, atnum=None):
         """
-        Return a list of all hydrogen atoms that are directly connected to one of the given atoms.
+        Return a list of all atoms that are directly connected to one of the given atoms.
 
         @param atoms: the list of atoms numbers
         @type  atoms: list of ints
@@ -1623,6 +1629,12 @@ class OBMolecule(ProteinMoleculeMixin, BaseMolecule):
         obmols = self.mol.Separate()
         for m in obmols:
             mols.append(OBMolecule().set_OBMol(m))
+
+        # FIXME: with a proper handling of spin multiplicity (see #16)
+        #        this should not be necessary
+        for m in mols:
+            m.set_charge(0)
+            m.set_spin(0)
 
         return mols
 

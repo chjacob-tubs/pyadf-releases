@@ -1,0 +1,24 @@
+import os
+
+
+def test_get_het_h_list(name, ref_het_h_list):
+    mol = molecule(os.path.join(pyadfenv.outdir, name+'.mol2'), inputformat='mol2')
+    het_h_list = mol.get_hetero_hydrogen_list()
+
+    print('Molecule: ', name)
+    print('Hetero hydrogen list: ', het_h_list)
+    print('Ref hetero hydrogen list: ', ref_het_h_list)
+    
+    if 'unittesting' in pyadfenv.options:
+        testobj.assertEqual(het_h_list, ref_het_h_list)
+    
+    
+testmols = [
+    ['water', [2, 3]],
+    ['methane', []], 
+    ['DKP', [7, 10]],
+    ['uracil', [10, 12]]
+]
+
+for testmol in testmols:
+    test_get_het_h_list(testmol[0], testmol[1])

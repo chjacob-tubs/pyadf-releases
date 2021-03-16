@@ -1,9 +1,12 @@
+# -*- coding: utf-8 -*-
+
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2020 by Christoph R. Jacob, S. Maya Beyhan,
-# Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Michal Handzlik,
-# Karin Kiewisch, Moritz Klammler, Lars Ridder, Jetze Sikkema,
-# Lucas Visscher, and Mario Wolter.
+# Copyright (C) 2006-2021 by Christoph R. Jacob, Tobias Bergmann,
+# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Thomas Dresselhaus,
+# Andre S. P. Gomes, Andreas Goetz, Michal Handzlik, Karin Kiewisch,
+# Moritz Klammler, Lars Ridder, Jetze Sikkema, Lucas Visscher, and
+# Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -123,7 +126,7 @@ class TurboObject(object):
         """
 
         sys.stderr.write(message + '\n')
-
+        
 
 class TurboDefinition(TurboObject):
     """
@@ -260,13 +263,17 @@ class TurboDefinition(TurboObject):
         afterwards.
 
         """
+        from JobRunner import DefaultJobRunner
+        from Turbomole import TurbomoleJob
 
         # Generate the input sequence to be passed.
         self.define_stdin = self._assembleInput()
 
+        env = DefaultJobRunner().get_environ_for_local_command(TurbomoleJob)
+
         try:
             # Create the subprocess
-            D = Popen(['define'], stdin=PIPE, stdout=PIPE, stderr=PIPE)
+            D = Popen(['define'], stdin=PIPE, stdout=PIPE, stderr=PIPE, env=env)
 
             # Pass it the input and wait for it to finish.
             self.define_stdout, self.define_stderr = D.communicate(input=self.define_stdin)
@@ -287,6 +294,7 @@ class TurboDefinition(TurboObject):
         import tempfile
 
         toadd = ''
+
         if self.settings.disp is None:
             pass
         elif self.settings.disp == 'dft-d1':
@@ -320,6 +328,7 @@ class TurboDefinition(TurboObject):
                 for line in infile:
                     outfile.write(line + '\n')
         os.remove(tf.name)
+
 
     def _sanitize(self):
         """
@@ -618,13 +627,24 @@ class TurboDefinition(TurboObject):
 
                 if self._checkfor("func : TO CHANGE TYPE OF FUNCTIONAL"):
                     self._report(sanitizeprompt + "`define' still seems to "
-                                 + "accept `func' (to select the DFT "
-                                 + " functional as input.", 3)
+                                 + "accept `func' (to select the DFT"
+                                 + " functional as input.)", 3)
                 else:
                     success = False
                     self._report(sanitizeprompt + "ERROR: `define's menu might have "
                                  + "changed. I can't find an explanation for "
                                  + "`func' (to select the DFT functional) but "
+                                 + "I have used it.", -3)
+
+                if self._checkfor("grid : TO CHANGE GRID SIZE"):
+                    self._report(sanitizeprompt + "`define' still seems to "
+                                 + "accept `grid' (to select the DFT"
+                                 + " Grid as input.)", 3)
+                else:
+                    success = False
+                    self._report(sanitizeprompt + "ERROR: `define's menu might have "
+                                 + "changed. I can't find an explanation for "
+                                 + "`grid' (to select the DFT grid) but "
                                  + "I have used it.", -3)
 
                     # The following check is  dangerous to behave unexpected if
@@ -919,6 +939,7 @@ class TurboDefinition(TurboObject):
             sequence.append('dft')
             sequence.append('on')
             sequence.append('func ' + self.settings.dft_functional)
+            sequence.append('grid ' + self.settings.dft_grid)
             sequence.append('')
         if self.settings.ri:
             sequence.append('ri')

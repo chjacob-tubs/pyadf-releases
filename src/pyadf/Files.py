@@ -1,9 +1,12 @@
+# -*- coding: utf-8 -*-
+
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2020 by Christoph R. Jacob, S. Maya Beyhan,
-# Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Michal Handzlik,
-# Karin Kiewisch, Moritz Klammler, Lars Ridder, Jetze Sikkema,
-# Lucas Visscher, and Mario Wolter.
+# Copyright (C) 2006-2021 by Christoph R. Jacob, Tobias Bergmann,
+# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Thomas Dresselhaus,
+# Andre S. P. Gomes, Andreas Goetz, Michal Handzlik, Karin Kiewisch,
+# Moritz Klammler, Lars Ridder, Jetze Sikkema, Lucas Visscher, and
+# Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -348,63 +351,90 @@ class adf_filemanager(filemanager):
         else:
             self._output.append(None)
 
+    def add_resultfiles_as_tapes(self, fnlist, fileid):
+        for filename, tapenr in fnlist:
+            if os.path.exists(filename):
+                self.add_file(filename)
+                fn = 'resultfiles/t%i.results.%04i' % (tapenr, fileid)
+                self.rename_file(filename, fn)
+                self._resultfiles[fileid].append(fn)
+
+    def add_orca_results(self, results):
+        """
+        Add the result files of a Orca job.
+        """
+        self.add_outputfiles(results)
+        self._resultfiles.append([])
+        self._ispacked.append(True)
+
+        fnlist = [('INPUT.gbw', 21), ('INPUT_property.txt', 67), ('INPUT.engrad', 68),
+                  ('INPUT.xyz', 69), ('INPUT_trj.xyz', 13)]
+        self.add_resultfiles_as_tapes(fnlist, results.fileid)
+
+    def add_molcas_results(self, results):
+        """
+        Add the result files of a Molcas job.
+        """
+        self.add_outputfiles(results)
+        self._resultfiles.append([])
+        self._ispacked.append(True)
+
+        fnlist = [('molcasjob.ScfOrb', 21), ('molcasjob.RasOrb', 22),
+                  ('molcasjob.scf.molden', 41), ('xmldump', 66)]
+        self.add_resultfiles_as_tapes(fnlist, results.fileid)
+
+    def add_quantumespresso_results(self, results):
+        """
+        Add the result files of a QE job.
+        """
+        self.add_outputfiles(results)
+        self._resultfiles.append([])
+        self._ispacked.append(True)
+
+        fnlist = [('pwscf.save.tar', 21), ('data-file.xml', 66), ('ppjob.cube', 10)]
+        self.add_resultfiles_as_tapes(fnlist, results.fileid)
+
     def add_dalton_results(self, results):
         """
         Add the result files of a Dalton job.
         """
-
         self.add_outputfiles(results)
         self._resultfiles.append([])
         self._ispacked.append(True)
+
+        self.add_resultfiles_as_tapes([('DALTON_MOLECULE.tar.gz', 21)], results.fileid)
 
     def add_dirac_results(self, results):
         """
         Add the result files of a Dirac job.
         """
-
         self.add_outputfiles(results)
-
         self._resultfiles.append([])
         self._ispacked.append(True)
 
         # we store DFCOEF as TAPE21, and GRIDOUT as TAPE10, dirac.xml as TAPE66
-        for diracfile, tapenr in [('DFCOEF', '21'), ('GRIDOUT', '10'), ('dirac.xml', '66')]:
-            if os.path.exists(diracfile):
-                os.rename(diracfile, 'TAPE' + tapenr)
-                self.add_file('TAPE' + tapenr)
-                fn = 'resultfiles/t' + tapenr + '.results.%04i' % results.fileid
-                self.rename_file('TAPE' + tapenr, fn)
-                self._resultfiles[results.fileid].append(fn)
+        fnlist = [('DFCOEF', 21), ('GRIDOUT', 10), ('dirac.xml', 66)]
+        self.add_resultfiles_as_tapes(fnlist, results.fileid)
 
     def add_nwchem_results(self, results):
         """
         Add the result files of a NWChem job.
         """
-
         self.add_outputfiles(results)
-
         self._resultfiles.append([])
         self._ispacked.append(True)
 
         # we store NWCHEM.db as TAPE21, and GRIDOUT as TAPE10
-        for nwchemfile, tapenr in [('NWCHEM.db', '21'), ('GRIDOUT', '10')]:
-            if os.path.exists(nwchemfile):
-                os.rename(nwchemfile, 'TAPE' + tapenr)
-                self.add_file('TAPE' + tapenr)
-                fn = 'resultfiles/t' + tapenr + '.results.%04i' % results.fileid
-                self.rename_file('TAPE' + tapenr, fn)
-                self._resultfiles[results.fileid].append(fn)
+        fnlist = [('NWCHEM.db', 21), ('GRIDOUT', 10)]
+        self.add_resultfiles_as_tapes(fnlist, results.fileid)
 
     def add_turbomole_results(self, results):
         """
         Add the result files (yes, plural!) of a I{Turbomole} job.
 
         Adds a C{tar} archive to the result files containing all files from the
-        I{Turbomole} working directory. The archive is compressed with the
-        format specified by the results object's C{compression} attribute which
-        must be a proper string. See the U{C{tarfile} module's
-        API<http://docs.python.org/library/tarfile.html#module-tarfile>} for a
-        list of these.
+        I{Turbomole} working directory. This archive is generated in TurbomoleJob's
+        after_run method.
 
         @param results: Results object from the I{Turbole} job.
         @type  results: L{TurbomoleResults}
@@ -412,31 +442,11 @@ class adf_filemanager(filemanager):
         @date:          Aug. 2011
 
         """
-
-        import tarfile
-
         self.add_outputfiles(results)
         self._resultfiles.append([])
         self._ispacked.append(True)
 
-        # Make  a `archive.tar'  from `jobtempdir'.  The files  will be  in the
-        # arcive directly  with no containing directory. They  can therefore be
-        # extracted  via,  say,   `tar.extractfile'energy')'  (if  `tar'  is  a
-        # `TarFile'  object  opened in  reading  mode  with properly  specified
-        # compressin.
-
-        jobdirname = 'jobtempdir'
-        archivename = 'archive.tar'
-
-        tar = tarfile.open(name=archivename, mode='w:' + results.compression)
-        for filename in os.listdir(jobdirname):
-            tar.add(jobdirname + os.sep + filename, arcname=filename)
-        tar.close()
-
-        self.add_file(archivename)
-        fn = 'resultfiles/t21.results.%04i' % results.fileid
-        self.rename_file(archivename, fn)
-        self._resultfiles[results.fileid].append(fn)
+        self.add_resultfiles_as_tapes([('archive.tar', 21)], results.fileid)
 
     def add_adf_results(self, results):
         """
@@ -460,15 +470,8 @@ class adf_filemanager(filemanager):
         self._resultfiles.append([])
         self._ispacked.append(False)
 
-        for tapenr in ['21', '10', '41']:
-            if os.path.exists('TAPE' + tapenr):
-                self.add_file('TAPE' + tapenr)
-                fn = 'resultfiles/t' + tapenr + '.results.%04i' % results.fileid
-                self.rename_file('TAPE' + tapenr, fn)
-                self._resultfiles[results.fileid].append(fn)
-
-        if os.path.exists('TAPE15'):
-            os.remove('TAPE15')
+        fnlist = [('TAPE21', 21), ('TAPE10', 10), ('TAPE41', 41)]
+        self.add_resultfiles_as_tapes(fnlist, results.fileid)
 
     def add_ams_results(self, results):
         """
@@ -492,12 +495,8 @@ class adf_filemanager(filemanager):
         self._resultfiles.append([])
         self._ispacked.append(False)
 
-        for tapenr, rkfname in [(13, 'ams.rkf'), (21, 'dftb.rkf')]:
-            if os.path.exists(rkfname):
-                self.add_file(rkfname)
-                fn = 'resultfiles/t%i.results.%04i' % (tapenr, results.fileid)
-                self.rename_file(rkfname, fn)
-                self._resultfiles[results.fileid].append(fn)
+        fnlist = [('ams.rkf', 13), ('dftb.rkf', 21)]
+        self.add_resultfiles_as_tapes(fnlist, results.fileid)
 
     def add_results(self, results):
         """
@@ -511,9 +510,12 @@ class adf_filemanager(filemanager):
         from ADF_NMR import adfnmrresults
         from ADF_CPL import adfcplresults
         from DaltonSinglePoint import daltonresults
+        from Orca import OrcaResults
+        from Molcas import MolcasResults
         from Dirac import diracresults
         from NWChem import nwchemresults
         from Turbomole import TurbomoleResults
+        from QuantumEspresso import QEResults
 
         if isinstance(results, adfsinglepointresults):
             self.add_adf_results(results)
@@ -529,10 +531,16 @@ class adf_filemanager(filemanager):
             self.add_dalton_results(results)
         elif isinstance(results, diracresults):
             self.add_dirac_results(results)
+        elif isinstance(results, OrcaResults):
+            self.add_orca_results(results)
+        elif isinstance(results, MolcasResults):
+            self.add_molcas_results(results)
         elif isinstance(results, nwchemresults):
             self.add_nwchem_results(results)
         elif isinstance(results, TurbomoleResults):
             self.add_turbomole_results(results)
+        elif isinstance(results, QEResults):
+            self.add_quantumespresso_results(results)
         elif isinstance(results, adfresults):
             pass
         else:
@@ -709,17 +717,27 @@ class adf_filemanager(filemanager):
 
         os.rename(fn, fn + ".orig")
 
-        toc = subprocess.Popen([os.path.join(os.environ['ADFBIN'], 'dmpkf'), fn + ".orig", '--xmltoc'],
-                               stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()[0]
+        if kf.kffile.env is None:
+            env = os.environ
+        else:
+            env = kf.kffile.env
+
+        toc = subprocess.Popen([os.path.join(env['ADFBIN'], 'dmpkf'), fn + ".orig", '--xmltoc'],
+                               stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env).communicate()[0]
         dom = parseString(toc)
 
         f = kf.kffile(fn + ".orig")
         atomtypeIndices = f.read('ActiveFrag', 'atomtypeIndices')
         f.close()
 
-        keepsections = ['General', 'Properties', 'Num Int Params', 'LinearScaling', 'Geometry%nr of fragmenttypes']
+        keepsections = ['General', 'Properties', 'Num Int Params', 'LinearScaling',
+                              'Geometry%nr of fragmenttypes']
+        keepsections_if_exist = ['Total Energy', 'Energy']
+
         for section in dom.getElementsByTagName('section'):
             secname = section.getAttribute('id')
+            if secname in keepsections_if_exist:
+                keepsections.append(secname)
             for i in atomtypeIndices:
                 if secname.startswith('Atyp%3i' % i):
                     keepsections.append(secname)
@@ -731,7 +749,7 @@ class adf_filemanager(filemanager):
             if secname.startswith('ActiveFrag'):
                 keepsections.append(secname)
 
-        subprocess.Popen([os.path.join(os.environ['ADFBIN'], 'cpkf'), fn + ".orig", fn] + keepsections,
-                         stdout=subprocess.PIPE, stderr=subprocess.PIPE).wait()
+        subprocess.Popen([os.path.join(env['ADFBIN'], 'cpkf'), fn + ".orig", fn] + keepsections,
+                         stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env).wait()
 
         os.remove(fn + ".orig")

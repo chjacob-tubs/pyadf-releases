@@ -1,0 +1,63 @@
+def check_results_hf (testobj, energy, dipole_vect, dipole_magn):
+    
+    testobj.assertAlmostEqual(energy,        -76.021573326, 6)                   
+
+    testobj.assertAlmostEqual(dipole_magn,     0.802835846, 5)               
+    testobj.assertAlmostEqual(dipole_vect[0],  0.778187, 4)           
+    testobj.assertAlmostEqual(dipole_vect[1],  0.180580, 4)            
+    testobj.assertAlmostEqual(dipole_vect[2], -0.079749, 4)         
+
+def check_results_lda (testobj, energy, dipole_vect, dipole_magn):
+
+    testobj.assertAlmostEqual(energy,        -75.85388333, 6)
+
+    testobj.assertAlmostEqual(dipole_magn,     0.755275682, 5)  
+    testobj.assertAlmostEqual(dipole_vect[0],  0.732050, 4)           
+    testobj.assertAlmostEqual(dipole_vect[1],  0.170115, 4)            
+    testobj.assertAlmostEqual(dipole_vect[2], -0.074865, 4)             
+
+def check_results_blyp (testobj, energy, dipole_vect, dipole_magn):
+
+    testobj.assertAlmostEqual(energy,        -76.39736719, 6)
+
+    testobj.assertAlmostEqual(dipole_magn,     0.710706469, 5)
+    testobj.assertAlmostEqual(dipole_vect[0],  0.688788, 4)
+    testobj.assertAlmostEqual(dipole_vect[1],  0.160460, 4)
+    testobj.assertAlmostEqual(dipole_vect[2], -0.070184, 4)
+
+h2o = molecule(os.path.join(pyadfenv.outdir, 'H2O.xyz'))
+
+# HF single point calculation
+
+settings = MolcasSettings(basis='cc-pVDZ', cholesky=False)
+results_hf = MolcasSinglePointJob(h2o, method='HF', settings=settings).run()
+
+energy = results_hf.get_energy()
+dipole_vect = results_hf.get_dipole_vector ()
+dipole_magn = results_hf.get_dipole_magnitude ()
+
+check_results_hf(testobj, energy, dipole_vect, dipole_magn)
+
+# LDA single point calculation
+
+settings = MolcasSettings(basis='cc-pVDZ', cholesky=False, functional='LDA5', grid='ultrafine')
+results_lda = MolcasSinglePointJob(h2o, method='DFT', settings=settings).run()
+
+energy = results_lda.get_energy()
+dipole_vect = results_lda.get_dipole_vector ()
+dipole_magn = results_lda.get_dipole_magnitude ()
+
+check_results_lda(testobj, energy, dipole_vect, dipole_magn)
+
+# BLYP single point calculation (strangely, Molcas does not have BP implemented)
+
+settings = MolcasSettings(basis='cc-pVDZ', cholesky=False, functional='BLYP')
+job = MolcasSinglePointJob(h2o, method='DFT', settings=settings)
+job.set_restart(results_lda)
+results_blyp = job.run()
+
+energy = results_blyp.get_energy()
+dipole_vect = results_blyp.get_dipole_vector ()
+dipole_magn = results_blyp.get_dipole_magnitude ()
+
+check_results_blyp(testobj, energy, dipole_vect, dipole_magn)

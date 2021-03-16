@@ -1,9 +1,12 @@
+# -*- coding: utf-8 -*-
+
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2020 by Christoph R. Jacob, S. Maya Beyhan,
-# Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Michal Handzlik,
-# Karin Kiewisch, Moritz Klammler, Lars Ridder, Jetze Sikkema,
-# Lucas Visscher, and Mario Wolter.
+# Copyright (C) 2006-2021 by Christoph R. Jacob, Tobias Bergmann,
+# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Thomas Dresselhaus,
+# Andre S. P. Gomes, Andreas Goetz, Michal Handzlik, Karin Kiewisch,
+# Moritz Klammler, Lars Ridder, Jetze Sikkema, Lucas Visscher, and
+# Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -290,3 +293,22 @@ class ProteinMoleculeMixin(object):
             tors_list = ['f tors %i %i %i %i' % tors for tors in tors_list]
 
         return tors_list
+
+    def get_hetero_hydrogen_list(self):
+        """
+        Returns a sorted list of hydrogen atoms that are bonded to hetero atoms.
+        """
+
+        hetero_hydrogen_list = []
+
+        atnums = self.get_atomic_numbers()
+        for i, atnum in enumerate(atnums):
+            if atnum == 1:
+                adjacent = self.find_adjacent_atoms(atoms=[i+1])
+                if len(adjacent) == 1:
+                    if not (atnums[adjacent[0]-1] == 6):
+                        hetero_hydrogen_list.append(i + 1)
+                elif len(adjacent) > 1:
+                    hetero_hydrogen_list.append(i+1)
+
+        return hetero_hydrogen_list

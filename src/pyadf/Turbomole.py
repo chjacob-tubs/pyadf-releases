@@ -1,9 +1,12 @@
+# -*- coding: utf-8 -*-
+
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2020 by Christoph R. Jacob, S. Maya Beyhan,
-# Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Michal Handzlik,
-# Karin Kiewisch, Moritz Klammler, Lars Ridder, Jetze Sikkema,
-# Lucas Visscher, and Mario Wolter.
+# Copyright (C) 2006-2021 by Christoph R. Jacob, Tobias Bergmann,
+# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Thomas Dresselhaus,
+# Andre S. P. Gomes, Andreas Goetz, Michal Handzlik, Karin Kiewisch,
+# Moritz Klammler, Lars Ridder, Jetze Sikkema, Lucas Visscher, and
+# Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -81,7 +84,6 @@ class TurbomoleResults(results):
 
         super(TurbomoleResults, self).__init__(j=j)
         self.resultstype = "Turbomole results"
-        self.compression = 'gz'
 
         if self.job is not None:
             if isinstance(self.job, TurbomoleForceFieldJob):
@@ -198,7 +200,6 @@ class TurbomoleResults(results):
 
         @return: List with absolute filenames.
         @rtype:  L{str}C{[]}
-
         """
 
         import tarfile
@@ -208,7 +209,7 @@ class TurbomoleResults(results):
             tarfilename = self.files.get_results_filename(self.fileid)
             tar = tarfile.open(name=tarfilename)
             filenames = tar.getnames()
-        except:
+        except tarfile.TarError:
             pass
         return filenames
 
@@ -222,11 +223,7 @@ class TurbomoleResults(results):
         Not to be used.
 
         @raises NotImplementedError: Always
-        @returns:
-        @rtype:
-
         """
-
         raise NotImplementedError("There is no dipole moment.")
 
     def get_dipole_magnitude(self):
@@ -234,11 +231,7 @@ class TurbomoleResults(results):
         Not to be used.
 
         @raises NotImplementedError: Always
-        @returns:
-        @rtype:
-
         """
-
         raise NotImplementedError("There is no dipole moment.")
 
 
@@ -265,7 +258,6 @@ class _TurbomolePlainResults(TurbomoleResults):
     implementation comment above.
 
     """
-
     pass
 
 
@@ -358,9 +350,8 @@ class _TurbomoleDensityResults(TurbomoleResults):
 
 class _TurbomoleEnergyResults(TurbomoleResults):
     """
-    Intermediate class to let results classes for computations that yield an
-    energy inherit from.
-
+    Intermediate class to let results classes for computations that
+    yield an energy inherit from.
     """
 
     def __init__(self, j=None):
@@ -668,7 +659,6 @@ class _TurbomoleForceResults(TurbomoleResults):
 
         @returns: Final gradient
         @rtype:   L{float}C{[M{N}][3]}
-
         """
 
         self.gradient = None
@@ -693,7 +683,6 @@ class _TurbomoleForceResults(TurbomoleResults):
         @returns: Final gradient vector
         @rtype:   C{numpy.array(float[3 M{N}])}
         @bug:     Not implemented yet!
-
         """
 
         import numpy
@@ -707,7 +696,6 @@ class _TurbomoleForceResults(TurbomoleResults):
 class TurbomoleSinglePointResults(_TurbomoleDensityResults, _TurbomoleEnergyResults):
     """
     Results of a L{TurbomoleSinglePointJob}.
-
     """
 
     def __init__(self, j=None):
@@ -715,10 +703,10 @@ class TurbomoleSinglePointResults(_TurbomoleDensityResults, _TurbomoleEnergyResu
         self.resultstype = "Turbomole single point results"
 
 
-class TurbomoleGeometryOptimizationResults(_TurbomoleDensityResults, _TurbomoleEnergyResults, _TurbomoleForceResults):
+class TurbomoleGeometryOptimizationResults(_TurbomoleDensityResults, _TurbomoleEnergyResults,
+                                           _TurbomoleForceResults):
     """
     Results of a L{TurbomoleGeometryOptimizationJob}.
-
     """
 
     def __init__(self, j=None):
@@ -729,7 +717,6 @@ class TurbomoleGeometryOptimizationResults(_TurbomoleDensityResults, _TurbomoleE
 class TurbomoleGradientResults(_TurbomoleDensityResults, _TurbomoleEnergyResults, _TurbomoleForceResults):
     """
     Results of a L{TurbomoleGradientJob}.
-
     """
 
     def __init__(self, j=None):
@@ -740,16 +727,13 @@ class TurbomoleGradientResults(_TurbomoleDensityResults, _TurbomoleEnergyResults
 class TurbomoleForceFieldResults(_TurbomolePlainResults):
     """
     Results of a L{TurbomoleForceFieldJob} (using I{uff}).
-
     """
-
     pass
 
 
 class TurbomoleSettings(object):
     """
     Container class for settings.
-
     """
 
     def __init__(self, verbose_level=1):
@@ -759,7 +743,6 @@ class TurbomoleSettings(object):
         @param verbose_level: The higher, the more debugging information will
                               be printed out by the L{TurboDefinition} part.
         @type  verbose_level: L{int}
-
         """
 
         self.verbose_level = verbose_level
@@ -773,7 +756,6 @@ class TurbomoleSettings(object):
 
         @returns: Text block
         @rtype:   L{str}
-
         """
 
         # Before we do anything, let the respective method assemble the list of
@@ -804,10 +786,8 @@ class TurbomoleSettings(object):
         interesting settings.  C{__str__} calls this method before it makes a
         string of the list.  Child classes can call their mother's
         C{generate_summary} and then add their own stuff.
-
         """
-
-        pass
+        self.summary = []
 
     def _set_charge(self, charge):
         """
@@ -821,16 +801,13 @@ class TurbomoleSettings(object):
 
         @param charge: Charge in atomic units
         @type  charge: L{int}
-
         """
-
         self.charge = charge
 
 
 class _TurbomoleAbInitioSettings(TurbomoleSettings):
     """
     Intermediate class to let settings for I{ab initio} jobs inherit from.
-
     """
 
     def __init__(self, verbose_level=1):
@@ -892,12 +869,10 @@ class _TurbomoleAbInitioSettings(TurbomoleSettings):
         @param method:      Name of a computational method
         @type  method:      L{str}
         @raises PyAdfError: If the method is none of the above three
-
         """
 
         if method not in ['hf', 'dft', 'mp2']:
-            raise PyAdfError("""Sorry, I don't know about `{0}' as an ab inito
-            method.""".format(method))
+            raise PyAdfError("""Sorry, I don't know about `{0}' as an ab inito method.""".format(method))
 
         self.method = method
         self.scf = (method == 'hf') or (method == 'dft')
@@ -918,7 +893,6 @@ class _TurbomoleAbInitioSettings(TurbomoleSettings):
 
         @param basis_set: Name of a basis set (e.g. C{def2-TZVP}).
         @type  basis_set: L{str}
-
         """
 
         self.basis_set_all = basis_set
@@ -933,7 +907,6 @@ class _TurbomoleAbInitioSettings(TurbomoleSettings):
         @param dft_functional: Name of a DFT functional (e.g. C{b-p}).
         @type  dft_functional: L{str}
         @raises PyAdfError:    If DFT was not selected.
-
         """
 
         self.dft_functional = dft_functional
@@ -959,7 +932,6 @@ class _TurbomoleAbInitioSettings(TurbomoleSettings):
         @type  value:  L{bool}
         @param memory: Memory to be used for RI (in MB)
         @type  memory: L{int}
-
         """
 
         self.ri = value
@@ -975,9 +947,7 @@ class _TurbomoleAbInitioSettings(TurbomoleSettings):
         @param memory:      Memory in MB
         @type  memory:      L{int}
         @raises PyAdfError: If the method is not MP2
-
         """
-
         self.cc_memory = memory
 
     def set_dispersion_correction(self, correction):
@@ -1038,7 +1008,6 @@ class _TurbomoleAbInitioSettings(TurbomoleSettings):
         @param method:      Method to be used.
         @type  method:      C{str}
         @raises PyAdfError: If the method is not known
-
         """
 
         if method != 'eht':
@@ -1053,32 +1022,25 @@ class _TurbomoleAbInitioSettings(TurbomoleSettings):
 
         @param value:  C{True} to switch on, C{False} to switch off.
         @type  value:  L{bool}
-
         """
-
         self.ired = value
 
 
 class TurbomoleSinglePointSettings(_TurbomoleAbInitioSettings):
     """
     Settings for a L{TurbomoleSinglePointJob}.
-
     """
-
     pass
 
 
 class TurbomoleGeometryOptimizationSettings(_TurbomoleAbInitioSettings):
     """
-    Intermediate class to let user level I{Turbomole} setting classes inherit
-    from.
-
+    Intermediate class to let user level I{Turbomole} setting classes inherit from.
     """
 
     def __init__(self, verbose_level=1):
 
-        super(TurbomoleGeometryOptimizationSettings,
-              self).__init__(verbose_level=verbose_level)
+        super(TurbomoleGeometryOptimizationSettings, self).__init__(verbose_level=verbose_level)
 
         self.gcart = None
         self.max_iterations = None
@@ -1102,16 +1064,13 @@ class TurbomoleGeometryOptimizationSettings(_TurbomoleAbInitioSettings):
         @param  gcart: Convergence criterion (recommended: C{gcart=4})
         @type   gcart: L{int}
         @raises PyAdfError: For invalid choices
-
         """
 
         if int(gcart) != gcart:
-            raise PyAdfError("""So you think {0} is an
-            integer?""".format(gcart))
+            raise PyAdfError("""So you think {0} is an integer?""".format(gcart))
 
         if gcart < 1:
-            raise PyAdfError("""Rejecting 10^-({0}) a.u. as a convergence
-            criterion.""".format(gcart))
+            raise PyAdfError("""Rejecting 10^-({0}) a.u. as a convergence criterion.""".format(gcart))
 
         self.gcart = gcart
 
@@ -1123,7 +1082,6 @@ class TurbomoleGeometryOptimizationSettings(_TurbomoleAbInitioSettings):
         @param number:      Max. number of cycles
         @type  number:      L{int}
         @raises PyAdfError: For invalid choices
-
         """
 
         number = int(number)
@@ -1137,16 +1095,13 @@ class TurbomoleGeometryOptimizationSettings(_TurbomoleAbInitioSettings):
 class TurbomoleGradientSettings(_TurbomoleAbInitioSettings):
     """
     Settings for a L{TurbomoleGradientJob}.
-
     """
-
     pass
 
 
 class TurbomoleForceFieldSettings(TurbomoleSettings):
     """
     Settings for a L{TurbomoleForceFieldJob}.
-
     """
 
     def __init__(self, verbose_level=1):
@@ -1186,14 +1141,12 @@ class TurbomoleJob(job):
     other modules to test easily if an object is a I{Turbomole} job.
 
     @group Initialization:  set_restart
-    @group Obsolete:        get_turbomolefile,
-                            result_filenames
+    @group Obsolete:        result_filenames
     @group Other Internals: create_results_instance,
                             get_molecule,
                             print_molecule,
                             print_settings,
                             print_extras
-
     """
 
     def __init__(self, mol):
@@ -1202,7 +1155,6 @@ class TurbomoleJob(job):
 
         @param mol: Molecule to work with
         @type mol:  L{molecule}
-
         """
 
         super(TurbomoleJob, self).__init__()
@@ -1234,7 +1186,6 @@ class TurbomoleJob(job):
         @type  restart:     subclass of L{TurbomoleJob}
         @raises PyAdfError: If the results to restart from obviously make no
                             sense or the C{mos} file can't be extracted.
-
         """
 
         # We  first check  if using  the  old results  as a  starting point  is
@@ -1282,7 +1233,6 @@ class TurbomoleJob(job):
         Runs I{define} with the current settings.
 
         @raise PyAdfError: In pathologic cases.
-
         """
 
         import os
@@ -1305,7 +1255,7 @@ class TurbomoleJob(job):
                 file from the previous job you told me to restart from... Sorry
                 for that.""")
 
-    def get_runscript(self):
+    def get_runscript(self, nproc=1):
         """
         Get a shell script that runs the job.
 
@@ -1314,10 +1264,11 @@ class TurbomoleJob(job):
 
         @returns: Shell script
         @rtype:   L{str}
-
         """
 
-        runscript = '#!/bin/bash' + '\n'
+        runscript = ''
+        if nproc > 1:
+            runscript += "export PARNODES=%i \n\n" % nproc
         for ex in self.execute:
             runscript += ex + '\n'
 
@@ -1333,52 +1284,32 @@ class TurbomoleJob(job):
 
     def after_run(self):
         """
-        Does nothing at all.
-
+        Make  a `archive.tar'  from `jobtempdir'.  The files  will be  in the
+        arcive directly  with no containing directory. They  can therefore be
+        extracted  via,  say,   `tar.extractfile'energy')'  (if  `tar'  is  a
+        `TarFile'  object  opened in  reading  mode  with properly  specified
+        gz compression.
         """
+        import tarfile
 
-        pass
-
-    def get_results_instance(self):
-        """
-        Get the results of this job.
-
-        @return: Results
-
-        """
-
-        raise NotImplementedError("abstract method")
+        tar = tarfile.open(name='archive.tar', mode='w:gz')
+        for filename in os.listdir(os.getcwd()):
+            tar.add(filename, arcname=filename)
+        tar.close()
 
     def create_results_instance(self):
         """
-        Same as L{get_results_instance}.
+        Create an instance of the matching results object for this job.
 
-        @deprecated: The name of this method is misleading but must be kept for
-                     compatibility reason. New applications should not rely on
-                     it. Use the equivalent L{create_results_instance} instead.
+        This method should be overwritten in derived classes.
+
         @returns:    Results
         @rtype:      Respective subclass of L{TurbomoleResults}
-
         """
-
-        return self.get_results_instance()
+        return NotImplementedError("abstract method")
 
     def result_filenames(self):
-        """
-        Not to be used.
-
-        Always returns an empty list for compatibility reason.
-
-        The results object will have a method
-        L{TurbomoleResults.get_result_file_list} to get a list of the files
-        actually written.
-
-        @return: Empty list
-        @rtype:  C{[]}
-
-        """
-
-        return []
+        return ['archive.tar']
 
     def get_molecule(self):
         """
@@ -1386,31 +1317,12 @@ class TurbomoleJob(job):
 
         @returns: Molecule
         @rtype:   L{molecule}
-
         """
-
         return self.mol
-
-    def get_turbomolefile(self):
-        """
-        Not to be used.
-
-        Use the results object's
-        C{L{TurbomoleResults.get_temp_result_filename}(M{FILENAME})} instead to
-        get a copy of C{M{FILENAME}}. You may use
-        L{TurbomoleResults.get_result_file_list} to retrieve a list of the
-        output files written by this job.
-
-        @raise NotImplementedError: Always
-
-        """
-
-        raise NotImplementedError("Calling this method makes no sense here.")
 
     def print_jobinfo(self):
         """
         Prints some information about the current job to I{stdout}.
-
         """
 
         print ' ' + '-' * 50
@@ -1437,27 +1349,21 @@ class TurbomoleJob(job):
     def print_molecule(self):
         """
         Prints the molecule to I{stdout}.
-
         """
-
         print self.get_molecule()
         print "  charge: {Q}".format(Q=self.mol.get_charge())
 
     def print_settings(self):
         """
         Prints the settings for the current job to I{stdout}.
-
         """
-
         print self.settings
 
     def print_extras(self):
         """
         Prints the "extras" for this job. Whatever that is. There are no
         extras.
-
         """
-
         print "  There are no extras."
 
     def print_jobtype(self):
@@ -1472,9 +1378,7 @@ class TurbomoleJob(job):
                      redefined to actually C{print} the name rather than
                      returning a string. Please use the class attribute
                      C{jobtype} instead.
-
         """
-
         return self.jobtype
 
     def check_success(self, outfile, errfile):
@@ -1633,9 +1537,6 @@ class TurbomoleSinglePointJob(TurbomoleJob):
         if self.settings.ired is None:
             self.settings.set_redundant_internal_coordinates(False)
 
-        if self.settings.scfiterlimit is None:
-            self.settings.set_scfiterlimit(30)
-
         # Chose the executing applications.
 
         if self.settings.ri:
@@ -1646,13 +1547,12 @@ class TurbomoleSinglePointJob(TurbomoleJob):
             self.execute.append('mp2prep -e')
             self.execute.append('ricc2')
 
-    def get_results_instance(self):
+    def create_results_instance(self):
         # See docstring for mother method in `TurbomoleJob'.
         """
         @rtype:  L{TurbomoleSinglePointResults}
 
         """
-
         return TurbomoleSinglePointResults(self)
 
 
@@ -1704,6 +1604,8 @@ class TurbomoleGeometryOptimizationJob(TurbomoleJob):
         if self.settings.method == 'dft':
             if self.settings.dft_functional is None:
                 self.settings.set_dft_functional('b-p')
+            if self.settings.dft_grid is None:
+                self.settings.set_dft_grid('m3')
         if self.settings.guess_initial_occupation_by is None:
             self.settings.set_initial_occupation_guess_method('eht')
         if self.settings.ired is None:
@@ -1738,13 +1640,11 @@ class TurbomoleGeometryOptimizationJob(TurbomoleJob):
         shellstring += ' -c ' + str(self.settings.max_iterations)
         self.execute.append(shellstring)
 
-    def get_results_instance(self):
+    def create_results_instance(self):
         # See docstring for mother method in `TurbomoleJob'.
         """
         @rtype:  L{TurbomoleGeometryOptimizationResults}
-
         """
-
         return TurbomoleGeometryOptimizationResults(self)
 
 
@@ -1768,7 +1668,6 @@ class TurbomoleGradientJob(TurbomoleJob):
         @type method:    L{str}
         @param settings: More specific settings
         @type  settings: L{TurbomoleGradientSettings}
-
         """
 
         super(TurbomoleGradientJob, self).__init__(mol)
@@ -1796,6 +1695,8 @@ class TurbomoleGradientJob(TurbomoleJob):
         if self.settings.method == 'dft':
             if self.settings.dft_functional is None:
                 self.settings.set_dft_functional('b-p')
+            if self.settings.dft_grid is None:
+                self.settings.set_dft_grid('m3')
         if self.settings.guess_initial_occupation_by is None:
             self.settings.set_initial_occupation_guess_method('eht')
         if self.settings.ired is None:
@@ -1808,13 +1709,12 @@ class TurbomoleGradientJob(TurbomoleJob):
             self.execute.append('dscf')
             self.execute.append('grad')
 
-    def get_results_instance(self):
+    def create_results_instance(self):
         # See docstring for mother method in `TurbomoleJob'.
         """
         @rtype:  L{TurbomoleGradientResults}
 
         """
-
         return TurbomoleGradientResults(self)
 
 
@@ -1824,7 +1724,6 @@ class TurbomoleForceFieldJob(TurbomoleJob):
     field client.
 
     @group Obsolete: set_restart
-
     """
 
     def __init__(self, mol, settings=None):
@@ -1889,7 +1788,6 @@ class TurbomoleForceFieldJob(TurbomoleJob):
         @raises NotImplementedError: Always
 
         """
-
         raise NotImplementedError("Calling this method makes no sense here!")
 
     def before_run(self):
@@ -1897,14 +1795,12 @@ class TurbomoleForceFieldJob(TurbomoleJob):
         Writes the I{coord} file.
 
         """
-
         self.mol.write('coord', outputformat='tmol')
 
-    def get_results_instance(self):
+    def create_results_instance(self):
         # See docstring for mother method in `TurbomoleJob'.
         """
         @rtype:  L{TurbomoleForceFieldResults}
 
         """
-
         return TurbomoleForceFieldResults(self)

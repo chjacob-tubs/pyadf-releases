@@ -1,9 +1,12 @@
+# -*- coding: utf-8 -*-
+
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2020 by Christoph R. Jacob, S. Maya Beyhan,
-# Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Michal Handzlik,
-# Karin Kiewisch, Moritz Klammler, Lars Ridder, Jetze Sikkema,
-# Lucas Visscher, and Mario Wolter.
+# Copyright (C) 2006-2021 by Christoph R. Jacob, Tobias Bergmann,
+# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Thomas Dresselhaus,
+# Andre S. P. Gomes, Andreas Goetz, Michal Handzlik, Karin Kiewisch,
+# Moritz Klammler, Lars Ridder, Jetze Sikkema, Lucas Visscher, and
+# Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -57,8 +60,10 @@ def setup_pyadfenv():
                       dest="restartdir", help="restart using results in directory DIR")
     parser.add_option("--profile", "-p", action="store_true", default=False,
                       dest="profile", help="run using the python profiler")
-    parser.add_option("--molclass", "-o", choices=["openbabel","plams","rdkit"], default="openbabel",
-                      dest="molclass", help="define molecule class to be used")
+    parser.add_option("--molclass", choices=["openbabel", "rdkit", "obfree"], default=None,
+                      help="select molecule class to use [available: openbabel, obfree, rdkit]")
+    parser.add_option("--jobrunnerconf", "-c", action="store", type='string', metavar='FILE', default=None,
+                      dest="jobrunnerconf", help="set job runner configuration file [default: $HOME/.pyadfconfig]")
 
     (options, args) = parser.parse_args()
 
@@ -72,8 +77,12 @@ def setup_pyadfenv():
     if options.profile:
         opts['profile'] = True
 
-    if options.molclass:
-        opts['molclass'] = options.molclass
+    opts['molclass'] = options.molclass
+
+    if options.jobrunnerconf is None:
+        opts['jobrunner_conffile'] = options.jobrunnerconf
+    else:
+        opts['jobrunner_conffile'] = os.path.abspath(options.jobrunnerconf)
 
     if not (options.restartdir is None):
         opts['restartdir'] = os.path.abspath(options.restartdir)
@@ -106,16 +115,21 @@ def setup_pyadfenv():
     return pyadfenv
 
 
-def setup_test_pyadfenv(pyadfinput, molclass=None):
+def setup_test_pyadfenv(pyadfinput, molclass=None, jobrunnerconf=None):
 
     # run locally
     cwd = os.getcwd()
 
+    options = {'unittesting': True, 'molclass': molclass}
+
+    if jobrunnerconf is None:
+        options['jobrunner_conffile'] = jobrunnerconf
+    else:
+        options['jobrunner_conffile'] = os.path.abspath(jobrunnerconf)
+
     os.mkdir('pyadftempdir')
     os.chdir('pyadftempdir')
 
-    options = {'unittesting': True}
-    options['molclass'] = molclass
     pyadfenv = env(cwd, cwd, str(os.getpid()), pyadfinput, options)
 
     return pyadfenv

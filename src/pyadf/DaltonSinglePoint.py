@@ -1,9 +1,12 @@
+# -*- coding: utf-8 -*-
+
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2020 by Christoph R. Jacob, S. Maya Beyhan,
-# Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Michal Handzlik,
-# Karin Kiewisch, Moritz Klammler, Lars Ridder, Jetze Sikkema,
-# Lucas Visscher, and Mario Wolter.
+# Copyright (C) 2006-2021 by Christoph R. Jacob, Tobias Bergmann,
+# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Thomas Dresselhaus,
+# Andre S. P. Gomes, Andreas Goetz, Michal Handzlik, Karin Kiewisch,
+# Moritz Klammler, Lars Ridder, Jetze Sikkema, Lucas Visscher, and
+# Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -48,7 +51,8 @@ class daltonresults(results):
         """
         Constructor for daltonresults.
         """
-        results.__init__(self, j)
+        super(daltonresults, self).__init__(j=j)
+        self.resultstype = 'Dalton results'
 
 
 class daltonsinglepointresults(daltonresults):
@@ -65,7 +69,7 @@ class daltonsinglepointresults(daltonresults):
         """
         Constructor for daltonsinglepointresults.
         """
-        daltonresults.__init__(self, j)
+        super(daltonsinglepointresults, self).__init__(j=j)
 
     def get_molecule(self):
         """
@@ -142,7 +146,7 @@ class daltonjob(job):
         """
         Constructor for Dalton jobs.
         """
-        job.__init__(self)
+        super(daltonjob, self).__init__()
         self._checksum_only = False
 
     def create_results_instance(self):
@@ -174,10 +178,10 @@ class daltonjob(job):
 
         return m.digest()
 
-    def get_runscript(self, nproc=None, memory=None):
+    def get_runscript(self, nproc=1, memory=None):
         put_files = [f for f in ['EMBPOT', 'FRZDNS'] if os.path.exists(f)]
 
-        runscript = "#!/bin/bash \n\n"
+        runscript = ""
 
         runscript += "cat <<eor >DALTON.dal\n"
         runscript += self.get_daltonfile()
@@ -194,7 +198,7 @@ class daltonjob(job):
             runscript += 'gzip dalfiles.tar\n'
 
         runscript += "$DALTONBIN/dalton "
-        if nproc is not None:
+        if nproc > 1:
             runscript += '-N %i ' % nproc
         if memory is not None:
             runscript += '-M %i ' % memory
@@ -214,6 +218,9 @@ class daltonjob(job):
         runscript += "exit $retcode \n"
 
         return runscript
+
+    def result_filenames(self):
+        return ['DALTON_MOLECULE.tar.gz']
 
     def check_success(self, outfile, errfile):
         # check that Dalton terminated normally
@@ -381,7 +388,7 @@ class daltonsinglepointjob(daltonjob):
             These will each be included directly in the Dalton input file.
         @type options: list of str
         """
-        daltonjob.__init__(self)
+        super(daltonsinglepointjob, self).__init__()
 
         self.mol = mol
         self.basis = basis
@@ -398,11 +405,7 @@ class daltonsinglepointjob(daltonjob):
 
         self.fdein = fdein
 
-        self.post2017code = True
-        if 'DALTON_POST2017_VERSION' in os.environ:
-            self.post2017code = False
-
-            # FIXME: Symmetry in Dalton hardcoded
+        # FIXME: Symmetry in Dalton hardcoded
         if self.mol:
             self.mol.set_symmetry('NOSYM')
 
@@ -414,11 +417,7 @@ class daltonsinglepointjob(daltonjob):
     def create_results_instance(self):
         return daltonsinglepointresults(self)
 
-    def get_runscript(self):
-        if 'NSCM' in os.environ:
-            nproc = int(os.environ['NSCM'])
-        else:
-            nproc = None
+    def get_runscript(self, nproc=1):
         return daltonjob.get_runscript(self, nproc=nproc, memory=self.settings.memory)
 
     # FIXME: restart with Dalton not implemented
@@ -443,14 +442,9 @@ class daltonsinglepointjob(daltonjob):
             block += ".RUN PROPERTIES\n"
         if self.fdein is not None:
             block += '.FDE\n'
-            # for versions prior to the 2018 dalton release,
-            # the input below is not necessary to run the calculations.
-            # from the 2018 release onwards, the definition of *FDE and
-            # some of its keywords will be mandatory
-            if not self.post2017code:
-                block += '*FDE\n'
-                block += '.PRINT\n 1\n'
-                block += '.EMBPOT\nEMBPOT\n'
+            block += '*FDE\n'
+            block += '.PRINT\n 1\n'
+            block += '.EMBPOT\nEMBPOT\n'
         return block
 
     def get_integral_block(self):

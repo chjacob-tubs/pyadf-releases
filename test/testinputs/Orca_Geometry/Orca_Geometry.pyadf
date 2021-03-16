@@ -1,0 +1,36 @@
+
+def test_geoopt(name, mol, ref_energy, ref_mol):
+
+    settings = OrcaSettings(method='DFT', ri=True, basis='def2-SVP', functional='BP')
+
+    res = OrcaGeometryOptimizationJob(mol, settings=settings).run()
+ 
+    opt_mol = res.get_molecule()
+    opt_mol.write(os.path.join(pyadfenv.outdir, name+'_opt.xyz'))
+
+    opt_energy = res.get_energy()
+    print "Final Total Energy: ", opt_energy
+
+    if 'unittesting' in pyadfenv.options :
+        print opt_mol.print_coordinates()
+        print ref_mol.print_coordinates()
+
+        testobj.assertAlmostEqualMolecules(opt_mol, ref_mol)
+        testobj.assertAlmostEqual(opt_energy, ref_energy, 5)
+
+testmols = [ 
+             ['water',              0,  -76.360767],
+             ['bad_water',          0,  -76.360767],
+             ['hydrogen',           0,   -1.1721669],
+             ['trimethyl_oxonium',  1, -194.495270],
+             ['hydroxyl',          -1,  -75.663954],
+           ]
+
+for testmol in testmols:
+    mol = molecule(os.path.join(pyadfenv.outdir, testmol[0]+'.xyz'))
+    mol.set_charge(testmol[1])
+
+    mol_ref = molecule(os.path.join(pyadfenv.outdir, testmol[0]+'_ref.xyz'))
+    mol_ref.set_charge(testmol[1])
+
+    test_geoopt(testmol[0], mol, testmol[2], mol_ref)

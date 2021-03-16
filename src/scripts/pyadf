@@ -1,11 +1,13 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2
+# -*- coding: utf-8 -*-
 
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2020 by Christoph R. Jacob, S. Maya Beyhan,
-# Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Michal Handzlik,
-# Karin Kiewisch, Moritz Klammler, Lars Ridder, Jetze Sikkema,
-# Lucas Visscher, and Mario Wolter.
+# Copyright (C) 2006-2021 by Christoph R. Jacob, Tobias Bergmann,
+# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Thomas Dresselhaus,
+# Andre S. P. Gomes, Andreas Goetz, Michal Handzlik, Karin Kiewisch,
+# Moritz Klammler, Lars Ridder, Jetze Sikkema, Lucas Visscher, and
+# Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -35,9 +37,7 @@ from pyadfenv import setup_pyadfenv, setup_test_pyadfenv
 if os.path.basename(sys.argv[0]) == 'pyadf':
     pyadfenv = setup_pyadfenv()
 else:
-    pyadfenv = setup_test_pyadfenv(pyadfinput, testing_molclass)
-
-DefaultJobRunner.instance = None
+    pyadfenv = setup_test_pyadfenv(pyadfinput, testing_molclass, testing_jobrunnerconf)
 
 stdout_save = sys.stdout
 stderr_save = sys.stderr
@@ -50,12 +50,13 @@ if 'interactive' not in pyadfenv.options:
 print
 print " " + 50 * "*"
 print " *                                          "
-print " *  PyADF v0.9                              "
+print " *  PyADF v0.97                             "
 print " *                                          "
 print " *  PyADF - A Scripting Framework for Multiscale Quantum Chemistry. "
-print " *  Copyright (C) 2006-2014 by Christoph R. Jacob, S. Maya Beyhan,  "
+print " *  Copyright (C) 2006-2020 by Christoph R. Jacob, S. Maya Beyhan, "
 print " *  Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Michal Handzlik, "
-print " *  Karin Kiewisch, Moritz Klammler, Jetze Sikkema, and Lucas Visscher "
+print " *  Karin Kiewisch, Moritz Klammler, Lars Ridder, Jetze Sikkema, "
+print " *  Lucas Visscher, and Mario Wolter. "
 print " * "
 print " *     PyADF is free software: you can redistribute it and/or modify         "
 print " *     it under the terms of the GNU General Public License as published by  "
@@ -90,7 +91,7 @@ print
 
 # name of the input file
 print " " + 40 * "-"
-print " PyADF input file: ", os.path.basename(pyadfenv.inputname)
+print " PyADF input file: ", os.path.abspath(pyadfenv.inputname)
 print
 
 # print the input file
@@ -106,12 +107,29 @@ f.close()
 myfiles = adf_filemanager(pyadfenv.outdir, pyadfenv.jobid)
 myfiles.set_outputfilename("alloutput")
 
-# initialize MoleculeFactory
-MoleculeFactory().use_molclass(pyadfenv.options["molclass"])
-
 if "restartdir" in pyadfenv.options:
     print " Using restart directory: ", pyadfenv.options["restartdir"]
     myfiles.import_resultsdir(pyadfenv.options["restartdir"])
+
+# initialize MoleculeFactory
+MoleculeFactory().use_molclass(pyadfenv.options["molclass"])
+
+print " " + 40 * "-"
+print " Molecule class command line option: ", pyadfenv.options["molclass"]
+print " Molecule class used: ", type(molecule())
+print
+
+# initialize JobRunner
+DefaultJobRunner.instance = None
+job_runner_conf = JobRunnerConfiguration(conffile=pyadfenv.options['jobrunner_conffile'])
+DefaultJobRunner(conf=job_runner_conf)
+
+# initialize KF module
+kf.setup_kf_environment(DefaultJobRunner().get_environ_for_local_command(adfjob))
+
+print " " + 40 * "-"
+DefaultJobRunner().print_configuration()
+print
 
 print " " + 50 * "*"
 print " Executing PyADF input ..."

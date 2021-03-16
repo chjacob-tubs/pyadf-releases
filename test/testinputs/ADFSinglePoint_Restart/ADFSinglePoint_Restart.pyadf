@@ -9,6 +9,8 @@ def check_results (testobj, dipole_vect, dipole_magn):
 # delete the standard file manager
 myfiles.cleanup()
 DefaultJobRunner.instance = None
+job_runner_conf = JobRunnerConfiguration(conffile=pyadfenv.options['jobrunner_conffile'])
+DefaultJobRunner(conf=job_runner_conf)
 
 #create a custom file manager
 first_filemanager = adf_filemanager (pyadfenv.outdir, pyadfenv.jobid)
@@ -33,6 +35,8 @@ print
 first_filemanager.cleanup()
 del(first_filemanager)
 DefaultJobRunner.instance = None
+job_runner_conf = JobRunnerConfiguration(conffile=pyadfenv.options['jobrunner_conffile'])
+DefaultJobRunner(conf=job_runner_conf)
 
 second_filemanager = adf_filemanager (pyadfenv.outdir, pyadfenv.jobid)
 second_filemanager.set_outputfilename ("second_adfoutput")

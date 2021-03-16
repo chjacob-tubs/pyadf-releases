@@ -1,9 +1,12 @@
+# -*- coding: utf-8 -*-
+
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2020 by Christoph R. Jacob, S. Maya Beyhan,
-# Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Michal Handzlik,
-# Karin Kiewisch, Moritz Klammler, Lars Ridder, Jetze Sikkema,
-# Lucas Visscher, and Mario Wolter.
+# Copyright (C) 2006-2021 by Christoph R. Jacob, Tobias Bergmann,
+# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Thomas Dresselhaus,
+# Andre S. P. Gomes, Andreas Goetz, Michal Handzlik, Karin Kiewisch,
+# Moritz Klammler, Lars Ridder, Jetze Sikkema, Lucas Visscher, and
+# Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -768,12 +771,12 @@ class mfccresults(results):
             dipole -= c.results.get_dipole_vector()
         return dipole
 
-    def get_density(self, grid=None, spacing=0.5, fit=False):
+    def get_density(self, grid=None, spacing=0.5, fit=False, order=None):
         if grid is None:
             grid = cubegrid(self.job.get_molecule(), spacing)
 
-        posdens = [f.results.get_nonfrozen_density(grid, fit=fit) for f in self._frags.fragiter()]
-        capdens = [c.results.get_nonfrozen_density(grid, fit=fit) for c in self._frags.capiter()]
+        posdens = [f.results.get_nonfrozen_density(grid, fit=fit, order=order) for f in self._frags.fragiter()]
+        capdens = [c.results.get_nonfrozen_density(grid, fit=fit, order=order) for c in self._frags.capiter()]
 
         posdens = reduce(lambda x, y: x + y, posdens)
 
@@ -893,6 +896,9 @@ class adf3fdejob(adfmfccjob):
 
     def __init__(self, frags, basis, settings=None, core=None,
                  fde=None, fdeoptions=None, pointcharges=None, fitbas=None, options=None):
+
+        if settings.zlmfit:
+            raise PyAdfError("3-FDE in combination with ZlmFit not implemented")
 
         adfmfccjob.__init__(self, frags, basis, settings, core, pointcharges, fitbas, options)
 
@@ -1084,3 +1090,4 @@ class adf3fdejob(adfmfccjob):
             return self.mixed_ft_run()
         else:
             return self.parallel_ft_run()
+

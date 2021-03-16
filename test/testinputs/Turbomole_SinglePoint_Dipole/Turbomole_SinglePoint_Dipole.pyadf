@@ -1,37 +1,38 @@
-def check_results_hf (testobj, energy, dipole_vect, dipole_magn):
+def check_results_hf(testobj, energy, dipole_vect, dipole_magn):
     
-    testobj.assertAlmostEqual(energy,        -76.021573326, 6)                   
+    testobj.assertAlmostEqual(energy,        -76.021573326, 6)
 
     testobj.assertAlmostEqual(dipole_magn,     0.802843014, 5)               
     testobj.assertAlmostEqual(dipole_vect[0],  0.778187, 4)           
     testobj.assertAlmostEqual(dipole_vect[1],  0.180580, 4)            
     testobj.assertAlmostEqual(dipole_vect[2], -0.079749, 4)         
 
-def check_results_lda (testobj, energy, dipole_vect, dipole_magn):
 
-    testobj.assertAlmostEqual(energy,        -75.853880774, 6)     
+def check_results_lda(testobj, energy, dipole_vect, dipole_magn):
 
-    testobj.assertAlmostEqual(dipole_magn,     0.755464539, 5)
-    testobj.assertAlmostEqual(dipole_vect[0],  0.73227, 4)
+    testobj.assertAlmostEqual(energy,        -75.853883446, 6)
+
+    testobj.assertAlmostEqual(dipole_magn,     0.755315321, 5)
+    testobj.assertAlmostEqual(dipole_vect[0],  0.732089, 4)
     testobj.assertAlmostEqual(dipole_vect[1],  0.17012, 4)
-    testobj.assertAlmostEqual(dipole_vect[2], -0.074609, 4)
+    testobj.assertAlmostEqual(dipole_vect[2], -0.074874, 4)
 
-def check_results_bp86 (testobj, energy, dipole_vect, dipole_magn):
 
-    testobj.assertAlmostEqual(energy,        -76.4238232760, 6)
+def check_results_bp86(testobj, energy, dipole_vect, dipole_magn):
 
-    testobj.assertAlmostEqual(dipole_magn,     0.72586932, 5)
-    testobj.assertAlmostEqual(dipole_vect[0],  0.703553, 4)
+    testobj.assertAlmostEqual(energy,        -76.4238262499, 6)
+
+    testobj.assertAlmostEqual(dipole_magn,     0.72575527, 5)
+    testobj.assertAlmostEqual(dipole_vect[0],  0.703406, 4)
     testobj.assertAlmostEqual(dipole_vect[1],  0.163654, 4)
-    testobj.assertAlmostEqual(dipole_vect[2], -0.071532, 4)
+    testobj.assertAlmostEqual(dipole_vect[2], -0.071813, 4)
 
-_verbose_level = 5
 
 h2o = molecule (os.path.join(pyadfenv.outdir, 'H2O.xyz'))
 
 # HF single point calculation
 
-settings = TurbomoleSinglePointSettings(verbose_level=_verbose_level)
+settings = TurbomoleSinglePointSettings(verbose_level=5)
 settings.set_basis_set('cc-pVDZ')
 settings.set_ri(False)
 settings.set_scfconv(8)
@@ -46,7 +47,7 @@ check_results_hf (testobj, energy, dipole_vect, dipole_magn)
 
 # LDA single point calculation
 
-settings = TurbomoleSinglePointSettings(verbose_level=_verbose_level)
+settings = TurbomoleSinglePointSettings(verbose_level=5)
 settings.set_basis_set('cc-pVDZ')
 settings.set_dft_functional('s-vwn')
 settings.set_ri(False)
@@ -56,14 +57,14 @@ settings.set_dft_grid('m4')
 results = TurbomoleSinglePointJob(h2o, method='dft', settings=settings).run()
 
 energy = results.get_energy()
-dipole_vect = results.get_dipole_vector ()
-dipole_magn = results.get_dipole_magnitude ()
+dipole_vect = results.get_dipole_vector()
+dipole_magn = results.get_dipole_magnitude()
 
 check_results_lda (testobj, energy, dipole_vect, dipole_magn)
        
 # BP86 single point calculation
 
-settings = TurbomoleSinglePointSettings(verbose_level=_verbose_level)
+settings = TurbomoleSinglePointSettings(verbose_level=5)
 settings.set_basis_set('cc-pVDZ')
 settings.set_dft_functional('b-p')
 settings.set_ri(False)
@@ -73,8 +74,8 @@ settings.set_dft_grid('m4')
 results = TurbomoleSinglePointJob(h2o, method='dft', settings=settings).run()
 
 energy = results.get_energy()
-dipole_vect = results.get_dipole_vector ()
-dipole_magn = results.get_dipole_magnitude ()
+dipole_vect = results.get_dipole_vector()
+dipole_magn = results.get_dipole_magnitude()
 
 check_results_bp86 (testobj, energy, dipole_vect, dipole_magn)
 

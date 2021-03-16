@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2
 #
 # Simple Python module for numerically solving a one-electron 
 # Schrodinger equation for a given potential.
@@ -12,6 +12,8 @@
 # D. Andrae, J. Hinze, Int. J. Quantum Chem. 63, 65 (1997).
 # G. Eickerling, M. Reiher, J. Chem. Theory Comput. 4, 286 (2008).
 #
+# -*- coding: utf-8 -*-
+
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
 # Copyright (C) 2006-2012 by Christoph R. Jacob, S. Maya Beyhan,

@@ -1,9 +1,12 @@
+# -*- coding: utf-8 -*-
+
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2020 by Christoph R. Jacob, S. Maya Beyhan,
-# Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Michal Handzlik,
-# Karin Kiewisch, Moritz Klammler, Lars Ridder, Jetze Sikkema,
-# Lucas Visscher, and Mario Wolter.
+# Copyright (C) 2006-2021 by Christoph R. Jacob, Tobias Bergmann,
+# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Thomas Dresselhaus,
+# Andre S. P. Gomes, Andreas Goetz, Michal Handzlik, Karin Kiewisch,
+# Moritz Klammler, Lars Ridder, Jetze Sikkema, Lucas Visscher, and
+# Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -28,6 +31,7 @@
 
 from PatternsLib import Singleton
 from Errors import PyAdfError
+from JobRunnerConfiguration import JobRunnerConfiguration
 
 
 class JobRunner(object):
@@ -36,11 +40,21 @@ class JobRunner(object):
     """
     __metaclass__ = Singleton
 
-    def __init__(self):
+    def __init__(self, conf=None):
+        if conf is None:
+            self._conf = JobRunnerConfiguration()
+        else:
+            self._conf = conf
         pass
+
+    def print_configuration(self):
+        self._conf.print_configuration()
 
     def run_job(self, job):
         pass
+
+    def get_environ_for_local_command(self, jobclass):
+        return self._conf.get_environ_for_class(jobclass)
 
 
 class SerialJobRunner(JobRunner):
@@ -50,8 +64,8 @@ class SerialJobRunner(JobRunner):
     Jobs are executed instantly on the local machine in a serial fashion.
     """
 
-    def __init__(self):
-        JobRunner.__init__(self)
+    def __init__(self, conf=None):
+        JobRunner.__init__(self, conf)
 
         from Files import adf_filemanager
         self._files = adf_filemanager()
@@ -65,10 +79,22 @@ class SerialJobRunner(JobRunner):
 
         job.before_run()
 
-        runscript = job.get_runscript()
+        if job.only_serial:
+            nproc = 1
+        else:
+            nproc = self._conf.get_nproc_for_job(job)
+
+        runscript = job.get_runscript(nproc=nproc)
 
         rsname = './pyadf_runscript'
         f = open(rsname, 'w')
+
+        f.write("#!%s \n\n" % self._conf.default_shell)
+
+        for mod in self._conf.get_env_modules_for_job(job):
+            f.write('module load %s \n' % mod)
+        f.write('\n')
+
         f.write(runscript)
         f.close()
         os.chmod(rsname, stat.S_IRWXU)
@@ -115,9 +141,6 @@ class SerialJobRunner(JobRunner):
             cwd = os.getcwd()
             os.mkdir('jobtempdir')
             os.chdir('jobtempdir')
-
-            if 'TC_HPMPI_MACHINE_FILE' in os.environ:
-                os.system('$PYADFHOME/src/scripts/create_pwd_on_nodes.py')
 
             try:
                 self.write_runscript_and_execute(job)

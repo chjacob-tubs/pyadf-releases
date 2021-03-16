@@ -1,9 +1,12 @@
+# -*- coding: utf-8 -*-
+
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2020 by Christoph R. Jacob, S. Maya Beyhan,
-# Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Michal Handzlik,
-# Karin Kiewisch, Moritz Klammler, Lars Ridder, Jetze Sikkema,
-# Lucas Visscher, and Mario Wolter.
+# Copyright (C) 2006-2021 by Christoph R. Jacob, Tobias Bergmann,
+# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Thomas Dresselhaus,
+# Andre S. P. Gomes, Andreas Goetz, Michal Handzlik, Karin Kiewisch,
+# Moritz Klammler, Lars Ridder, Jetze Sikkema, Lucas Visscher, and
+# Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -35,13 +38,14 @@ class PyADFInputTestCase(PyAdfTestCase):
     # pylint: disable=R0904
 
     def __init__(self, methodName='runTest', testname='bla', keep=False,
-                 prof=False, molclass="openbabel"):
+                 prof=False, molclass="openbabel", jobrunnerconf=None):
 
         unittest.TestCase.__init__(self, methodName)
         self._testname = testname
         self._keep = keep
         self._profile = prof
         self._molclass = molclass
+        self._jobrunnerconf = jobrunnerconf
         self._cwd = os.getcwd()
 
     def __str__(self):
@@ -91,7 +95,7 @@ class PyADFInputTestCase(PyAdfTestCase):
     def runTest(self):
 
         globs = {'pyadfinput': self._testname + ".pyadf", 'testobj': self,
-                 'testing_molclass': self._molclass}
+                 'testing_molclass': self._molclass, 'testing_jobrunnerconf': self._jobrunnerconf}
 
         if not self._profile:
             execfile(os.path.join(self._pyadfpath, 'pyadf'), globs, {})
@@ -103,8 +107,8 @@ class PyADFInputTestCase(PyAdfTestCase):
 
 
 def make_testinputs_suite(tests="all", testnames=None, dalton=True, dirac=True, nwchem=True,
-                          espresso=True, molcas=True, turbomole=True, openbabel=True,
-                          keep=False, prof=False, molclass="openbabel"):
+                          espresso=True, molcas=True, turbomole=True, orca=True, openbabel=True,
+                          keep=False, prof=False, molclass="openbabel", jobrunnerconf=None):
 
     testsetorder = ['short', 'medium', 'long', 'all']
 
@@ -144,7 +148,9 @@ def make_testinputs_suite(tests="all", testnames=None, dalton=True, dirac=True, 
             elif tests == 'molcas':
                 use_test = ('molcas' in testname.lower())
             elif tests == 'turbomole':
-                use_test = ('turbomole' in testname.lower())
+                use_test = (('turbomole' in testname.lower()) or ('snf' in testname.lower()))
+            elif tests == 'orca':
+                use_test = ('orca' in testname.lower())
             elif tests == 'openbabel':
                 use_test = (('openbabel' in testname.lower()) or ('3fde' in testname.lower()))
             elif testsetorder.index(tests) >= testsetorder.index(testset):
@@ -159,7 +165,10 @@ def make_testinputs_suite(tests="all", testnames=None, dalton=True, dirac=True, 
                     use_test = False
                 if ('molcas' in testname.lower()) and not molcas:
                     use_test = False
-                if ('turbomole' in testname.lower()) and not turbomole:
+                if (('turbomole' in testname.lower())
+                        or ('snf' in testname.lower())) and not turbomole:
+                    use_test = False
+                if ('orca' in testname.lower()) and not orca:
                     use_test = False
                 if (('openbabel' in testname.lower())
                         or ('3fde' in testname.lower())) and not openbabel:
@@ -167,6 +176,6 @@ def make_testinputs_suite(tests="all", testnames=None, dalton=True, dirac=True, 
 
             if use_test:
                 suite.addTest(PyADFInputTestCase(testname=testname, keep=keep, prof=prof,
-                                                 molclass=molclass))
+                                                 molclass=molclass, jobrunnerconf=jobrunnerconf))
 
     return suite
