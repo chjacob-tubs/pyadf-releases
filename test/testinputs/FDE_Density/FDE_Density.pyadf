@@ -1,4 +1,8 @@
 import math
+import os
+from pyadf import *
+if 'pyadfenv' not in globals():
+    from pyadf.Initialization import *
 
 file_h2o_1 = os.path.join(pyadfenv.outdir, 'FDE-H2O-1.xyz')
 file_h2o_2 = os.path.join(pyadfenv.outdir, 'FDE-H2O-2.xyz')
@@ -10,7 +14,7 @@ m_mol = molecule(file_mol)
 
 m_tot = m_mol + m_h2o_1 + m_h2o_2
 
-print m_tot.print_coordinates()
+print(m_tot.print_coordinates())
 
 # Prepare first water molecule
 r_h2o_1 = adfsinglepointjob(m_h2o_1, 'SZ', options=['NOSYMFIT']).run()
@@ -71,16 +75,16 @@ fde_dens = fde_res.get_density(grid=agrid)
 
 diffdens = fde_dens - supermol_dens
 
-int = diffdens.integral()
+integ = diffdens.integral()
 abserr = diffdens.integral(lambda x: abs(x))
 rmserr = math.sqrt(diffdens.integral(lambda x: x * x))
 
-print "Integral of difference density: ", int
-print "Integrated absolute error:      ", abserr
-print "Integrated RMS error:           ", rmserr
+print("Integral of difference density: ", integ)
+print("Integrated absolute error:      ", abserr)
+print("Integrated RMS error:           ", rmserr)
 
 if 'unittesting' in pyadfenv.options:
-    testobj.assertAlmostEqual(int, 0.000000, 4)
+    testobj.assertAlmostEqual(integ, 0.000000, 4)
     testobj.assertAlmostEqual(abserr, 0.200471, 4)
     testobj.assertAlmostEqual(rmserr, 0.029052, 4)
 
@@ -97,15 +101,15 @@ fde_dens = fde_res.get_density(grid=agrid)
 
 diffdens = fde_dens - supermol_dens
 
-int = diffdens.integral()
+integ = diffdens.integral()
 abserr = diffdens.integral(lambda x: abs(x))
 rmserr = math.sqrt(diffdens.integral(lambda x: x * x))
 
-print "Integral of difference density: ", int
-print "Integrated absolute error:      ", abserr
-print "Integrated RMS error:           ", rmserr
+print("Integral of difference density: ", integ)
+print("Integrated absolute error:      ", abserr)
+print("Integrated RMS error:           ", rmserr)
 
 if 'unittesting' in pyadfenv.options:
-    testobj.assertAlmostEqual(int, 0.000000, 4)
+    testobj.assertAlmostEqual(integ, 0.000000, 4)
     testobj.assertAlmostEqual(abserr, 0.186308, 4)
     testobj.assertAlmostEqual(rmserr, 0.028706, 4)

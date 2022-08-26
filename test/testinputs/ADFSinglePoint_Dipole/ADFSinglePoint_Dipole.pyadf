@@ -1,51 +1,58 @@
-def check_results (testobj, dipole_vect, dipole_magn):
-    testobj.assertAlmostEqual(dipole_magn,     0.6629161489, 6)
-    testobj.assertAlmostEqual(dipole_vect, [0.0, 0.0, -0.6629161489], 6)
+import os
+from pyadf import *
+if 'pyadfenv' not in globals():
+    from pyadf.Initialization import *
 
-def check_results_core (testobj, dipole_vect, dipole_magn):
-    testobj.assertAlmostEqual(dipole_magn,      0.6654267607, 6)
-    testobj.assertAlmostEqual(dipole_vect, [0.0, 0.0, -0.6654267607], 6)
 
-def check_results_ZORA (testobj, dipole_vect, dipole_magn):
-    testobj.assertAlmostEqual(dipole_magn,     0.661694355, 6)
-    testobj.assertAlmostEqual(dipole_vect, [0.0, 0.0, -0.6616943556], 6)
+def check_results(dip_vect, dip_magn):
+    testobj.assertAlmostEqual(dip_magn, 0.6676590261, 6)
+    testobj.assertAlmostEqual(dip_vect, [0.0, 0.0, 0.6676590261], 6)
 
-h2o = molecule (os.path.join(pyadfenv.outdir, 'H2O.xyz'))
 
-results = adfsinglepointjob( h2o, 'SZ').run()
+def check_results_core(dip_vect, dip_magn):
+    testobj.assertAlmostEqual(dip_magn, 0.670008409, 6)
+    testobj.assertAlmostEqual(dip_vect, [0.0, 0.0, 0.6700084099], 6)
 
-dipole_vect = results.get_dipole_vector ()
-dipole_magn = results.get_dipole_magnitude ()
 
-print "Dipole moment magnitude: %12.6f" % dipole_magn
-print "Dipole monent vector: [%12.6f, %12.6f, %12.6f]" % (dipole_vect[0], dipole_vect[1], dipole_vect[2])
-if 'unittesting' in pyadfenv.options :
-    check_results (testobj, dipole_vect, dipole_magn)
+def check_results_zora(dip_vect, dip_magn):
+    testobj.assertAlmostEqual(dip_magn, 0.666513135, 6)
+    testobj.assertAlmostEqual(dip_vect, [0.0, 0.0, 0.6665131357], 6)
+
+
+h2o = molecule(os.path.join(pyadfenv.outdir, 'H2O.xyz'))
+
+results = adfsinglepointjob(h2o, 'SZ').run()
+
+dipole_vect = results.get_dipole_vector()
+dipole_magn = results.get_dipole_magnitude()
+
+print(f"Dipole moment magnitude: {dipole_magn:12.6f}")
+print(f"Dipole monent vector: [{dipole_vect[0]:12.6f}, {dipole_vect[1]:12.6f}, {dipole_vect[2]:12.6f}]")
+if 'unittesting' in pyadfenv.options:
+    check_results(dipole_vect, dipole_magn)
 
 ###################################################################
 
-results = adfsinglepointjob( h2o, 'SZ', core='Large').run()
+results = adfsinglepointjob(h2o, 'SZ', core='Large').run()
 
-dipole_vect = results.get_dipole_vector ()
-dipole_magn = results.get_dipole_magnitude ()
+dipole_vect = results.get_dipole_vector()
+dipole_magn = results.get_dipole_magnitude()
 
-print "Dipole moment magnitude: %12.6f" % dipole_magn
-print "Dipole monent vector: [%12.6f, %12.6f, %12.6f]" % (dipole_vect[0], dipole_vect[1], dipole_vect[2])
-if 'unittesting' in pyadfenv.options :
-    check_results_core (testobj, dipole_vect, dipole_magn)
+print(f"Dipole moment magnitude: {dipole_magn:12.6f}")
+print(f"Dipole monent vector: [{dipole_vect[0]:12.6f}, {dipole_vect[1]:12.6f}, {dipole_vect[2]:12.6f}]")
+if 'unittesting' in pyadfenv.options:
+    check_results_core(dipole_vect, dipole_magn)
 
 ###################################################################
 
 ZORA_settings = adfsettings(ZORA=True)
 
-results = adfsinglepointjob( h2o, 'ZORA/SZ', settings=ZORA_settings).run()
+results = adfsinglepointjob(h2o, 'ZORA/SZ', settings=ZORA_settings).run()
 
-dipole_vect = results.get_dipole_vector ()
-dipole_magn = results.get_dipole_magnitude ()
+dipole_vect = results.get_dipole_vector()
+dipole_magn = results.get_dipole_magnitude()
 
-print "Dipole moment magnitude: %12.6f" % dipole_magn
-print "Dipole monent vector: [%12.6f, %12.6f, %12.6f]" % (dipole_vect[0], dipole_vect[1], dipole_vect[2])
-if 'unittesting' in pyadfenv.options :
-    check_results_ZORA (testobj, dipole_vect, dipole_magn)
-
-
+print(f"Dipole moment magnitude: {dipole_magn:12.6f}")
+print(f"Dipole monent vector: [{dipole_vect[0]:12.6f}, {dipole_vect[1]:12.6f}, {dipole_vect[2]:12.6f}]")
+if 'unittesting' in pyadfenv.options:
+    check_results_zora(dipole_vect, dipole_magn)

@@ -1,0 +1,32 @@
+import os
+from pyadf import *
+if 'pyadfenv' not in globals():
+    from pyadf.Initialization import *
+
+
+def check_results(etot, dip_vect, dip_magn):
+    testobj.assertAlmostEqual(etot, -76.353716815, 6)
+    testobj.assertAlmostEqual(dip_magn, 0.788568473, 6)
+    testobj.assertAlmostEqual(dip_vect, [0.0, 0.0, 0.788568473], 6)
+
+
+h2o = molecule(os.path.join(pyadfenv.outdir, 'H2O.xyz'))
+h2o.set_symmetry('NOSYM')
+
+settings = adfsettings(functional='PBE')
+
+electricfield = [0, 0, 0.01]
+
+results = adfsinglepointjob(h2o, 'DZP', settings=settings, electricfield=electricfield,
+                            options=['TOTALENERGY']).run()
+
+toten = results.get_result_from_tape('Total Energy', 'Total energy')
+dipole_vect = results.get_dipole_vector()
+dipole_magn = results.get_dipole_magnitude()
+
+print(f"Total energy: {toten:12.6f}")
+print(f"Dipole moment magnitude: {dipole_magn:12.6f}")
+print(f"Dipole monent vector: [{dipole_vect[0]:12.6f}, {dipole_vect[1]:12.6f}, {dipole_vect[2]:12.6f}]")
+
+if 'unittesting' in pyadfenv.options:
+    check_results(toten, dipole_vect, dipole_magn)

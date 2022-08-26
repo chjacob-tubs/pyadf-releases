@@ -1,12 +1,10 @@
-# -*- coding: utf-8 -*-
-
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2021 by Christoph R. Jacob, Tobias Bergmann,
-# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Thomas Dresselhaus,
-# Andre S. P. Gomes, Andreas Goetz, Michal Handzlik, Karin Kiewisch,
-# Moritz Klammler, Lars Ridder, Jetze Sikkema, Lucas Visscher, and
-# Mario Wolter.
+# Copyright (C) 2006-2022 by Christoph R. Jacob, Tobias Bergmann,
+# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Maria Chekmeneva,
+# Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz, 
+# Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder, 
+# Jetze Sikkema, Lucas Visscher, Johannes Vornweg and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -19,7 +17,7 @@
 #    GNU General Public License for more details.
 #
 #    You should have received a copy of the GNU General Public License
-#    along with PyADF.  If not, see <http://www.gnu.org/licenses/>.
+#    along with PyADF.  If not, see <https://www.gnu.org/licenses/>.
 """
  Defines grid classes for plotting of densities and potentials.
 
@@ -34,13 +32,13 @@
 """
 
 from ..Utils import Units
-from FileWriters import GridWriter
+from .FileWriters import GridWriter
 
 import numpy
 import math
 
 
-class grid(object):
+class grid:
     """
     Abstract base class representing a grid.
 
@@ -93,7 +91,7 @@ class grid(object):
         """
         The shape of the grid, i.e., the shape of the array holding the grid points.
         """
-        return (self.npoints,)
+        return self.npoints,
 
     @property
     def mol(self):
@@ -108,26 +106,23 @@ class grid(object):
 
         @rtype: int
         """
-        pass
+        raise NotImplementedError
 
     def get_grid_block(self, checksumonly):
         """
         Get the GRID input block for densf to use this grid.
         """
-        pass
-
-    def get_checksum(self):
-        if self._checksum is None:
-            import hashlib
-            m = hashlib.md5()
-            m.update(self.get_grid_block(True))
-            self._checksum = m.digest()
-
-        return self._checksum
+        raise NotImplementedError
 
     @property
     def checksum(self):
-        return self.get_checksum()
+        if self._checksum is None:
+            import hashlib
+            m = hashlib.md5()
+            m.update(self.get_grid_block(True).encode('utf-8'))
+            self._checksum = m.hexdigest()
+
+        return self._checksum
 
     def before_densf_run(self):
         """
@@ -173,25 +168,21 @@ class grid(object):
 
     def _get_weights(self):
         """
-        Read / calculate the weights. 
+        Read / calculate the weights.
 
-        This is called if self._weights is not available yet. Dont call this
-        function directly, but use the weights property or get_weights
+        This is called if self._weights is not available yet.
+        Dont call this function directly, but use the weights property.
         """
         pass
 
-    def get_weights(self):
+    @property
+    def weights(self):
         """
-        Returns an array with the grid point weights.
+        The weights of the gridpoints in a numpy array. Read-only.
         """
         if self._weights is None:
             self._weights = self._get_weights()
         return self._weights
-
-    weights = property(get_weights, None, None)
-    """
-    The weights of the gridpoints in a numpy array. Read-only.
-    """
 
     def coorditer(self, bohr=False):
         """
@@ -211,7 +202,7 @@ class grid(object):
 
         @rtype: iterator
         """
-        pass
+        raise NotImplementedError
 
     def weightiter(self):
         """
@@ -257,7 +248,7 @@ class cubegrid(grid):
         @param spacing: The spacing between the grid points in Angstrom (default: 0.25).
         @type  spacing: float
         """
-        grid.__init__(self)
+        super().__init__()
 
         self._spacing = spacing
         self._mol = mol
@@ -302,11 +293,11 @@ class cubegrid(grid):
 
     def get_grid_block(self, checksumonly):
         block = " GRID\n"
-        block += "  %14.5f %14.5f %14.5f \n" % tuple(self._startpoint)
-        block += "  %10i %10i %10i \n" % tuple(self._npoints)
-        block += "  1.0  0.0  0.0  %14.5f \n" % self._extend[0]
-        block += "  0.0  1.0  0.0  %14.5f \n" % self._extend[1]
-        block += "  0.0  0.0  1.0  %14.5f \n" % self._extend[2]
+        block += "  {:14.5f} {:14.5f} {:14.5f} \n".format(*self._startpoint)
+        block += "  {:10d} {:10d} {:10d} \n".format(*self._npoints)
+        block += f"  1.0  0.0  0.0  {self._extend[0]:14.5f} \n"
+        block += f"  0.0  1.0  0.0  {self._extend[1]:14.5f} \n"
+        block += f"  0.0  0.0  1.0  {self._extend[2]:14.5f} \n"
         block += " END \n\n"
         return block
 
@@ -335,21 +326,21 @@ class cubegrid(grid):
         header = ""
 
         # line 3: no of atoms, grid origin
-        header += "%5d%12.6f%12.6f%12.6f\n" % \
-                  (self._mol.get_number_of_atoms(),
-                   self._startpoint[0] * Units.conversion('angstrom', 'bohr'),
-                   self._startpoint[1] * Units.conversion('angstrom', 'bohr'),
-                   self._startpoint[2] * Units.conversion('angstrom', 'bohr'))
+        header += "{:5d}{:12.6f}{:12.6f}{:12.6f}\n" \
+            .format(self._mol.get_number_of_atoms(),
+                    self._startpoint[0] * Units.conversion('angstrom', 'bohr'),
+                    self._startpoint[1] * Units.conversion('angstrom', 'bohr'),
+                    self._startpoint[2] * Units.conversion('angstrom', 'bohr'))
         # lines 4-6: no grid points in x,y,z direction + unit vector
-        header += "%5d%12.6f%12.6f%12.6f\n" % \
-                  (self._npoints[0], self._spacing * Units.conversion('angstrom', 'bohr'),
-                   0.0, 0.0)
-        header += "%5d%12.6f%12.6f%12.6f\n" % \
-                  (self._npoints[1], 0.0, self._spacing * Units.conversion('angstrom', 'bohr'),
-                   0.0)
-        header += "%5d%12.6f%12.6f%12.6f\n" % \
-                  (self._npoints[2], 0.0, 0.0,
-                   self._spacing * Units.conversion('angstrom', 'bohr'))
+        header += "{:5d}{:12.6f}{:12.6f}{:12.6f}\n" \
+            .format(self._npoints[0], self._spacing * Units.conversion('angstrom', 'bohr'),
+                    0.0, 0.0)
+        header += "{:5d}{:12.6f}{:12.6f}{:12.6f}\n" \
+            .format(self._npoints[1], 0.0, self._spacing * Units.conversion('angstrom', 'bohr'),
+                    0.0)
+        header += "{:5d}{:12.6f}{:12.6f}{:12.6f}\n" \
+            .format(self._npoints[2], 0.0, 0.0,
+                    self._spacing * Units.conversion('angstrom', 'bohr'))
 
         header += self._mol.get_cube_header()
 
@@ -361,7 +352,7 @@ class cubegrid(grid):
         """
 
         molout = ''
-        molout += '%i 1 \n' % self._mol.get_number_of_atoms()
+        molout += f'{self._mol.get_number_of_atoms():d} 1 \n'
         molout += self._mol.print_coordinates(index=False)
 
         header = ""
@@ -399,21 +390,21 @@ class cubegrid(grid):
         header += 'BEGIN_BLOCK_DATAGRID3D\n'
         header += 'density_on_3d_data_grid\n'
         header += 'DATAGRID_3D_this_is_3Dgrid#1\n'
-        header += " %5d %5d %5d \n" % (self._npoints[0], self._npoints[1], self._npoints[2])
-        header += " %12.6f %12.6f %12.6f \n" % \
-                  (self._startpoint[0] * Units.conversion('angstrom', 'bohr'),
-                   self._startpoint[1] * Units.conversion('angstrom', 'bohr'),
-                   self._startpoint[2] * Units.conversion('angstrom', 'bohr'))
-        header += " %12.6f %12.6f %12.6f \n" % \
-                  (self._spacing * Units.conversion('angstrom', 'bohr'), 0.0, 0.0)
-        header += " %12.6f %12.6f %12.6f \n" % \
-                  (0.0, self._spacing * Units.conversion('angstrom', 'bohr'), 0.0)
-        header += " %12.6f %12.6f %12.6f \n" % \
-                  (0.0, 0.0, self._spacing * Units.conversion('angstrom', 'bohr'))
+        header += f" {self._npoints[0]:5d} {self._npoints[1]:5d} {self._npoints[2]:5d} \n"
+        header += " {:12.6f} {:12.6f} {:12.6f} \n" \
+            .format(self._startpoint[0] * Units.conversion('angstrom', 'bohr'),
+                    self._startpoint[1] * Units.conversion('angstrom', 'bohr'),
+                    self._startpoint[2] * Units.conversion('angstrom', 'bohr'))
+        header += " {:12.6f} {:12.6f} {:12.6f} \n" \
+            .format(self._spacing * Units.conversion('angstrom', 'bohr'), 0.0, 0.0)
+        header += " {:12.6f} {:12.6f} {:12.6f} \n" \
+            .format(0.0, self._spacing * Units.conversion('angstrom', 'bohr'), 0.0)
+        header += " {:12.6f} {:12.6f} {:12.6f} \n" \
+            .format(0.0, 0.0, self._spacing * Units.conversion('angstrom', 'bohr'))
 
         return header
 
-    # pylint: disable=R0201
+    # noinspection PyMethodMayBeStatic
     def get_xsf_footer(self):
         """
         Return the header for an xsf file.
@@ -463,7 +454,7 @@ class adfgrid(grid):
         @param adfres: The results of the ADF job to use.
         @type  adfres: L{adfsinglepointresults} or subclass
         """
-        grid.__init__(self)
+        super().__init__()
         self._adfres = adfres
 
         self._mol = adfres.get_molecule()
@@ -485,13 +476,14 @@ class adfgrid(grid):
             block += self.checksum
         return block
 
-    def get_checksum(self):
+    @property
+    def checksum(self):
         if self._checksum is None:
             import hashlib
             m = hashlib.md5()
-            m.update('ADF Grid from Job:')
-            m.update(self._adfres.get_checksum())
-            self._checksum = m.digest()
+            m.update(b'ADF Grid from Job:')
+            m.update(self._adfres.checksum.encode('utf-8'))
+            self._checksum = m.hexdigest()
 
         return self._checksum
 
@@ -507,6 +499,12 @@ class adfgrid(grid):
         """
         self._adfres.copy_tape(10, name)
 
+    def get_grid_tape10_filename(self):
+        """
+        Get the TAPE10 file name.
+        """
+        return self._adfres.get_tape_filename(tape=10)
+
     def before_densf_run(self):
         self.link_grid_tape10('TAPE10')
 
@@ -521,36 +519,34 @@ class adfgrid(grid):
             conv = Units.conversion('bohr', 'angstrom')
 
         points_data = self._adfres.get_result_from_tape('Points', 'Data', tape=10)
+
+        eqv_points_data = None
         if self._eqvblocks > 1:
             eqv_points_data = self._adfres.get_result_from_tape('PointsEquiv', 'Data', tape=10)
 
         ipoint = 0
         ipointeqv = 0
 
-        # pylint: disable=W0612
         for iblock in range(1, self._nblocks + 1):
 
             coords = points_data[ipoint:ipoint + 3 * self._npoints]
-            coords = coords.reshape((self._npoints, 3), order='Fortran')
+            coords = coords.reshape((self._npoints, 3), order='F')
             coords = coords * conv
 
             ipoint += 4 * self._npoints
 
-            for c in coords:
-                yield c
+            yield from coords
 
             if self._eqvblocks > 1:
-                # pylint: disable=W0612
                 for ieqv in range(1, self._eqvblocks):
 
                     coords = eqv_points_data[ipointeqv:ipointeqv + self._npoints * 3]
-                    coords = coords.reshape((self._npoints, 3), order='Fortran')
+                    coords = coords.reshape((self._npoints, 3), order='F')
                     coords = coords * conv
 
                     ipointeqv += 3 * self._npoints
 
-                    for c in coords:
-                        yield c
+                    yield from coords
         return
 
     def _get_weights(self):
@@ -602,7 +598,7 @@ class customgrid(grid):
     Class to represent a custom integration grid.
     """
 
-    def __init__(self, mol, coords, weights=None):
+    def __init__(self, mol, coords, weights=None, checksum=None):
         """
         Constructor for customgrid.
 
@@ -613,8 +609,15 @@ class customgrid(grid):
         @type  coords: Numpy array with dimension (npoints,3)
         @param weights: The weights of each grid point (optional)
         @type  weights: Numpy array with dimension (npoints)
+        @param checksum:
+            checksum of the grid data, ideally generated from the input used to generate
+            the grid. If not given, a checksum is generated from the Numpy data. Using a
+            checksum generated from the input is preferred, because otherwise the checksum
+            will depend on numerical noise in the calculations.
+        @type checksum: str
+
         """
-        grid.__init__(self)
+        super().__init__()
         self._mol = mol
         self._coords = coords
 
@@ -623,6 +626,8 @@ class customgrid(grid):
             self._weights = numpy.ones((self._npoints,))
         else:
             self._weights = weights
+
+        self._checksum = checksum
 
     def get_number_of_points(self):
         return self._npoints
@@ -633,11 +638,12 @@ class customgrid(grid):
             block += self.checksum
         return block
 
-    def get_checksum(self):
+    @property
+    def checksum(self):
         if self._checksum is None:
             import hashlib
             m = hashlib.md5()
-            m.update('Custom Grid with data:')
+            m.update(b'Custom Grid with data:')
             m.update(self._coords.data)
             m.update(self._weights.data)
             self._checksum = m.hexdigest()
@@ -667,7 +673,7 @@ class customgrid(grid):
         return
 
 
-class interpolation(object):
+class interpolation:
     """
     Class for performing interpolation of values on a general 3d-grid.
     """
@@ -701,9 +707,12 @@ class interpolation(object):
 
         @param point: the point for which the interpolated value is needed
         @type  point: array[3]
+
+        @param npoints: number of neighboring grid points to include in the interpolation
+        @type npoints: int
         """
 
-        # FIXME: there room for performance improvements, method should be carefully profiles
+        # FIXME: there room for performance improvements, method should be carefully profiled
 
         import numpy.linalg
 
@@ -726,7 +735,6 @@ class interpolation(object):
             indices = w.argsort()[-10:]
 
         w = w[indices]
-        dist = dist[indices]
         z = self.z[indices]
         pot = self.v[indices]
 

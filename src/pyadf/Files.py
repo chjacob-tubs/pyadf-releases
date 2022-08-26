@@ -1,12 +1,10 @@
-# -*- coding: utf-8 -*-
-
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2021 by Christoph R. Jacob, Tobias Bergmann,
-# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Thomas Dresselhaus,
-# Andre S. P. Gomes, Andreas Goetz, Michal Handzlik, Karin Kiewisch,
-# Moritz Klammler, Lars Ridder, Jetze Sikkema, Lucas Visscher, and
-# Mario Wolter.
+# Copyright (C) 2006-2022 by Christoph R. Jacob, Tobias Bergmann,
+# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Maria Chekmeneva,
+# Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz, 
+# Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder, 
+# Jetze Sikkema, Lucas Visscher, Johannes Vornweg and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -19,7 +17,7 @@
 #    GNU General Public License for more details.
 #
 #    You should have received a copy of the GNU General Public License
-#    along with PyADF.  If not, see <http://www.gnu.org/licenses/>.
+#    along with PyADF.  If not, see <https://www.gnu.org/licenses/>.
 """
  The file manager L{adf_filemanager} which is used internally.
 
@@ -30,18 +28,17 @@
  @undocumented: newjobmarker
 
 """
-
 __all__ = ['filemanager', 'adf_filemanager']
 
-from Errors import PyAdfError
-from Utils import newjobmarker
-from PatternsLib import Singleton
+from .Errors import PyAdfError
+from .Utils import newjobmarker
+from .PatternsLib import Singleton
 import os
 import shutil
 import pickle
 
 
-class filemanager(object):
+class filemanager(metaclass=Singleton):
     """
     Base class for file managers.
 
@@ -66,11 +63,7 @@ class filemanager(object):
         set_outputfilename, get_outputfilename, get_errfilename
     @group Manage job files:
         add_file, have_file, rename_file, copy_file, delete_file, cleanup
-
-    @undocumented: __delattr__, __getattribute__, __hash__, __new__, __reduce__,
-                   __reduce_ex__, __repr__, __str__, __setattr__
     """
-    __metaclass__ = Singleton
 
     def __init__(self, outdir=None, jobid=os.getpid()):
         """
@@ -82,7 +75,7 @@ class filemanager(object):
                       Default is the PID of the current process.
         @type  jobid: str
         """
-        self._files = set([])  # set with all managed files
+        self._files = set()  # set with all managed files
         if outdir is None:
             self._outdir = os.getcwd()
         else:
@@ -90,7 +83,7 @@ class filemanager(object):
         self._jobid = str(jobid)
         self._outfilename = ""
         self._errfilename = ""
-        self.set_outputfilename("pyadf_joboutput")
+        self.outputfilename = "pyadf_joboutput"
         self._cwd = os.getcwd()
 
     def __copy__(self):
@@ -102,29 +95,29 @@ class filemanager(object):
         # never copy or deepcopy a filemanager
         return self
 
-    def set_outputfilename(self, outname):
+    @property
+    def outputfilename(self):
         """
-        Set the name of the output and error file.
+        Name of the file where the output of the calculation is written.
 
-        The output and error files will be written to the output directory
-        (see L{__init__}). The given name will be prepended with the job id
-        and the extension C{'.out'} and C{'.err'}, respectively.
-
-        @param outname: the name to be used for the output and error file.
-        @type  outname: str
-        """
-        self._outfilename = os.path.join(self._outdir, outname + "." + self._jobid + ".out")
-        self._errfilename = os.path.join(self._outdir, outname + "." + self._jobid + ".err")
-
-    def get_outputfilename(self):
-        """
-        Get the name of the output file, including the full path.
+        Assigning to C{outputfilename} will also set L{errfilename} accordingly.
+        The filename is always prepended with the job id and the extension '.out',
+        see L{set_outputfilename}
         """
         return self._outfilename
 
-    def get_errfilename(self):
+    @outputfilename.setter
+    def outputfilename(self, outname):
+        self._outfilename = os.path.join(self._outdir, outname + "." + self._jobid + ".out")
+        self._errfilename = os.path.join(self._outdir, outname + "." + self._jobid + ".err")
+
+    @property
+    def errfilename(self):
         """
-        Get the name of the output file, including the full path.
+        Name of the file where the stderr of the calculation is written.
+
+        This is read-only, because C{errfilename} is always set according to
+        L{outputfilename}.
         """
         return self._errfilename
 
@@ -147,11 +140,11 @@ class filemanager(object):
         @param filename: the file name
         @type  filename: str
         """
+        if not (os.getcwd() == self._cwd):
+            print(os.getcwd(), self._cwd)
+            raise PyAdfError("add_file not called in base working directory")
         if not os.path.exists(filename):
             raise PyAdfError("file " + filename + " not found")
-        if not (os.getcwd() == self._cwd):
-            print os.getcwd(), self._cwd
-            raise PyAdfError("add_file not called in base working directory")
         self._files.add(os.path.abspath(filename))
 
     def delete_file(self, filename):
@@ -237,23 +230,6 @@ class filemanager(object):
             self.delete_file(f)
         self.__class__.instance = None
 
-    outputfilename = property(get_outputfilename, set_outputfilename, None,
-                              """
-                           Name of the file where the output of the calculation is written.
-
-                           Assigning to C{outputfilename} will also set L{errfilename} accordingly.
-                           The filename is always prepended with the job id and the extension '.out',
-                           see L{set_outputfilename}
-                           """)
-
-    errfilename = property(get_errfilename, None, None,
-                           """
-                           Name of the file where the stderr of the calculation is written.
-
-                           This is read-only, because C{errfilename} is always set according to
-                           L{outputfilename}.
-                           """)
-
 
 class adf_filemanager(filemanager):
     """
@@ -284,9 +260,6 @@ class adf_filemanager(filemanager):
         get_results_filename, copy_job_result_files, copy_result_file,
         get_output, get_id,
         copy_all_results_to_dir, import_resultsdir
-
-    @undocumented: __delattr__, __getattribute__, __hash__, __new__, __reduce__,
-                   __reduce_ex__, __repr__, __str__, __setattr__
     """
 
     def __init__(self, outdir=None, jobid=os.getpid()):
@@ -299,7 +272,7 @@ class adf_filemanager(filemanager):
                       Default is the PID of the current process.
         @type  jobid: str
         """
-        filemanager.__init__(self, outdir, jobid)
+        super().__init__(outdir, jobid)
         self._resultfiles = []  # list of lists of result files, id gives index
         self._output = []  # a list giving for each result the name of the
         #                               output file and first and last line of the output
@@ -314,7 +287,7 @@ class adf_filemanager(filemanager):
 
         This deletes all the managed files.
         """
-        filemanager.cleanup(self)
+        super().cleanup()
         shutil.rmtree('resultfiles', True)
 
     def add_outputfiles(self, results):
@@ -326,7 +299,7 @@ class adf_filemanager(filemanager):
         results.fileid = fileid
 
         # save checksum
-        checksum = results.get_checksum()
+        checksum = results.checksum
 
         if checksum in self._id:
             raise PyAdfError("Checksum error when adding results")
@@ -337,7 +310,7 @@ class adf_filemanager(filemanager):
         if results.job is not None:
             outfilename = self.outputfilename
 
-            f = open(outfilename, 'r')
+            f = open(outfilename, encoding='utf-8')
             outputstart = -1
             outputend = -1
             for i, ll in enumerate(f.readlines()):
@@ -355,7 +328,7 @@ class adf_filemanager(filemanager):
         for filename, tapenr in fnlist:
             if os.path.exists(filename):
                 self.add_file(filename)
-                fn = 'resultfiles/t%i.results.%04i' % (tapenr, fileid)
+                fn = f'resultfiles/t{tapenr:d}.results.{fileid:04d}'
                 self.rename_file(filename, fn)
                 self._resultfiles[fileid].append(fn)
 
@@ -368,7 +341,8 @@ class adf_filemanager(filemanager):
         self._ispacked.append(True)
 
         fnlist = [('INPUT.gbw', 21), ('INPUT_property.txt', 67), ('INPUT.engrad', 68),
-                  ('INPUT.xyz', 69), ('INPUT_trj.xyz', 13)]
+                  ('INPUT.xyz', 69), ('INPUT_trj.xyz', 13), ('INPUT.molden.input', 41),
+                  ('INPUT.mdci.optorb', 47), ('INPUT.scfp', 47), ('INPUT.hess', 42)]
         self.add_resultfiles_as_tapes(fnlist, results.fileid)
 
     def add_molcas_results(self, results):
@@ -424,8 +398,8 @@ class adf_filemanager(filemanager):
         self._resultfiles.append([])
         self._ispacked.append(True)
 
-        # we store NWCHEM.db as TAPE21, and GRIDOUT as TAPE10
-        fnlist = [('NWCHEM.db', 21), ('GRIDOUT', 10)]
+        # we store NWCHEM.db as TAPE21, gridpts.0 as TAPE10 and molden as TAPE41
+        fnlist = [('NWCHEM.db', 21), ('NWCHEM.gridpts.0', 10), ('NWCHEM.molden', 41)]
         self.add_resultfiles_as_tapes(fnlist, results.fileid)
 
     def add_turbomole_results(self, results):
@@ -448,7 +422,7 @@ class adf_filemanager(filemanager):
 
         self.add_resultfiles_as_tapes([('archive.tar', 21)], results.fileid)
 
-    def add_adf_results(self, results):
+    def add_scm_results(self, results):
         """
         Add the result files of an ADF job.
 
@@ -473,9 +447,9 @@ class adf_filemanager(filemanager):
         fnlist = [('TAPE21', 21), ('TAPE10', 10), ('TAPE41', 41)]
         self.add_resultfiles_as_tapes(fnlist, results.fileid)
 
-    def add_ams_results(self, results):
+    def add_dftb_results(self, results):
         """
-        Add the result files of an AMS job.
+        Add the result files of an AMS DFTB job.
 
         The rkf files in the working directory will be added to the
         file manager. The id the results are stored under will be stored
@@ -498,35 +472,54 @@ class adf_filemanager(filemanager):
         fnlist = [('ams.rkf', 13), ('dftb.rkf', 21)]
         self.add_resultfiles_as_tapes(fnlist, results.fileid)
 
+    def add_adf_results(self, results):
+        """
+        Add the result files of an AMS ADF job.
+
+        The rkf files in the working directory will be added to the
+        file manager. The id the results are stored under will be stored
+        in the passed results object. This results object will usually
+        also be used for accessing the results, see methods of L{adfresults}.
+
+        In addition, the file manager will also remember the name of the
+        output file of the job and the corresponding line numbers.
+
+        @param results: the results object of the job that was run
+        @type  results: derived from L{amsresults}
+        """
+
+        self.add_outputfiles(results)
+
+        # now the tape files
+        self._resultfiles.append([])
+        self._ispacked.append(False)
+
+        fnlist = [('ams.rkf', 13), ('adf.rkf', 21), ('TAPE10', 10)]
+        self.add_resultfiles_as_tapes(fnlist, results.fileid)
+
     def add_results(self, results):
         """
         Add results.
 
         Based on the type of the results argument, ADF, Dalton, or Dirac results are added
         """
-        from ADFBase import adfresults, amsresults
-        from ADFSinglePoint import adfsinglepointresults
-        from ADF_Densf import densfresults
-        from ADF_NMR import adfnmrresults
-        from ADF_CPL import adfcplresults
-        from DaltonSinglePoint import daltonresults
-        from Orca import OrcaResults
-        from Molcas import MolcasResults
-        from Dirac import diracresults
-        from NWChem import nwchemresults
-        from Turbomole import TurbomoleResults
-        from QuantumEspresso import QEResults
+        from .ADFBase import scmresults, adfresults
+        from .ADFSinglePoint import adfsinglepointresults
+        from .ADF_DFTB import dftbresults
+        from .DaltonSinglePoint import daltonresults
+        from .Orca import OrcaResults
+        from .Molcas import MolcasResults
+        from .Dirac import diracresults
+        from .NWChem import nwchemresults
+        from .Turbomole import TurbomoleResults
+        from .QuantumEspresso import QEResults
 
         if isinstance(results, adfsinglepointresults):
             self.add_adf_results(results)
-        elif isinstance(results, amsresults):
-            self.add_ams_results(results)
-        elif isinstance(results, densfresults):
-            self.add_adf_results(results)
-        elif isinstance(results, adfnmrresults):
-            self.add_adf_results(results)
-        elif isinstance(results, adfcplresults):
-            self.add_adf_results(results)
+        elif isinstance(results, dftbresults):
+            self.add_dftb_results(results)
+        elif isinstance(results, scmresults):
+            self.add_scm_results(results)
         elif isinstance(results, daltonresults):
             self.add_dalton_results(results)
         elif isinstance(results, diracresults):
@@ -569,7 +562,7 @@ class adf_filemanager(filemanager):
         else:
             return None
 
-    def get_results_filename(self, fileid, tape=21):
+    def get_results_filename(self, fileid, tape=21, no_check=False):
         """
         Returns the file name of a results TAPE file.
 
@@ -577,15 +570,120 @@ class adf_filemanager(filemanager):
         @type  fileid: int
         @param tape: the number of the requested TAPE file (default: TAPE21)
         @type  tape: int
+        @param no_check: if True, check that the file actually exists
+        @type no_check: bool
         """
         # tape: number of the tape to get
 
-        fn = os.path.join(self._cwd, 'resultfiles', 't%2i.results.%04i' % (tape, fileid))
+        fn = os.path.join(self._cwd, 'resultfiles', f't{tape:2d}.results.{fileid:04d}')
 
-        if self.have_file(fn):
+        if self.have_file(fn) or no_check:
             return fn
         else:
             raise PyAdfError("results file not found")
+
+    def get_tempfile_from_archive(self, fileid, filename, tape=21):
+        """
+        Access a result file from the archived (.tar.gz) results.
+
+        Extracts a result file from the archived data and writes its contents
+        to a temporary file. The file name of this temporary file is returned
+        and may be used to open / read as if it were the original file. You're
+        self responsible to delete the temporary file afterwards, once you
+        don't need it any longer.
+
+        If the C{filename} can't be found in the archive, L{None} will be
+        returned and no exception will raise.
+
+        @param fileid: the file id of the job results
+        @type  fileid: int
+        @param filename: Name of the file to extract. (E.g. C{energy}.)
+        @type  filename: L{str}
+        @param tape: the number of the requested TAPE file containing the archive.
+        @type  tape: int
+        @returns:        Absolute path to the temporary file.
+        @rtype:          L{str}
+        """
+
+        # comment from original Turbomole version of this method by Moritz Klammler
+        #
+        # We want a  somewhat wicked thing from this method:  It should give us
+        # access to a file  in a `tar' archive but we don't  want to care about
+        # that fact. Python  can read files from `tar' archives  as long as the
+        # corresponding `TarFile' is open. If  we simply not close it, we might
+        # risk the  archive with our  entire results becoming  inaccessible. We
+        # could read  the content of the  archived file to memory  and return a
+        # string.  But  that would be very  inconvenient if  the  user wants to
+        # iterate  over the  lines  of  the file.   (She  would then,  instead,
+        # iterate over the characters of the string maybe without even noting.)
+        # A solid solution is to write the file of interest to an external file
+        # such  that the user  can re-read  its content  from there.  But where
+        # should we write  such a file? Can  we trust that there will  not be a
+        # file named,  say, `energy' in  the CWD? Maybe  it isn't but  who will
+        # think of this when someday  PyADF's file manager changes? What if two
+        # jobs run  in parallel and  want to access  the same result  file from
+        # different  computations  simultanously?  Python's  `tempfile'  module
+        # provides a nice tool for that. The solution implemented is to write a
+        # temporary file  and return its absolute path. Hence insetead of
+        #
+        # filename = 'foo.txt'
+        # for line in open(filename, 'r'):
+        #     print line
+        #
+        # a user would write
+        #
+        # filename = get_temp_result_filename('foo.txt')
+        # for line in open(filename, 'r'):
+        #     print line
+        # os.remove(filename)
+
+        import tempfile
+
+        content = self.read_file_from_archive(fileid, filename, tape=tape)
+        if content is not None:
+            temp_file = tempfile.NamedTemporaryFile(mode='w', delete=False)
+            temp_file.file.write(content)
+            temp_file.file.close()
+
+            return temp_file.name
+        else:
+            return None
+
+    def read_file_from_archive(self, fileid, filename, tape=21):
+        """
+        Access a result file from the archived (.tar.gz) results.
+
+        Extracts a result file from the archived data and reads its contents.
+
+        If the C{filename} can't be found in the archive, L{None} will be
+        returned and no exception will raise.
+
+        @param fileid: the file id of the job results
+        @type  fileid: int
+        @param filename: Name of the file to extract. (E.g. C{energy}.)
+        @type  filename: L{str}
+        @param tape: the number of the requested TAPE file containing the archive.
+        @type  tape: int
+        @returns:        Absolute path to the temporary file.
+        @rtype:          L{str}
+        """
+        import tarfile
+        import sys
+
+        content = None
+        tar = None
+        tarfilename = self.get_results_filename(fileid, tape=tape)
+        try:
+            tar = tarfile.open(name=tarfilename)
+            resultfile = tar.extractfile(filename)
+            content = resultfile.read().decode('utf-8')
+            resultfile.close()
+        except (KeyError, OSError) as e:
+            sys.stderr.write(str(e) + '\n')
+        finally:
+            tar.close()
+
+        return content
 
     def get_output(self, fileid):
         """
@@ -595,7 +693,7 @@ class adf_filemanager(filemanager):
         @type  fileid: int
         """
 
-        f = open(self._output[fileid][0], 'r')
+        f = open(self._output[fileid][0], encoding='utf-8')
         outp = f.readlines()[self._output[fileid][1]:self._output[fileid][2]]
         f.close()
 
@@ -655,7 +753,7 @@ class adf_filemanager(filemanager):
             for f in filelist:
                 self.copy_file(f, os.path.join(dirname, os.path.basename(f)))
 
-        f = open(os.path.join(dirname, 'adffiles.pickle'), 'w')
+        f = open(os.path.join(dirname, 'adffiles.pickle'), 'wb')
         pickle.dump(self._id, f)
         pickle.dump(self._resultfiles, f)
         pickle.dump(self._output, f)
@@ -672,23 +770,66 @@ class adf_filemanager(filemanager):
         @type  dirname: str
         """
 
+        f = open(os.path.join(dirname, 'adffiles.pickle'), 'rb')
         if len(self._resultfiles) > 0:
-            raise PyAdfError('Error importing resultsdir')
+            # this means, that we already have results
+            new_id = pickle.load(f)
+            new_resultfiles = pickle.load(f)
+            new_output = pickle.load(f)
+            duplicates = 0
+            checksums = new_id.copy().keys()
 
-        f = open(os.path.join(dirname, 'adffiles.pickle'), 'r')
-        self._id = pickle.load(f)
-        self._resultfiles = pickle.load(f)
-        self._output = pickle.load(f)
-        f.close()
+            # modify the ids for the checksums
+            for checksum in checksums:
+                if checksum not in self._id:
+                    # this is a new result, we can just modify the id for this
+                    # checksum
+                    new_id[checksum] += (len(self._resultfiles) - duplicates)
+                else:
+                    # this result was already present in some form, the new
+                    # version will be dropped and the duplicate will be noted
+                    dupl_index = new_id[checksum]
+                    drop_index = (dupl_index - duplicates)
+                    new_resultfiles.pop(drop_index)
+                    new_output.pop(drop_index)
+                    new_id.pop(checksum)
+                    duplicates += 1
+            self._id = {**self._id, **new_id}
+            self._output += new_output
+
+            # the paths have to be modified one by one
+            old_abs_path_dict = {}
+            for result_number in range(len(new_resultfiles)):
+                result_list = new_resultfiles[result_number]
+                new_number = result_number + len(self._resultfiles)
+                for file_number in range(len(result_list)):
+                    old_path = result_list[file_number]
+                    new_path = old_path[:old_path.rindex('.')+1] + f'{new_number:04d}'
+                    old_abs_path = os.path.abspath(os.path.join(dirname, os.path.basename(old_path)))
+                    old_abs_path_dict[new_path] = old_abs_path
+                    new_resultfiles[result_number][file_number] = new_path
+
+            self._resultfiles += new_resultfiles
+            f.close()
+            for filelist in new_resultfiles:
+                for f in filelist:
+                    f1 = old_abs_path_dict[f]
+                    f2 = os.path.join('resultfiles', os.path.basename(f))
+                    os.symlink(f1, f2)
+                    self.add_file(f2)
+        else:
+            self._id = pickle.load(f)
+            self._resultfiles = pickle.load(f)
+            self._output = pickle.load(f)
+            f.close()
+            for filelist in self._resultfiles:
+                for f in filelist:
+                    f1 = os.path.abspath(os.path.join(dirname, os.path.basename(f)))
+                    f2 = os.path.join('resultfiles', os.path.basename(f))
+                    os.symlink(f1, f2)
+                    self.add_file(f2)
 
         self._ispacked = [True] * len(self._resultfiles)
-
-        for filelist in self._resultfiles:
-            for f in filelist:
-                f1 = os.path.join(dirname, os.path.basename(f))
-                f2 = os.path.join('resultfiles', os.path.basename(f))
-                os.symlink(f1, f2)
-                self.add_file(f2)
 
     def pack_results(self, fileid):
         """
@@ -722,7 +863,7 @@ class adf_filemanager(filemanager):
         else:
             env = kf.kffile.env
 
-        toc = subprocess.Popen([os.path.join(env['ADFBIN'], 'dmpkf'), fn + ".orig", '--xmltoc'],
+        toc = subprocess.Popen([os.path.join(env['AMSBIN'], 'dmpkf'), fn + ".orig", '--xmltoc'],
                                stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env).communicate()[0]
         dom = parseString(toc)
 
@@ -731,7 +872,7 @@ class adf_filemanager(filemanager):
         f.close()
 
         keepsections = ['General', 'Properties', 'Num Int Params', 'LinearScaling',
-                              'Geometry%nr of fragmenttypes']
+                        'Geometry%nr of fragmenttypes']
         keepsections_if_exist = ['Total Energy', 'Energy']
 
         for section in dom.getElementsByTagName('section'):
@@ -739,17 +880,17 @@ class adf_filemanager(filemanager):
             if secname in keepsections_if_exist:
                 keepsections.append(secname)
             for i in atomtypeIndices:
-                if secname.startswith('Atyp%3i' % i):
+                if secname.startswith(f'Atyp{i:3d}'):
                     keepsections.append(secname)
                 # fixme: use a more general format expression
-                elif secname.startswith('Atyp%4i' % i):
+                elif secname.startswith(f'Atyp{i:4d}'):
                     keepsections.append(secname)
-                elif secname.startswith('Atyp%5i' % i):
+                elif secname.startswith(f'Atyp{i:5d}'):
                     keepsections.append(secname)
             if secname.startswith('ActiveFrag'):
                 keepsections.append(secname)
 
-        subprocess.Popen([os.path.join(env['ADFBIN'], 'cpkf'), fn + ".orig", fn] + keepsections,
+        subprocess.Popen([os.path.join(env['AMSBIN'], 'cpkf'), fn + ".orig", fn] + keepsections,
                          stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env).wait()
 
         os.remove(fn + ".orig")

@@ -1,12 +1,10 @@
-# -*- coding: utf-8 -*-
-
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2021 by Christoph R. Jacob, Tobias Bergmann,
-# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Thomas Dresselhaus,
-# Andre S. P. Gomes, Andreas Goetz, Michal Handzlik, Karin Kiewisch,
-# Moritz Klammler, Lars Ridder, Jetze Sikkema, Lucas Visscher, and
-# Mario Wolter.
+# Copyright (C) 2006-2022 by Christoph R. Jacob, Tobias Bergmann,
+# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Maria Chekmeneva,
+# Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz, 
+# Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder, 
+# Jetze Sikkema, Lucas Visscher, Johannes Vornweg and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -19,10 +17,10 @@
 #    GNU General Public License for more details.
 #
 #    You should have received a copy of the GNU General Public License
-#    along with PyADF.  If not, see <http://www.gnu.org/licenses/>.
+#    along with PyADF.  If not, see <https://www.gnu.org/licenses/>.
 
 import unittest
-from PyAdfTestCase import PyAdfTestCase
+from .PyAdfTestCase import PyAdfTestCase
 
 import os
 import numpy
@@ -41,7 +39,7 @@ class TestGridReader(PyAdfTestCase):
 
         self.assertAlmostEqual(grid.npoints, 10)
         saved_weights = numpy.load(os.path.join(TESTDATA_DIRNAME, 'grid-xyzv-weights.npy'))
-        self.assertAlmostEqualNumpy(grid.get_weights(), saved_weights, 8)
+        self.assertAlmostEqualNumpy(grid.weights, saved_weights, 8)
         saved_coords = numpy.load(os.path.join(TESTDATA_DIRNAME, 'grid-xyzv-coords.npy'))
         self.assertAlmostEqualNumpy(grid.get_coordinates(), saved_coords, 8)
 
@@ -51,7 +49,7 @@ class TestGridReader(PyAdfTestCase):
 
         self.assertAlmostEqual(grid.npoints, 15)
         saved_weights = numpy.load(os.path.join(TESTDATA_DIRNAME, 'grid-xml-weights.npy'))
-        self.assertAlmostEqualNumpy(grid.get_weights(), saved_weights, 8)
+        self.assertAlmostEqualNumpy(grid.weights, saved_weights, 8)
         saved_coords = numpy.load(os.path.join(TESTDATA_DIRNAME, 'grid-xml-coords.npy'))
         self.assertAlmostEqualNumpy(grid.get_coordinates(), saved_coords, 8)
 
@@ -64,7 +62,7 @@ class TestGridFunctionReader(PyAdfTestCase):
 
         self.assertAlmostEqual(gf.grid.npoints, 10)
         saved_weights = numpy.load(os.path.join(TESTDATA_DIRNAME, 'grid-xyzv-weights.npy'))
-        self.assertAlmostEqualNumpy(gf.grid.get_weights(), saved_weights, 8)
+        self.assertAlmostEqualNumpy(gf.grid.weights, saved_weights, 8)
         saved_coords = numpy.load(os.path.join(TESTDATA_DIRNAME, 'grid-xyzv-coords.npy'))
         self.assertAlmostEqualNumpy(gf.grid.get_coordinates(), saved_coords, 8)
         saved_values = numpy.load(os.path.join(TESTDATA_DIRNAME, 'grid-xyzv-values.npy'))
@@ -76,7 +74,7 @@ class TestGridFunctionReader(PyAdfTestCase):
 
         self.assertAlmostEqual(grid.npoints, 10)
         saved_weights = numpy.load(os.path.join(TESTDATA_DIRNAME, 'grid-xyzv-weights.npy'))
-        self.assertAlmostEqualNumpy(grid.get_weights(), saved_weights, 8)
+        self.assertAlmostEqualNumpy(grid.weights, saved_weights, 8)
         saved_coords = numpy.load(os.path.join(TESTDATA_DIRNAME, 'grid-xyzv-coords.npy'))
         self.assertAlmostEqualNumpy(grid.get_coordinates(), saved_coords, 8)
 
@@ -93,7 +91,7 @@ class TestGridFunctionReader(PyAdfTestCase):
 
         self.assertAlmostEqual(grid.npoints, 15)
         saved_weights = numpy.load(os.path.join(TESTDATA_DIRNAME, 'grid-xml-weights.npy'))
-        self.assertAlmostEqualNumpy(grid.get_weights(), saved_weights, 8)
+        self.assertAlmostEqualNumpy(grid.weights, saved_weights, 8)
         saved_coords = numpy.load(os.path.join(TESTDATA_DIRNAME, 'grid-xml-coords.npy'))
         self.assertAlmostEqualNumpy(grid.get_coordinates(), saved_coords, 8)
 

@@ -1,31 +1,37 @@
-def check_results_hf (testobj, energy, dipole_vect, dipole_magn):
-    
-    testobj.assertAlmostEqual(energy,        -76.021573326, 6) 
+import os
+from pyadf import *
+if 'pyadfenv' not in globals():
+    from pyadf.Initialization import *
 
-    testobj.assertAlmostEqual(dipole_magn,     0.802835846, 5)            
-    testobj.assertAlmostEqual(dipole_vect[0],  0.778187, 4)           
-    testobj.assertAlmostEqual(dipole_vect[1],  0.180580, 4)        
-    testobj.assertAlmostEqual(dipole_vect[2], -0.079749, 4)  
 
-def check_results_lda (testobj, energy, dipole_vect, dipole_magn):
-    
-    testobj.assertAlmostEqual(energy,        -75.853883509, 6) 
+def check_results_hf(energ, dip_vect, dip_magn):
+    testobj.assertAlmostEqual(energ, -76.021573326, 6)
 
-    testobj.assertAlmostEqual(dipole_magn,     0.755275682, 5)            
-    testobj.assertAlmostEqual(dipole_vect[0],  0.732050, 4)           
-    testobj.assertAlmostEqual(dipole_vect[1],  0.170115, 4)        
-    testobj.assertAlmostEqual(dipole_vect[2], -0.074865, 4)  
+    testobj.assertAlmostEqual(dip_magn, 0.802835846, 5)
+    testobj.assertAlmostEqual(dip_vect[0], 0.778187, 4)
+    testobj.assertAlmostEqual(dip_vect[1], 0.180580, 4)
+    testobj.assertAlmostEqual(dip_vect[2], -0.079749, 4)
 
-def check_results_bp86 (testobj, energy, dipole_vect, dipole_magn):
-    
-    testobj.assertAlmostEqual(energy,        -76.419510221, 6) 
 
-    testobj.assertAlmostEqual(dipole_magn,     0.725156725, 5)            
-    testobj.assertAlmostEqual(dipole_vect[0],  0.702823, 4)           
-    testobj.assertAlmostEqual(dipole_vect[1],  0.163537, 4)        
-    testobj.assertAlmostEqual(dipole_vect[2], -0.071738, 4)  
+def check_results_lda(energ, dip_vect, dip_magn):
+    testobj.assertAlmostEqual(energ, -75.853883509, 6)
 
-h2o = molecule (os.path.join(pyadfenv.outdir, 'H2O.xyz'))
+    testobj.assertAlmostEqual(dip_magn, 0.755275682, 5)
+    testobj.assertAlmostEqual(dip_vect[0], 0.732050, 4)
+    testobj.assertAlmostEqual(dip_vect[1], 0.170115, 4)
+    testobj.assertAlmostEqual(dip_vect[2], -0.074865, 4)
+
+
+def check_results_bp86(energ, dip_vect, dip_magn):
+    testobj.assertAlmostEqual(energ, -76.419510221, 6)
+
+    testobj.assertAlmostEqual(dip_magn, 0.725156725, 5)
+    testobj.assertAlmostEqual(dip_vect[0], 0.702823, 4)
+    testobj.assertAlmostEqual(dip_vect[1], 0.163537, 4)
+    testobj.assertAlmostEqual(dip_vect[2], -0.071738, 4)
+
+
+h2o = molecule(os.path.join(pyadfenv.outdir, 'H2O.xyz'))
 
 # HF single point calculation
 
@@ -33,32 +39,31 @@ settings = nwchemsettings(method='HF', properties=['dipole'])
 results = nwchemsinglepointjob(h2o, 'cc-pVDZ', settings=settings).run()
 
 energy = results.get_energy()
-dipole_vect = results.get_dipole_vector ()
-dipole_magn = results.get_dipole_magnitude ()
+dipole_vect = results.get_dipole_vector()
+dipole_magn = results.get_dipole_magnitude()
 
-check_results_hf (testobj, energy, dipole_vect, dipole_magn)
+check_results_hf(energy, dipole_vect, dipole_magn)
 
 # LDA single point calculation
 
-settings = nwchemsettings(method='DFT', functional='LDA', properties=['dipole'])       
-#settings = nwchemsettings(method='DFT', functional='LDA', dftgrid='xfine')       
+settings = nwchemsettings(method='DFT', functional='LDA', properties=['dipole'])
+# settings = nwchemsettings(method='DFT', functional='LDA', dftgrid='xfine')
 results = nwchemsinglepointjob(h2o, 'cc-pVDZ', settings=settings).run()
 
 energy = results.get_energy()
-dipole_vect = results.get_dipole_vector ()
-dipole_magn = results.get_dipole_magnitude ()
+dipole_vect = results.get_dipole_vector()
+dipole_magn = results.get_dipole_magnitude()
 
-check_results_lda (testobj, energy, dipole_vect, dipole_magn)
-       
+check_results_lda(energy, dipole_vect, dipole_magn)
+
 # BP86 single point calculation
 
-settings = nwchemsettings(method='DFT', functional='becke88 perdew86', properties=['dipole'])       
-#settings = nwchemsettings(method='DFT', functional='becke88 perdew86', dftgrid='xfine')       
+settings = nwchemsettings(method='DFT', functional='becke88 perdew86', properties=['dipole'])
+# settings = nwchemsettings(method='DFT', functional='becke88 perdew86', dftgrid='xfine')
 results = nwchemsinglepointjob(h2o, 'cc-pVDZ', settings=settings).run()
 
 energy = results.get_energy()
-dipole_vect = results.get_dipole_vector ()
-dipole_magn = results.get_dipole_magnitude ()
+dipole_vect = results.get_dipole_vector()
+dipole_magn = results.get_dipole_magnitude()
 
-check_results_bp86 (testobj, energy, dipole_vect, dipole_magn)
-       
+check_results_bp86(energy, dipole_vect, dipole_magn)

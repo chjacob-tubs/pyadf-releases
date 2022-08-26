@@ -1,3 +1,8 @@
+import os
+from pyadf import *
+if 'pyadfenv' not in globals():
+    from pyadf.Initialization import *
+
 import numpy
 
 ubq = molecule(os.path.join(pyadfenv.outdir, 'ubq_hydrogens.pdb'), 'pdb')
@@ -26,7 +31,7 @@ f = open(os.path.join(pyadfenv.outdir, 'ubq_torsions.txt'), 'w')
 f.writelines(ubq_torsions)
 f.close()
 
-f = open(os.path.join(pyadfenv.outdir, 'ubq_torsions_orig.txt'), 'r')
+f = open(os.path.join(pyadfenv.outdir, 'ubq_torsions_orig.txt'))
 ubq_torsions_orig = f.readlines()
 f.close()
 
@@ -72,4 +77,3 @@ numpy.save(os.path.join(pyadfenv.outdir, 'ubq_orient_hbonds_peptide.npy'), ubq_o
 ubq_orient_hbonds_peptide_orig = numpy.load(os.path.join(pyadfenv.outdir, 'ubq_orient_hbonds_peptide_orig.npy'))
 
 testobj.assertAlmostEqualNumpy(ubq_orient_hbonds_peptide_orig, ubq_orient_hbonds_peptide, places=4)
-

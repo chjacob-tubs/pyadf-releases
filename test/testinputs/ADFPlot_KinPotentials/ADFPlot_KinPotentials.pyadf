@@ -1,3 +1,8 @@
+import os
+from pyadf import *
+if 'pyadfenv' not in globals():
+    from pyadf.Initialization import *
+
 ###################################################################
 #
 # PyADF test ADFPlot_KinPotentials
@@ -12,13 +17,13 @@
 # we start with a helium atom (one orbital, vW is exact)
 ##########################################################
 
-he = molecule ()
+he = molecule()
 he.add_atoms(['He'], [[-0.0, 0.0, 0.0]])
 
 settings = adfsettings()
-settings.set_save_tapes([21,10])
+settings.set_save_tapes([21, 10])
 
-results = adfsinglepointjob( he, 'ZORA/QZ4P', settings=settings).run()
+results = adfsinglepointjob(he, 'ZORA/QZ4P', settings=settings).run()
 
 agrid = adfgrid(results)
 
@@ -36,9 +41,9 @@ pot_kin_vw = pot_kin_vw - float(shift)
 diff_pot = pot_tot + pot_kin_vw
 
 int_diff = diff_pot.integral(func=lambda x: abs(x))
-print "Integral of difference in potentials", int_diff
+print("Integral of difference in potentials", int_diff)
 
-if 'unittesting' in pyadfenv.options :
+if 'unittesting' in pyadfenv.options:
     # there is still (quite a large) difference because of
     # constant shift and basis set incompleteness
     # (see master thesis of Sam Fux)
@@ -48,10 +53,10 @@ if 'unittesting' in pyadfenv.options :
 # kinetic potential for a water molecule
 ############################################################################
 
-h2o = molecule (os.path.join(pyadfenv.outdir, 'H2O.xyz'))
+h2o = molecule(os.path.join(pyadfenv.outdir, 'H2O.xyz'))
 
 settings = adfsettings()
-settings.set_save_tapes([21,10])
+settings.set_save_tapes([21, 10])
 settings.set_lmo(True)
 
 results = adfsinglepointjob(h2o, 'SZ', settings=settings).run()
@@ -61,13 +66,12 @@ cgrid = cubegrid(results.get_molecule(), spacing=0.1)
 agrid = adfgrid(results)
 
 pot_kin_tot = results.get_kinetic_potential(grid=agrid, func='PW91k')
-pot_kin_loc = results.get_kinetic_potential(grid=agrid, func='PW91k', orbs={'Loc':[1,2,3,4,5]})
+pot_kin_loc = results.get_kinetic_potential(grid=agrid, func='PW91k', orbs={'Loc': [1, 2, 3, 4, 5]})
 
 diff_pot = pot_kin_tot - pot_kin_loc
 
 int_diff = diff_pot.integral(func=lambda x: abs(x))
-print "Integral of difference in potentials", int_diff
+print("Integral of difference in potentials", int_diff)
 
-if 'unittesting' in pyadfenv.options :
+if 'unittesting' in pyadfenv.options:
     testobj.assertAlmostEqual(int_diff, 0.0, 6)
-

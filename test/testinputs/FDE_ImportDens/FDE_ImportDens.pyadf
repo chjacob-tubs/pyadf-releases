@@ -1,0 +1,87 @@
+import os
+from pyadf import *
+if 'pyadfenv' not in globals():
+    from pyadf.Initialization import *
+
+m_h2o_1 = molecule(os.path.join(pyadfenv.outdir, 'FDE-H2O-1.xyz'))
+m_h2o_1.set_symmetry('NOSYM')
+m_h2o_2 = molecule(os.path.join(pyadfenv.outdir, 'FDE-H2O-2.xyz'))
+m_h2o_2.set_symmetry('NOSYM')
+m_mol = molecule(os.path.join(pyadfenv.outdir, 'FDE-mol.xyz'))
+m_mol.set_symmetry('NOSYM')
+
+m_tot = m_mol + m_h2o_1 + m_h2o_2
+m_tot.set_symmetry('NOSYM')
+
+settings = adfsettings()
+settings.set_functional('PBE')
+
+# Prepare first water molecule
+r_h2o_1 = adfsinglepointjob(m_h2o_1, 'DZP', settings=settings).run()
+
+# Prepare second water molecule
+r_h2o_2 = adfsinglepointjob(m_h2o_2, 'DZP', settings=settings).run()
+
+###################################################################
+# A) conventional FDE run using ADF fragments
+###################################################################
+
+frags = [fragment(r_h2o_1, [m_h2o_1], isfrozen=True),
+         fragment(r_h2o_2, [m_h2o_2], isfrozen=True),
+         fragment(None, [m_mol])]
+
+settings.set_save_tapes([21, 10])
+fde_res = adffragmentsjob(frags, basis="DZP", settings=settings,
+                          options=['TOTALENERGY']).run()
+
+# this gets the dipole moment of the active subsystem only
+toten = fde_res.get_total_energy()
+
+dipole_vect = fde_res.get_dipole_vector()
+dipole_magn = fde_res.get_dipole_magnitude()
+
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(toten, -76.348276877631, 6)
+
+    testobj.assertAlmostEqual(dipole_magn, 0.789627586, 6)
+    testobj.assertAlmostEqual(dipole_vect[0], 0.0, 6)
+    testobj.assertAlmostEqual(dipole_vect[1], 0.0, 6)
+    testobj.assertAlmostEqual(dipole_vect[2], 0.789627586, 6)
+
+###################################################################
+# B) FDE run imported density and potential via DensFragment
+###################################################################
+
+frozen_mol = m_h2o_1 + m_h2o_2
+
+# generate dummy fragment results for imported fragment
+settings = adfsettings()
+settings.set_ncycles(1)  # do not converge SCF, we only need the grid
+dummy_res = adfsinglepointjob(frozen_mol, basis='SZ', settings=settings).run()
+
+grid = adfgrid(fde_res)
+
+frozen_density = r_h2o_1.get_density(grid, order=2) + r_h2o_2.get_density(grid, order=2)
+frozen_coulpot = r_h2o_1.get_potential(grid, pot='coul') + r_h2o_2.get_potential(grid, pot='coul')
+
+frags = [fragment(None, [m_mol]),
+         FrozenDensFragment(frozen_mol, frozen_density, frozen_coulpot)]
+
+settings = adfsettings()
+settings.set_functional('PBE')
+fde_res = adffragmentsjob(frags, basis="DZP", settings=settings,
+                          options=['TOTALENERGY']).run()
+
+# this gets the dipole moment of the active subsystem only
+toten = fde_res.get_total_energy()
+
+dipole_vect = fde_res.get_dipole_vector()
+dipole_magn = fde_res.get_dipole_magnitude()
+
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(toten, -76.348276877631, 6)
+
+    testobj.assertAlmostEqual(dipole_magn, 0.789627586, 6)
+    testobj.assertAlmostEqual(dipole_vect[0], 0.0, 6)
+    testobj.assertAlmostEqual(dipole_vect[1], 0.0, 6)
+    testobj.assertAlmostEqual(dipole_vect[2], 0.789627586, 6)

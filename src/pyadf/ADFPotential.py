@@ -1,12 +1,10 @@
-# -*- coding: utf-8 -*-
-
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2021 by Christoph R. Jacob, Tobias Bergmann,
-# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Thomas Dresselhaus,
-# Andre S. P. Gomes, Andreas Goetz, Michal Handzlik, Karin Kiewisch,
-# Moritz Klammler, Lars Ridder, Jetze Sikkema, Lucas Visscher, and
-# Mario Wolter.
+# Copyright (C) 2006-2022 by Christoph R. Jacob, Tobias Bergmann,
+# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Maria Chekmeneva,
+# Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz, 
+# Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder, 
+# Jetze Sikkema, Lucas Visscher, Johannes Vornweg and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -19,7 +17,7 @@
 #    GNU General Public License for more details.
 #
 #    You should have received a copy of the GNU General Public License
-#    along with PyADF.  If not, see <http://www.gnu.org/licenses/>.
+#    along with PyADF.  If not, see <https://www.gnu.org/licenses/>.
 """
  Potential reconstruction with ADF.
 
@@ -29,9 +27,9 @@
 
 """
 
-from ADFSinglePoint import adfspjobdecorator
-from Plot.Grids import adfgrid
-from Errors import PyAdfError
+from .ADFSinglePoint import adfspjobdecorator
+from .Plot.Grids import adfgrid
+from .Errors import PyAdfError
 
 import os
 
@@ -42,24 +40,24 @@ class adfimportgridjob(adfspjobdecorator):
     """
 
     def __init__(self, wrappedjob, grid):
-        adfspjobdecorator.__init__(self, wrappedjob)
+        super().__init__(wrappedjob)
         if not isinstance(grid, adfgrid):
             raise PyAdfError("Grid to import must be an adfgrid.")
         self._grid = grid
 
     def get_other_blocks(self):
-        block = adfspjobdecorator.get_other_blocks(self)
+        block = super().get_other_blocks()
         block += " IMPORTGRID grid.t10 \n\n"
         if self._checksum_only:
             block += self._grid.get_grid_block(True)
         return block
 
     def before_run(self):
-        adfspjobdecorator.before_run(self)
+        super().before_run()
         self._grid.get_grid_tape10('grid.t10')
 
     def after_run(self):
-        adfspjobdecorator.after_run(self)
+        super().after_run()
         os.remove('grid.t10')
 
 
@@ -71,7 +69,7 @@ class adfpotentialjob(adfimportgridjob):
     def __init__(self, wrappedjob, refdens, startpot=None, potoptions=None):
         if not isinstance(refdens.grid, adfgrid):
             raise PyAdfError("Reference density must be on adfgrid.")
-        adfimportgridjob.__init__(self, wrappedjob, refdens.grid)
+        super().__init__(wrappedjob, refdens.grid)
         self._refdens = refdens
         self._startpot = startpot
         if potoptions is None:
@@ -85,13 +83,13 @@ class adfpotentialjob(adfimportgridjob):
         block += "   CPBASIS\n"
         block += "   IMPORTDENS refdens.t41 \n"
         if self._checksum_only:
-            block += self._refdens.get_checksum()
+            block += self._refdens.checksum
         if self._startpot is not None:
             block += "   STARTPOT startpot.t41 \n"
             if self._checksum_only:
-                block += self._startpot.get_checksum()
+                block += self._startpot.checksum
         for opt, val in sorted(self._potoptions.items()):
-            block += "   %s %s \n" % (opt, str(val))
+            block += f"   {opt} {str(val)} \n"
         block += " END \n\n"
         return block
 
@@ -103,13 +101,13 @@ class adfpotentialjob(adfimportgridjob):
         if self._refdens.nspin == 2:
             self._refdens.grid.write_grid_to_t41(f)
             values = self._refdens['alpha'].get_values()
-            f.writereals('SCF', 'Density_A', values.reshape((values.size,), order='Fortran'))
+            f.writereals('SCF', 'Density_A', values.reshape((values.size,), order='F'))
             values = self._refdens['beta'].get_values()
-            f.writereals('SCF', 'Density_B', values.reshape((values.size,), order='Fortran'))
+            f.writereals('SCF', 'Density_B', values.reshape((values.size,), order='F'))
         else:
             self._refdens.grid.write_grid_to_t41(f)
             values = self._refdens.get_values()
-            f.writereals('SCF', 'Density', values.reshape((values.size,), order='Fortran'))
+            f.writereals('SCF', 'Density', values.reshape((values.size,), order='F'))
         f.close()
 
         if self._startpot is not None:
@@ -118,16 +116,16 @@ class adfpotentialjob(adfimportgridjob):
             if self._refdens.nspin == 2:
                 if self._startpot.nspin == 2:
                     values = self._startpot['alpha'].get_values()
-                    f.writereals('Potential', 'Total_A', values.reshape((values.size,), order='Fortran'))
+                    f.writereals('Potential', 'Total_A', values.reshape((values.size,), order='F'))
                     values = self._startpot['beta'].get_values()
-                    f.writereals('Potential', 'Total_B', values.reshape((values.size,), order='Fortran'))
+                    f.writereals('Potential', 'Total_B', values.reshape((values.size,), order='F'))
                 else:
                     values = self._startpot.get_values()
-                    f.writereals('Potential', 'Total_A', values.reshape((values.size,), order='Fortran'))
-                    f.writereals('Potential', 'Total_B', values.reshape((values.size,), order='Fortran'))
+                    f.writereals('Potential', 'Total_A', values.reshape((values.size,), order='F'))
+                    f.writereals('Potential', 'Total_B', values.reshape((values.size,), order='F'))
             else:
                 values = self._startpot.get_values()
-                f.writereals('Potential', 'Total', values.reshape((values.size,), order='Fortran'))
+                f.writereals('Potential', 'Total', values.reshape((values.size,), order='F'))
             f.close()
 
     def after_run(self):
@@ -147,20 +145,20 @@ class adfimportembpotjob(adfimportgridjob):
     def __init__(self, wrappedjob, embpot):
         if not isinstance(embpot.grid, adfgrid):
             raise PyAdfError("Embedding potential must be on adfgrid.")
-        adfimportgridjob.__init__(self, wrappedjob, embpot.grid)
+        super().__init__(wrappedjob, embpot.grid)
         self._embpot = embpot
 
     def get_other_blocks(self):
         block = adfimportgridjob.get_other_blocks(self)
         block += " IMPORTEMBPOT embpot.t41 \n"
         if self._checksum_only:
-            block += self._embpot.get_checksum()
+            block += self._embpot.checksum
         return block
 
     def before_run(self):
         import kf
 
-        adfimportgridjob.before_run(self)
+        super().before_run()
 
         f = kf.kffile('embpot.t41')
         self._embpot.grid.write_grid_to_t41(f)
@@ -169,9 +167,9 @@ class adfimportembpotjob(adfimportgridjob):
         else:
             values = self._embpot.get_values()
             f.writereals('Potential', 'EmbeddingPot',
-                         values.reshape((values.size,), order='Fortran'))
+                         values.reshape((values.size,), order='F'))
         f.close()
 
     def after_run(self):
-        adfimportgridjob.after_run(self)
+        super().after_run()
         os.remove('embpot.t41')

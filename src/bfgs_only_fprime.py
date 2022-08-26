@@ -17,7 +17,9 @@
 
 import numpy as np
 from collections import namedtuple
+
 Result = namedtuple('Result', ['xopt', 'gopt', 'Hopt', 'n_grad_calls'])
+
 
 def fmin_bfgs_onlygrad(fprime, x0, args=(), invhess=None, gtol=1e-5, callback=None, maxiter=None):
     """Minimize a function, via only information about its gradient, using BFGS
@@ -54,35 +56,35 @@ def fmin_bfgs_onlygrad(fprime, x0, args=(), invhess=None, gtol=1e-5, callback=No
     n_grad_calls : int
         number of gradient calls made
     """
-    
+
     x0 = np.asarray(x0).flatten()
     if maxiter is None:
-            maxiter = len(x0)*200
-    
+        maxiter = len(x0) * 200
+
     gfk = fprime(x0, *args)  # initial gradient
     n_grad_calls = 1  # number of calls to fprime()
-    
+
     k = 0  # iteration counter
     N = len(x0)  # degreees of freedom
-    I = np.eye(N, dtype=int)
-   
-    if invhess is None : 
-        Hk = I  # initial guess of the Hessian
-    else :
+    Id = np.eye(N, dtype=int)
+
+    if invhess is None:
+        Hk = Id  # initial guess of the Hessian
+    else:
         Hk = invhess(x0, *args)
     xk = x0
-    sk = [2*gtol]
-    
+    sk = [2 * gtol]
+
     gnorm = np.linalg.norm(gfk)
     while (gnorm > gtol) and (k < maxiter):
         # search direction
         pk = -np.dot(Hk, gfk)
-        
+
         alpha_k, gfkp1, ls_grad_calls = _line_search(fprime, xk, gfk, pk, args, maxiters=20)
-        print "CJCJ line search ", ls_grad_calls, alpha_k
-        
+        print("CJCJ line search ", ls_grad_calls, alpha_k)
+
         n_grad_calls += ls_grad_calls
-        
+
         # advance in the direction of the step
         xkp1 = xk + alpha_k * pk
         sk = xkp1 - xk
@@ -91,10 +93,10 @@ def fmin_bfgs_onlygrad(fprime, x0, args=(), invhess=None, gtol=1e-5, callback=No
         if gfkp1 is None:
             gfkp1 = fprime(xkp1, *args)
             n_grad_calls += 1
-        
+
         yk = gfkp1 - gfk
         gfk = gfkp1
-        
+
         if callback is not None:
             callback(xk)
 
@@ -102,49 +104,48 @@ def fmin_bfgs_onlygrad(fprime, x0, args=(), invhess=None, gtol=1e-5, callback=No
         gnorm = np.linalg.norm(gfk)
         if gnorm < gtol:
             break
-            
-        try:  #this was handled in numeric, let it remaines for more safety
+
+        try:  # this was handled in numeric, let it remaines for more safety
             rhok = 1.0 / (np.dot(yk, sk))
         except ZeroDivisionError:
             rhok = 1000.0
-            print "Divide-by-zero encountered: rhok assumed large"
-        if np.isinf(rhok):  #this is patch for numpy
+            print("Divide-by-zero encountered: rhok assumed large")
+        if np.isinf(rhok):  # this is patch for numpy
             rhok = 1000.0
-            print "Divide-by-zero encountered: rhok assumed large"
+            print("Divide-by-zero encountered: rhok assumed large")
 
         # main bfgs update here. this is copied straight from
         # scipy.optimize._minimize_bfgs
         A1 = I - sk[:, np.newaxis] * yk[np.newaxis, :] * rhok
         A2 = I - yk[:, np.newaxis] * sk[np.newaxis, :] * rhok
 
-        if True :
-        #if False :
-        #if rhok < 0.0 :
-        #if (k == 20) :
+        if True:
+            # if False :
+            # if rhok < 0.0 :
+            # if (k == 20) :
             Hk = invhess(xk, *args)
-        else :
+        else:
             Hk = np.dot(A1, np.dot(Hk, A2)) + rhok * sk[:, np.newaxis] * sk[np.newaxis, :]
 
         evals, evecs = np.linalg.eigh(Hk)
-        print "CJCJ bfgs 1 ", np.linalg.norm(sk), np.linalg.norm(yk), rhok
-        print "CJCJ bfgs 2 ", np.min(evals), np.max(evals), 1.0/np.max(evals), 1.0/np.min(evals)
+        print("CJCJ bfgs 1 ", np.linalg.norm(sk), np.linalg.norm(yk), rhok)
+        print("CJCJ bfgs 2 ", np.min(evals), np.max(evals), 1.0 / np.max(evals), 1.0 / np.min(evals))
 
-    
     if k >= maxiter:
-        print "Warning: %d iterations exceeded" % maxiter
-        print "         Current gnorm: %e" % gnorm
-        print "         grad calls: %d" % n_grad_calls
-        print "         iterations: %d" % k
-        
-    
+        print(f"Warning: {maxiter:d} iterations exceeded")
+        print(f"         Current gnorm: {gnorm:e}")
+        print(f"         grad calls: {n_grad_calls:d}")
+        print(f"         iterations: {k:d}")
+
     elif gnorm < gtol:
-        print "Optimization terminated successfully."
-        print "         Current gnorm: %e" % gnorm
-        print "         grad calls: %d" % n_grad_calls
-        print "         iterations: %d" % k
-        
-    #return Result(xopt=xk, gopt=gfk, Hopt=Hk, n_grad_calls=n_grad_calls)
+        print("Optimization terminated successfully.")
+        print(f"         Current gnorm: {gnorm:e}")
+        print(f"         grad calls: {n_grad_calls:d}")
+        print(f"         iterations: {k:d}")
+
+    # return Result(xopt=xk, gopt=gfk, Hopt=Hk, n_grad_calls=n_grad_calls)
     return xk
+
 
 def fmin_newton_onlygrad(fprime, fhess, x0, args=(), gtol=1e-5, callback=None, maxiter=None):
     """Minimize a function, via only information about its gradient, using second-order Newton
@@ -181,21 +182,21 @@ def fmin_newton_onlygrad(fprime, fhess, x0, args=(), gtol=1e-5, callback=None, m
     n_grad_calls : int
         number of gradient calls made
     """
-    
+
     x0 = np.asarray(x0).flatten()
     if maxiter is None:
-        maxiter = len(x0)*200
-    
+        maxiter = len(x0) * 200
+
     gfk = fprime(x0, *args)  # initial gradient
     n_grad_calls = 1  # number of calls to fprime()
-    
+
     k = 0  # iteration counter
     N = len(x0)  # degreees of freedom
-    I = np.eye(N, dtype=int)
-   
+    Id = np.eye(N, dtype=int)
+
     xk = x0
-    sk = [2*gtol]
-    
+    sk = [2 * gtol]
+
     gnorm = np.linalg.norm(gfk)
     while (gnorm > gtol) and (k < maxiter):
         H = fhess(xk, *args)
@@ -204,9 +205,9 @@ def fmin_newton_onlygrad(fprime, fhess, x0, args=(), gtol=1e-5, callback=None, m
         pk = np.linalg.lstsq(H, -gfk, rcond=1e-12)[0]
 
         alpha_k, gfkp1, ls_grad_calls = _line_search(fprime, xk, gfk, pk, args)
-        
+
         n_grad_calls += ls_grad_calls
-        
+
         # advance in the direction of the step
         xkp1 = xk + alpha_k * pk
         sk = xkp1 - xk
@@ -215,37 +216,36 @@ def fmin_newton_onlygrad(fprime, fhess, x0, args=(), gtol=1e-5, callback=None, m
         if gfkp1 is None:
             gfkp1 = fprime(xkp1, *args)
             n_grad_calls += 1
-        
+
         yk = gfkp1 - gfk
         gfk = gfkp1
-        
+
         if callback is not None:
             callback(xk)
-        
+
         k += 1
         gnorm = np.linalg.norm(gfk)
         if gnorm < gtol:
             break
-            
+
     if k >= maxiter:
-        print "Warning: %d iterations exceeded" % maxiter
-        print "         Current gnorm: %e" % gnorm
-        print "         grad calls: %d" % n_grad_calls
-        print "         iterations: %d" % k
-        
-    
+        print(f"Warning: {maxiter:d} iterations exceeded")
+        print(f"         Current gnorm: {gnorm:e}")
+        print(f"         grad calls: {n_grad_calls:d}")
+        print(f"         iterations: {k:d}")
+
     elif gnorm < gtol:
-        print "Optimization terminated successfully."
-        print "         Current gnorm: %e" % gnorm
-        print "         grad calls: %d" % n_grad_calls
-        print "         iterations: %d" % k
-        
-    #return Result(xopt=xk, gopt=gfk, Hopt=Hk, n_grad_calls=n_grad_calls)
+        print("Optimization terminated successfully.")
+        print(f"         Current gnorm: {gnorm:e}")
+        print(f"         grad calls: {n_grad_calls:d}")
+        print(f"         iterations: {k:d}")
+
+    # return Result(xopt=xk, gopt=gfk, Hopt=Hk, n_grad_calls=n_grad_calls)
     return xk
 
 
 def _line_search(fprime, xk, gk, pk, args=(), alpha_guess=1.0, curvature_condition=0.9,
-    update_rate=0.5, maxiters=5):
+                 update_rate=0.5, maxiters=5):
     """Inexact line search with only the function gradient
     
     The step size is found only to satisfy the strong curvature condition, (i.e
@@ -279,7 +279,7 @@ def _line_search(fprime, xk, gk, pk, args=(), alpha_guess=1.0, curvature_conditi
         initial guess for the step size
     curvature_condition : float, default = 0.9
         strength of the curvature condition. this is the c_2 on the wikipedia
-        http://en.wikipedia.org/wiki/Wolfe_conditions, and is recommended to be
+        https://en.wikipedia.org/wiki/Wolfe_conditions, and is recommended to be
         0.9 according to that page. It should be between 0 and 1.
     update_rate : float, default=0.5
         Basically, we keep decreasing the alpha by multiplying by this constant
@@ -291,12 +291,12 @@ def _line_search(fprime, xk, gk, pk, args=(), alpha_guess=1.0, curvature_conditi
     alpha = alpha_guess
     initial_slope = np.dot(gk, pk)
 
-    for j in xrange(maxiters):
+    for j in range(maxiters):
         gk_new = fprime(xk + alpha * pk, *args)
         if np.abs(np.dot(gk_new, pk)) < np.abs(curvature_condition * initial_slope):
             break
         else:
             alpha *= update_rate
-            
+
     # j+1 is the final number of calls to fprime()
-    return alpha, gk_new, j+1
+    return alpha, gk_new, j + 1

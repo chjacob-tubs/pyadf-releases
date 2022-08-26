@@ -1,19 +1,28 @@
+import io
+from typing import Dict, Union
+
 from ..Errors import PyAdfError, FileError
 
-_multiline = set(['AUTHOR', 'CAVEAT', 'COMPND', 'EXPDTA', 'MDLTYP', 'KEYWDS', 'SOURCE', 'SPLIT ', 'SPRSDE', 'TITLE ', 'FORMUL', 'HETNAM', 'HETSYN', 'SEQRES', 'SITE  ', 'REMARK'])
+_multiline = {'AUTHOR', 'CAVEAT', 'COMPND', 'EXPDTA', 'MDLTYP', 'KEYWDS', 'SOURCE', 'SPLIT ', 'SPRSDE', 'TITLE ',
+              'FORMUL', 'HETNAM', 'HETSYN', 'SEQRES', 'SITE  ', 'REMARK'}
 
-_sequence = ['HEADER', 'OBSLTE', 'TITLE ', 'SPLIT ', 'CAVEAT', 'COMPND', 'SOURCE', 'KEYWDS', 'EXPDTA', 'NUMMDL', 'MDLTYP', 'AUTHOR', 'REVDAT', 'SPRSDE', 'JRNL  ', 'REMARK', 'DBREF ', 'DBREF1', 'DBREF2', 'SEQADV', 'SEQRES', 'MODRES', 'HET   ', 'HETNAM', 'HETSYN', 'FORMUL', 'HELIX ', 'SHEET ', 'SSBOND', 'LINK  ', 'CISPEP', 'SITE  ', 'CRYST1', 'ORIGX1', 'ORIGX2', 'ORIGX3', 'SCALE1', 'SCALE2', 'SCALE3', 'MTRIX1', 'MTRIX2', 'MTRIX3', 'MODEL ', 'CONECT', 'MASTER', 'END   ']
+_sequence = ['HEADER', 'OBSLTE', 'TITLE ', 'SPLIT ', 'CAVEAT', 'COMPND', 'SOURCE', 'KEYWDS', 'EXPDTA',
+             'NUMMDL', 'MDLTYP', 'AUTHOR', 'REVDAT', 'SPRSDE', 'JRNL  ', 'REMARK', 'DBREF ', 'DBREF1',
+             'DBREF2', 'SEQADV', 'SEQRES', 'MODRES', 'HET   ', 'HETNAM', 'HETSYN', 'FORMUL', 'HELIX ',
+             'SHEET ', 'SSBOND', 'LINK  ', 'CISPEP', 'SITE  ', 'CRYST1', 'ORIGX1', 'ORIGX2', 'ORIGX3',
+             'SCALE1', 'SCALE2', 'SCALE3', 'MTRIX1', 'MTRIX2', 'MTRIX3', 'MODEL ', 'CONECT', 'MASTER',
+             'END   ']
 
 _coord = ['ATOM  ', 'ANISOU', 'HETATM', 'TER   ', 'ENDMDL']
 
 
-class PDBRecord(object):
+class PDBRecord:
     __slots__ = ['name', 'value', 'model']
 
     def __init__(self, s):
         s = s.rstrip('\n')
         if len(s) < 80:
-            s = '%-80s' % s
+            s = f'{s:<80}'
         self.name = s[:6]
         self.value = [s[6:]]
         self.model = []
@@ -55,20 +64,22 @@ class PDBRecord(object):
         return False
 
 
-class PDBHandler(object):
+class PDBHandler:
+
+    records: Dict[str, Union[PDBRecord, list]]
 
     def __init__(self, textfile=None):
         self.records = {}
         for key in _sequence + _coord:
             self.records[key] = []
         if textfile is not None:
-            if isinstance(textfile, file):
+            if isinstance(textfile, io.IOBase):
                 self.read(textfile)
             elif isinstance(textfile, str):
                 try:
-                    f = open(textfile, 'rU')
-                except:
-                    raise FileError('PDBHandler: Error reading file %s' % textfile)
+                    f = open(textfile)
+                except Exception:
+                    raise FileError(f'PDBHandler: Error reading file {textfile}')
                 self.read(f)
                 f.close()
 
@@ -110,7 +121,7 @@ class PDBHandler(object):
     def calc_master(self):
         def total(key):
             if key in _multiline:
-                return sum(map(lambda x: len(x.value), self.records[key]))
+                return sum(len(x.value) for x in self.records[key])
             else:
                 return len(self.records[key])
 
@@ -121,7 +132,8 @@ class PDBHandler(object):
         site = total('SITE  ')
         conect = total('CONECT')
         seqres = total('SEQRES')
-        xform = sum(map(total, ['ORIGX1', 'ORIGX2', 'ORIGX3', 'SCALE1', 'SCALE2', 'SCALE3', 'MTRIX1', 'MTRIX2', 'MTRIX3']))
+        xform = sum(map(total, ['ORIGX1', 'ORIGX2', 'ORIGX3', 'SCALE1', 'SCALE2', 'SCALE3',
+                                'MTRIX1', 'MTRIX2', 'MTRIX3']))
 
         if self.singlemodel():
             ter = total('TER   ')
@@ -135,7 +147,8 @@ class PDBHandler(object):
                 elif i.name in ['ATOM  ', 'HETATM']:
                     coord += 1
 
-        master = 'MASTER    %5i%5i%5i%5i%5i%5i%5i%5i%5i%5i%5i%5i          \n' % (remark, 0, het, helix, sheet, 0, site, xform, coord, ter, conect, seqres)
+        master = 'MASTER    {:5d}{:5d}{:5d}{:5d}{:5d}{:5d}{:5d}{:5d}{:5d}{:5d}{:5d}{:5d}          \n' \
+            .format(remark, 0, het, helix, sheet, 0, site, xform, coord, ter, conect, seqres)
         return PDBRecord(master)
 
     def check_master(self):
@@ -149,7 +162,7 @@ class PDBHandler(object):
         if self.singlemodel():
             return [self.records['_model'].model]
         else:
-            return map(lambda x: x.model, self.records['MODEL '])
+            return [x.model for x in self.records['MODEL ']]
 
     def add_record(self, record):
         if record.name in self.records:
@@ -160,25 +173,25 @@ class PDBHandler(object):
             raise PyAdfError('PDBHandler.add_record: Invalid record passed')
 
     def add_model(self, model):
-    # model: list of PDBRecords of type in _coord
+        # model: list of PDBRecord of type in _coord
         if '_model' in self.records:
             old = self.records['_model']
             del self.records['_model']
 
-            newmodel = PDBRecord('MODEL     %4i' % 1)
+            newmodel = PDBRecord(f'MODEL     {1:4d}')
             newmodel.model = old.model
             endmdl = PDBRecord('ENDMDL')
             newmodel.model.append(endmdl)
             self.add_record(newmodel)
             self.add_record(endmdl)
 
-        if self.records['MODEL '] != []:  # there were 1+ models present before
-            newmodel = PDBRecord('MODEL     %4i' % (1 + len(self.records['MODEL '])))
+        if self.records['MODEL ']:  # there were 1+ models present before
+            newmodel = PDBRecord(f'MODEL     {1 + len(self.records["MODEL "]):4d}')
             newmodel.model = model
             if newmodel.model[-1].name != 'ENDMDL':
                 newmodel.model.append(PDBRecord('ENDMDL'))
             self.add_record(newmodel)
-            self.records['NUMMDL'] = [PDBRecord('NUMMDL    %4i' % len(self.records['MODEL ']))]
+            self.records['NUMMDL'] = [PDBRecord(f'NUMMDL    {len(self.records["MODEL "]):4d}')]
         else:
             newmodel = PDBRecord('_model')
             newmodel.model = model

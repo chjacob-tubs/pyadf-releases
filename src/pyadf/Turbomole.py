@@ -1,12 +1,10 @@
-# -*- coding: utf-8 -*-
-
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2021 by Christoph R. Jacob, Tobias Bergmann,
-# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Thomas Dresselhaus,
-# Andre S. P. Gomes, Andreas Goetz, Michal Handzlik, Karin Kiewisch,
-# Moritz Klammler, Lars Ridder, Jetze Sikkema, Lucas Visscher, and
-# Mario Wolter.
+# Copyright (C) 2006-2022 by Christoph R. Jacob, Tobias Bergmann,
+# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Maria Chekmeneva,
+# Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz, 
+# Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder, 
+# Jetze Sikkema, Lucas Visscher, Johannes Vornweg and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -19,7 +17,7 @@
 #    GNU General Public License for more details.
 #
 #    You should have received a copy of the GNU General Public License
-#    along with PyADF.  If not, see <http://www.gnu.org/licenses/>.
+#    along with PyADF.  If not, see <https://www.gnu.org/licenses/>.
 """
 Support for various flavours of I{Turbomole} computations.
 
@@ -49,10 +47,11 @@ Support for various flavours of I{Turbomole} computations.
 
 """
 
-from BaseJob import results, job
-from Utils import f2f
+from .BaseJob import results, job
+from .Utils import f2f
+from .DensityEvaluator import GTODensityEvaluatorMixin
 
-from TurboDefinition import *
+from .TurboDefinition import *
 
 _nan = float('NaN')
 
@@ -66,8 +65,7 @@ class TurbomoleResults(results):
                                           get_scf_energy,
                                           get_mp2_energy
     @group Access to result files:        get_molecule,
-                                          get_result_file_list,
-                                          get_temp_result_filename
+                                          get_result_file_list
     @group Obsolete:                      get_dipole_vector,
                                           get_dipole_magnitude
 
@@ -82,7 +80,7 @@ class TurbomoleResults(results):
 
         """
 
-        super(TurbomoleResults, self).__init__(j=j)
+        super().__init__(j=j)
         self.resultstype = "Turbomole results"
 
         if self.job is not None:
@@ -105,7 +103,7 @@ class TurbomoleResults(results):
         """
 
         import os
-        from Molecule import molecule
+        from .Molecule import molecule
 
         temp_coordfilename = self.get_temp_result_filename('coord')
         mol = molecule(filename=temp_coordfilename, inputformat='tmol')
@@ -113,16 +111,25 @@ class TurbomoleResults(results):
 
         return mol
 
+    def read_molden_file(self):
+        """
+        Returns Molden results file as a string.
+        """
+        moldenfile = self.files.read_file_from_archive(self.fileid, 'orbitals.molden')
+        if moldenfile is None:
+            raise PyAdfError('Turbomole Molden file not found.')
+        return moldenfile
+
     # Since Turbomole produces many files and we keep them as one `tar' archive
     # in   the   file   manager,    we   define   us   an   additional   method
     # `get_temp_result_filename(FILENAME)'  that  will  extract  us  FILENAME's
     # content to a temporary file.
     def get_temp_result_filename(self, filename):
         """
-        Access a result file from the archivated Turbomole results.
+        Access a result file from the archived Turbomole results.
 
-        Extracts a result file from the archivied data and writes its contents
-        to a temporary file. The file name of this temporry file is returned
+        Extracts a result file from the archived data and writes its contents
+        to a temporary file. The file name of this temporary file is returned
         and may be used to open / read as if it were the original file. You're
         self responsible to delete the temporary file afterwards, once you
         don't need it any longer.
@@ -137,58 +144,7 @@ class TurbomoleResults(results):
         @rtype:          L{str}
 
         """
-
-        # We want a  somewhat wicked thing from this method:  It should give us
-        # access to a file  in a `tar' archive but we don't  want to care about
-        # that fact. Python  can read files from `tar' archives  as long as the
-        # corresponding `TarFile' is open. If  we simply not close it, we might
-        # risk the  archive with our  entire results becoming  inaccessible. We
-        # could read  the content of the  archived file to memory  and return a
-        # string.  But  that would be very  inconvenient if  the  user wants to
-        # iterate  over the  lines  of  the file.   (She  would then,  instead,
-        # iterate over the characters of the string maybe without even noting.)
-        # A solid solution is to write the file of interest to an external file
-        # such  that the user  can re-read  its content  from there.  But where
-        # should we write  such a file? Can  we trust that there will  not be a
-        # file named,  say, `energy' in  the CWD? Maybe  it isn't but  who will
-        # think of this when someday  PyADF's file manager changes? What if two
-        # jobs run  in parallel and  want to access  the same result  file from
-        # different  computations  simultanously?  Python's  `tempfile'  module
-        # provides a nice tool for that. The solution implemented is to write a
-        # temporary file  and return its absolute path. Hence insetead of
-        #
-        # filename = 'foo.txt'
-        # for line in open(filename, 'r'):
-        #     print line
-        #
-        # a user would write
-        #
-        # filename = get_temp_result_filename('foo.txt')
-        # for line in open(filename, 'r'):
-        #     print line
-        # os.remove(filename)
-
-        import tarfile
-        import tempfile
-        import sys
-
-        tarfilename = self.files.get_results_filename(self.fileid)
-        tar = None
-        temp_filename = None
-        try:
-            tar = tarfile.open(name=tarfilename)
-            resultfile = tar.extractfile(filename)
-            content = resultfile.read()
-            temp_file = tempfile.NamedTemporaryFile(mode='w', delete=False)
-            temp_file.file.write(content)
-            temp_file.file.close()
-            temp_filename = temp_file.name
-        except OSError as e:
-            sys.stderr.write(str(e) + '\n')
-        finally:
-            tar.close()
-
-        return temp_filename
+        return self.files.get_tempfile_from_archive(self.fileid, filename)
 
     def get_result_file_list(self):
         """
@@ -221,18 +177,14 @@ class TurbomoleResults(results):
     def get_dipole_vector(self):
         """
         Not to be used.
-
-        @raises NotImplementedError: Always
         """
-        raise NotImplementedError("There is no dipole moment.")
+        return None
 
     def get_dipole_magnitude(self):
         """
         Not to be used.
-
-        @raises NotImplementedError: Always
         """
-        raise NotImplementedError("There is no dipole moment.")
+        return None
 
 
 # CONCEPT OF INTERMEDIATE RESULTS CLASSES
@@ -261,7 +213,7 @@ class _TurbomolePlainResults(TurbomoleResults):
     pass
 
 
-class _TurbomoleDensityResults(TurbomoleResults):
+class _TurbomoleDensityResults(TurbomoleResults, GTODensityEvaluatorMixin):
     """
     Intermediate class to let results classes for computations that yield a
     density inherit from.
@@ -272,7 +224,7 @@ class _TurbomoleDensityResults(TurbomoleResults):
     """
 
     def __init__(self, j=None):
-        super(_TurbomoleDensityResults, self).__init__(j=j)
+        super().__init__(j=j)
         self.dipole_vector = [None, None, None]
 
     def get_dipole_vector(self):
@@ -319,7 +271,7 @@ class _TurbomoleDensityResults(TurbomoleResults):
                         elif words[0] == 'z':
                             dipole_vector[2] = words[3]
                             attention += 1
-            for i in xrange(0, len(dipole_vector)):
+            for i in range(0, len(dipole_vector)):
                 dipole_vector[i] = f2f(dipole_vector[i])
             self.dipole_vector = dipole_vector
 
@@ -355,7 +307,7 @@ class _TurbomoleEnergyResults(TurbomoleResults):
     """
 
     def __init__(self, j=None):
-        super(_TurbomoleEnergyResults, self).__init__(j=j)
+        super().__init__(j=j)
         self.scf_energies = []
         self.scf_energy = None
         self.mp2energy = None
@@ -388,7 +340,7 @@ class _TurbomoleEnergyResults(TurbomoleResults):
             try:
                 self.scf_energies = []
                 transfer_mode = False
-                with open(temp_energy_filename, 'r') as infile:
+                with open(temp_energy_filename) as infile:
                     for line in infile:
                         words = line.split()
                         if len(words) == 0:
@@ -400,7 +352,7 @@ class _TurbomoleEnergyResults(TurbomoleResults):
                             break
                         if transfer_mode:
                             self.scf_energies.append(f2f(words[1]))
-            except IOError:
+            except OSError:
                 self.scf_energies = []
             finally:
                 try:
@@ -438,7 +390,7 @@ class _TurbomoleEnergyResults(TurbomoleResults):
         try:
             self.scf_energies = self.get_scf_energies()
             self.scf_energy = self.scf_energies[-1]
-        except:
+        except AttributeError:
             pass
         return self.scf_energy
 
@@ -480,29 +432,27 @@ class _TurbomoleEnergyResults(TurbomoleResults):
 
         if not self.mp2energy or readagain:
             temp_energy_filename = self.get_temp_result_filename('energy')
+
+            energies = []
+            transfer_mode = False
+            with open(temp_energy_filename) as infile:
+                for line in infile:
+                    words = line.split()
+                    if len(words) == 0:
+                        continue  # don't get confused by blank lines
+                    if str(words[0]) == '$energy':
+                        transfer_mode = True
+                        continue
+                    elif str(words[0]) == '$end':
+                        break
+                    if transfer_mode:
+                        energies.append(f2f(words[4]))
+            self.mp2energy = energies[-1]
+
             try:
-                energies = []
-                transfer_mode = False
-                with open(temp_energy_filename, 'r') as infile:
-                    for line in infile:
-                        words = line.split()
-                        if len(words) == 0:
-                            continue  # don't get confused by blank lines
-                        if str(words[0]) == '$energy':
-                            transfer_mode = True
-                            continue
-                        elif str(words[0]) == '$end':
-                            break
-                        if transfer_mode:
-                            energies.append(f2f(words[4]))
-                self.mp2energy = energies[-1]
-            except:
-                self.mp2energy = None
-            finally:
-                try:
-                    os.remove(temp_energy_filename)
-                except OSError:
-                    pass
+                os.remove(temp_energy_filename)
+            except OSError:
+                pass
 
         return self.mp2energy
 
@@ -520,7 +470,7 @@ class _TurbomoleForceResults(TurbomoleResults):
     """
 
     def __init__(self, j=None):
-        super(_TurbomoleForceResults, self).__init__(j=j)
+        super().__init__(j=j)
         self.gradients = []
         self.gradient = None
 
@@ -607,7 +557,7 @@ class _TurbomoleForceResults(TurbomoleResults):
             atom = 0
 
             try:
-                with open(temp_gradient_filename, 'r') as infile:
+                with open(temp_gradient_filename) as infile:
                     for line in infile:
                         if re.match(r'\s*cycle', line):
                             coord_block = True
@@ -640,7 +590,7 @@ class _TurbomoleForceResults(TurbomoleResults):
                             if atom == atoms:
                                 gradient_block = False
                                 self.gradients.append(gradient)
-            except IOError:
+            except OSError:
                 self.gradients = []
 
             try:
@@ -666,7 +616,7 @@ class _TurbomoleForceResults(TurbomoleResults):
             self.gradients = self.get_gradients()
             self.gradient = self.gradients[-1]
         except Exception as e:
-            print e
+            print(e)
             pass
         return self.gradient
 
@@ -699,7 +649,7 @@ class TurbomoleSinglePointResults(_TurbomoleDensityResults, _TurbomoleEnergyResu
     """
 
     def __init__(self, j=None):
-        super(TurbomoleSinglePointResults, self).__init__(j=j)
+        super().__init__(j=j)
         self.resultstype = "Turbomole single point results"
 
 
@@ -710,7 +660,7 @@ class TurbomoleGeometryOptimizationResults(_TurbomoleDensityResults, _TurbomoleE
     """
 
     def __init__(self, j=None):
-        super(TurbomoleGeometryOptimizationResults, self).__init__(j=j)
+        super().__init__(j=j)
         self.resultstype = "Turbomole geometry optimization results"
 
 
@@ -720,7 +670,7 @@ class TurbomoleGradientResults(_TurbomoleDensityResults, _TurbomoleEnergyResults
     """
 
     def __init__(self, j=None):
-        super(TurbomoleGradientResults, self).__init__(j=j)
+        super().__init__(j=j)
         self.resultstype = "Turbomole gradient results"
 
 
@@ -731,7 +681,7 @@ class TurbomoleForceFieldResults(_TurbomolePlainResults):
     pass
 
 
-class TurbomoleSettings(object):
+class TurbomoleSettings:
     """
     Container class for settings.
     """
@@ -748,6 +698,8 @@ class TurbomoleSettings(object):
         self.verbose_level = verbose_level
         self.coordfilename = 'coord'
         self.charge = None
+        self.spin = 0        # NOTE: assuming closed-shell facilitates many things and is reasonable
+        self.unrestricted = False
         self.summary = []
 
     def __str__(self):
@@ -804,6 +756,43 @@ class TurbomoleSettings(object):
         """
         self.charge = charge
 
+    def _set_spin(self, spin):
+        """
+        Set the spin of the system to compute.
+
+        This is I{not} a user level function! Users should I{always} use the
+        C{L{molecule.set_spin}(M{Q})} method to specify the spin of their
+        molecule. However, since the L{TurboDefinition} class doesn't know
+        about molecules, it has to be told the spin. But this property has
+        to be set by the job class without need for the user to know. As
+        restricted open-shell is not supported, yet, the unrestricted
+        variable is set automatically.
+
+        @param spin: Number of unpaired electrons
+        @type  spin: L{int}
+        """
+        self.spin = spin
+        if self.spin != 0:
+            self.unrestricted = True
+
+    def set_unrestricted(self, unrestricted):
+        """
+        Set wether the system is computed unrestricted or not.
+        Essentially, this routine is only needed to calculate open-shell
+        singulets.
+
+        @param unrestricted: Boolean for unrestricted calculations
+        @type  unrestricted: L{bool}
+        """
+        if unrestricted:
+            self.unrestricted = True
+        elif self.spin == 0:
+            self.unrestricted = False
+        else:
+            # NOTE: restricted open-shell calculations are not supported, yet!!!
+            #       --> non-singulet occupation not possible without unrestricted
+            pass
+
 
 class _TurbomoleAbInitioSettings(TurbomoleSettings):
     """
@@ -812,8 +801,7 @@ class _TurbomoleAbInitioSettings(TurbomoleSettings):
 
     def __init__(self, verbose_level=1):
 
-        super(_TurbomoleAbInitioSettings,
-              self).__init__(verbose_level=verbose_level)
+        super().__init__(verbose_level=verbose_level)
 
         self.method = None
         self.scf = None
@@ -828,12 +816,26 @@ class _TurbomoleAbInitioSettings(TurbomoleSettings):
         self.disp = None
         self.guess_initial_occupation_by = None
         self.ired = None
+        self.idef = None
+        self.idef_list = None
         self.scfconv = None
         self.scfiterlimit = None
+        self.pointcharges = None
+        self.cosmo = None
+        self.cosmo_epsilon = None
+        self.cosmo_rsolv = None
+        self.cosmo_radii = None
+
+    @property
+    def num_pointcharges(self):
+        if self.pointcharges is None:
+            return 0
+        else:
+            return self.pointcharges.shape[0]
 
     def generate_summary(self):
         # See mother's docstring.
-        super(_TurbomoleAbInitioSettings, self).generate_summary()
+        super().generate_summary()
         self.summary.append(["Method", self.method])
         if self.dft:
             self.summary.append(["DFT Functional", self.dft_functional])
@@ -841,17 +843,30 @@ class _TurbomoleAbInitioSettings(TurbomoleSettings):
             self.summary.append(["DFT integration grid", self.dft_grid])
         self.summary.append(["Use RI approximation", self.ri])
         if self.ri:
-            self.summary.append(["Memory for RI", "{0} MB".format(self.ri_memory)])
+            self.summary.append(["Memory for RI", f"{self.ri_memory} MB"])
         if self.mp2:
-            self.summary.append(["Memory for CC2", "{0} MB".format(self.cc_memory)])
+            self.summary.append(["Memory for CC2", f"{self.cc_memory} MB"])
         self.summary.append(["Basis set", self.basis_set_all])
         self.summary.append(["Guess initial occupation by", self.guess_initial_occupation_by])
         self.summary.append(["Use red. int. coordinates", self.ired])
+        self.summary.append(["Define add. int. coordinates", self.idef])
+        if self.idef:
+            self.summary.append(["List of add. int. coordinates", self.idef_list])
         if self.scfconv is None:
             self.summary.append(["SCF convergence criterion scfconv", "default"])
         else:
             self.summary.append(["SCF convergence criterion scfconv", self.scfconv])
         self.summary.append(["Limit of the number of the SCF iterations", self.scfiterlimit])
+        if self.pointcharges is not None:
+            self.summary.append(["Number of added point charges", self.num_pointcharges])
+        if self.cosmo:
+            self.summary.append(["Uses COSMO", self.cosmo])
+        if self.cosmo_epsilon:
+            self.summary.append(["COSMO epsilon parameter", self.cosmo_epsilon])
+        if self.cosmo_rsolv:
+            self.summary.append(["COSMO rsolv parameter", self.cosmo_rsolv])
+        if self.cosmo_radii:
+            self.summary.append(["COSMO radius definition menu parameter", self.cosmo_radii])
 
     def _set_method(self, method):
         """
@@ -872,7 +887,7 @@ class _TurbomoleAbInitioSettings(TurbomoleSettings):
         """
 
         if method not in ['hf', 'dft', 'mp2']:
-            raise PyAdfError("""Sorry, I don't know about `{0}' as an ab inito method.""".format(method))
+            raise PyAdfError(f"""Sorry, I don't know about `{method}' as an ab inito method.""")
 
         self.method = method
         self.scf = (method == 'hf') or (method == 'dft')
@@ -969,7 +984,7 @@ class _TurbomoleAbInitioSettings(TurbomoleSettings):
 
         if correction not in ['dft-d1', 'dft-d2', 'dft-d3']:
             raise PyAdfError("""Sorry, I don't know the dispersion correction
-            `{0}'""".format(correction))
+            `{}'""".format(correction))
 
         self.disp = correction
 
@@ -984,15 +999,15 @@ class _TurbomoleAbInitioSettings(TurbomoleSettings):
 
     def set_scfiterlimit(self, maxit):
         """
-        Set a maximal number of SCF iterations.
+        Set a maximum number of SCF iterations.
 
         @param maxit: Maximal number of SCF iterations
         @type maxit: L{int}
         @raises PyAdfError: For invalid values
         """
 
-        if maxit < 0:
-            raise PyAdfError("""Sorry, the maximal number of iterations cannot be negative""")
+        if int(maxit) < 0:
+            raise PyAdfError("""Sorry, the maximum number of iterations cannot be negative""")
 
         self.scfiterlimit = int(maxit)
 
@@ -1011,7 +1026,7 @@ class _TurbomoleAbInitioSettings(TurbomoleSettings):
         """
 
         if method != 'eht':
-            raise PyAdfError("""Sorry, no support for `{0}' as a mrthod to
+            raise PyAdfError("""Sorry, no support for `{}' as a mrthod to
             guess initial occupations.""".format(method))
 
         self.guess_initial_occupation_by = method
@@ -1024,6 +1039,101 @@ class _TurbomoleAbInitioSettings(TurbomoleSettings):
         @type  value:  L{bool}
         """
         self.ired = value
+
+    def set_cosmo(self, cosmo):
+        """
+        Switch useage COSMO on or off.
+
+        @param cosmo:  C{True} to switch on, C{False} to switch off.
+        @type  cosmo:  L{bool}
+        """
+
+        self.cosmo = cosmo
+
+    def set_cosmo_epsilon(self, cosmo_epsilon):
+        """
+        Set the epsilon value in COSMO.
+        Default = infinity
+        """
+        self.cosmo_epsilon = cosmo_epsilon
+
+    def set_cosmo_rsolv(self, cosmo_rsolv):
+        """
+        Set the rsolv value in COSMO.
+        Default = min(rad(h))
+        """
+
+        self.cosmo_rsolv = cosmo_rsolv
+
+    def set_cosmo_radii(self, cosmo_radii):
+        """
+        Set the radius definition menu parameter in COSMO. Defines the atomic radii.
+        Default = 'r all o' (sets all atomic radii to optimized values, if such are available;
+        if there is no optimized radius for one or more atoms (e.g. phosphorus), cosmoprep ends
+        abnormally and no cosmoprep sequence is added to the control file (hence, no COSMO is
+        used in the calculation).
+
+        Other options (from cosmoprep user interface comments):
+        enter your definitions in the following way:
+        r <atoms> <radius>
+        <atoms>  : all
+                 : a list of atomic indices like 1-5,7,10
+                 : an element name like "c"
+        <radius> : o  - optimized radii only (see above)
+                 : b  - optimized radii are used if defined, or not optimized radii (mostly bondii*1.17) else 
+                 : own proposal like 1.256 (in angstrom)
+
+        @param cosmo_radii: string specifying what atomic radii should be used for which atoms (e.g. 'r all o') 
+        @type cosmo_radii: string
+        @return: input string for cosmoprep radius definition menu
+        @rtype: string
+        """
+        self.cosmo_radii = cosmo_radii
+
+    def define_internal_coordinates(self, value):
+        """
+        Switch additional definition of internal coordinates on or off.
+
+        @param value:  C{True} to switch on, C{False} to switch off.
+        @type  value:  L{bool}
+        """
+
+        self.idef = value
+
+    def add_internal_coordinates(self, icoord):
+        """
+        Add a list of additional internal coordinates.
+
+        @param icoord:  List of internal coordinates to be defined. ['f bend 1 2 3','f tors 1 2 3 4']
+        @type  icoord:  List of strings
+        """
+        self.define_internal_coordinates(True)
+        self.idef_list = icoord
+
+    def add_point_charges(self, pointcharges, bohr=False):
+        """
+        Add external point charges.
+
+        @param pointcharges:
+            Coordinates (x, y, z in Angstrom) and charges of point charges.
+            If no charges are given, zero charges are used.
+        @type pointcharges: float[4][n]
+
+        @param bohr: Whether the point charge coordinates are given in bohr
+            (default: Angstrom)
+        @type bohr: bool
+        """
+        import numpy
+        from .Utils import Bohr_in_Angstrom
+
+        self.pointcharges = numpy.asarray(pointcharges)
+
+        # point charge coordinates are stored in bohr; if necessary, convert units
+        if not bohr:
+            for i in range(self.num_pointcharges):
+                self.pointcharges[i, 0] = self.pointcharges[i, 0] / Bohr_in_Angstrom
+                self.pointcharges[i, 1] = self.pointcharges[i, 1] / Bohr_in_Angstrom
+                self.pointcharges[i, 2] = self.pointcharges[i, 2] / Bohr_in_Angstrom
 
 
 class TurbomoleSinglePointSettings(_TurbomoleAbInitioSettings):
@@ -1040,15 +1150,16 @@ class TurbomoleGeometryOptimizationSettings(_TurbomoleAbInitioSettings):
 
     def __init__(self, verbose_level=1):
 
-        super(TurbomoleGeometryOptimizationSettings, self).__init__(verbose_level=verbose_level)
+        super().__init__(verbose_level=verbose_level)
 
         self.gcart = None
         self.max_iterations = None
+        self.frozen_atoms = None
 
     def generate_summary(self):
         # See mother's docstring.
-        super(TurbomoleGeometryOptimizationSettings, self).generate_summary()
-        self.summary.append(["Max. cart. grad. norm", "10^-{0} a.u.".format(self.gcart)])
+        super().generate_summary()
+        self.summary.append(["Max. cart. grad. norm", f"10^-{self.gcart} a.u."])
         self.summary.append(["Max. iteration cycles", self.max_iterations])
 
     def set_convergence_criterion(self, gcart):
@@ -1067,10 +1178,10 @@ class TurbomoleGeometryOptimizationSettings(_TurbomoleAbInitioSettings):
         """
 
         if int(gcart) != gcart:
-            raise PyAdfError("""So you think {0} is an integer?""".format(gcart))
+            raise PyAdfError(f"""So you think {gcart} is an integer?""")
 
         if gcart < 1:
-            raise PyAdfError("""Rejecting 10^-({0}) a.u. as a convergence criterion.""".format(gcart))
+            raise PyAdfError(f"""Rejecting 10^-({gcart}) a.u. as a convergence criterion.""")
 
         self.gcart = gcart
 
@@ -1086,10 +1197,21 @@ class TurbomoleGeometryOptimizationSettings(_TurbomoleAbInitioSettings):
 
         number = int(number)
         if number < 1:
-            raise PyAdfError("""Rejecting {0} as the maximum number of
+            raise PyAdfError("""Rejecting {} as the maximum number of
             iteration cycles.""".format(number))
 
         self.max_iterations = number
+
+    def set_frozen_atoms(self, frozen_list):
+        """
+        Sets the atoms with atomnumbers in frozen_list to frozen in coord file.
+
+        @param frozen_list:      List of frozen atoms
+        @type  frozen_list:      list of int
+
+        """
+
+        self.frozen_atoms = frozen_list
 
 
 class TurbomoleGradientSettings(_TurbomoleAbInitioSettings):
@@ -1105,13 +1227,13 @@ class TurbomoleForceFieldSettings(TurbomoleSettings):
     """
 
     def __init__(self, verbose_level=1):
-        super(TurbomoleForceFieldSettings, self).__init__(verbose_level=verbose_level)
+        super().__init__(verbose_level=verbose_level)
 
         self.max_iterations = None
 
     def generate_summary(self):
         # See mother's docstring.
-        super(TurbomoleForceFieldSettings, self).generate_summary()
+        super().generate_summary()
         self.summary.append(["Max. iteration cycles", self.max_iterations])
 
     def set_max_iterations(self, number):
@@ -1127,7 +1249,7 @@ class TurbomoleForceFieldSettings(TurbomoleSettings):
 
         number = int(number)
         if number < 1:
-            raise PyAdfError("""Rejecting {0} as the maximum number of
+            raise PyAdfError("""Rejecting {} as the maximum number of
             iteration cycles.""".format(number))
 
         self.max_iterations = number
@@ -1157,14 +1279,13 @@ class TurbomoleJob(job):
         @type mol:  L{molecule}
         """
 
-        super(TurbomoleJob, self).__init__()
+        super().__init__()
 
         self.mol = mol
         self.settings = None
 
         self.jobtype = None
-        self.checksum = None
-        self._checksum_only = False  # WHAT'S THAT?
+        self._checksum = None
 
         self.execute = []
         self.file_on_success = None
@@ -1190,7 +1311,7 @@ class TurbomoleJob(job):
 
         # We  first check  if using  the  old results  as a  starting point  is
         # reasonable.  The explicit  conversion to  strings helps  to  get more
-        # informative error  messages even if a completely  weired object might
+        # informative error  messages even if a  completely  weird object might
         # be passed.
 
         if not issubclass(type(restart), type(TurbomoleResults())):
@@ -1240,6 +1361,7 @@ class TurbomoleJob(job):
 
         self.mol.write('coord', outputformat='tmol')
         td = TurboDefinition(self.settings)
+
         td.run()
 
         if self.restart:
@@ -1247,7 +1369,7 @@ class TurbomoleJob(job):
             #                  be done previously.
             try:
                 shutil.move(self.restart_mos, 'mos')
-            except IOError:  # Yes, `IOError', I've checked that.
+            except OSError:  # Yes, `IOError', I've checked that.
                 # This means  that we couldn't  copy the old `mos'  file. Crap,
                 # the old one is already deleted!
                 raise PyAdfError("""I deleted the `mos' file written by
@@ -1268,7 +1390,7 @@ class TurbomoleJob(job):
 
         runscript = ''
         if nproc > 1:
-            runscript += "export PARNODES=%i \n\n" % nproc
+            runscript += f"export PARNODES={nproc:d} \n\n"
         for ex in self.execute:
             runscript += ex + '\n'
 
@@ -1284,11 +1406,103 @@ class TurbomoleJob(job):
 
     def after_run(self):
         """
+        Some postprocessing functions.
+        """
+        self.molden_postprocessing()
+        self.get_results_instance()
+
+    def molden_postprocessing(self):
+        """
+        Try to create an orbitals.molden file.
+        Additionally, there might be compatibility problems with d orbitals
+        in tm-version < 7.2.
+        On the other hand, there might be compatibility problems with the
+        updated tm2molden program as well. Only tested with turbomole 7.1.
+        """
+
+        try:
+            # Start the molden file generation
+            returncode = self._tm2molden()
+            tm2molden_status = (returncode == 0)
+            if not tm2molden_status:
+                print("ERROR: 'tm2molden' quit on error. no molden output")
+        except Exception as e:
+            print('an exception occured while trying to generate the molden file')
+            print(str(e), e.args)
+            print('this should not be a problem for the main calculation')
+            raise
+        else:
+            try:
+                try:
+                    os.remove('orbitals.molden')
+                    print('old molden file removed, this is unusual')
+                except OSError:
+                    pass
+                os.rename('molden_std.input', 'orbitals.molden')
+                self.settings.molden_file = True
+            except OSError:
+                print('could not rename molden file')
+
+    def _tm2molden(self):
+        """
+        Generate a molden.input - file
+        """
+        from .JobRunner import DefaultJobRunner
+
+        # Generate the input sequence to be passed.
+        self.tm2molden_stdin = self._assembleInput()
+
+        env = DefaultJobRunner().get_environ_for_local_command(TurbomoleJob)
+
+        try:
+            # Create the subprocess
+            D = Popen(['tm2molden', 'norm'], stdin=PIPE, stdout=PIPE, stderr=PIPE, env=env)
+
+            # Pass it the input and wait for it to finish.
+            self.tm2molden_stdout, self.tm2molden_stderr \
+                = D.communicate(input=self.tm2molden_stdin.encode('utf-8'))
+        except OSError:
+            print("Couldn't start a `tm2molden' subprocess. "
+                  + "Have you even installed it?")
+            return None
+        return D.returncode
+
+    def _assembleInput(self):
+        """
+        Generates the input string to be passed to I{tm2molden}.
+
+        @returns: Input sequence
+        @rtype:   L{string} with \n
+
+        """
+
+        # skip entering a name
+        sequence = ['']
+        # does the file already exist? if so, overwrite it
+        if os.path.isfile('molden_std.input'):
+            sequence.append('')
+        # yes, please write my data
+        sequence.append('')
+        # no, we don't want the optimization data
+        if self.jobtype == "Turbomole geometry optimization job":
+            sequence.append('n')
+
+        inputstring = ''
+        for word in sequence:
+            inputstring += word + '\n'
+        return inputstring
+
+    @staticmethod
+    def get_results_instance():
+        """
+        Get the results of this job.
         Make  a `archive.tar'  from `jobtempdir'.  The files  will be  in the
         arcive directly  with no containing directory. They  can therefore be
         extracted  via,  say,   `tar.extractfile'energy')'  (if  `tar'  is  a
         `TarFile'  object  opened in  reading  mode  with properly  specified
         gz compression.
+
+        @return: Results
         """
         import tarfile
 
@@ -1325,46 +1539,47 @@ class TurbomoleJob(job):
         Prints some information about the current job to I{stdout}.
         """
 
-        print ' ' + '-' * 50
-        print " Running " + self.jobtype
+        print(' ' + '-' * 50)
+        print(" Running " + self.jobtype)
         if self.restart:
-            print (" (Restarted using `mos' from job "
-                   + str(self.restart_id) + ".)")
-        print
-        print "  MOLECULE:"
-        print
+            print(" (Restarted using `mos' from job "
+                  + str(self.restart_id) + ".)")
+        print()
+        print("  MOLECULE:")
+        print()
         self.print_molecule()
-        print
-        print "  SETTINGS:"
-        print
+        print()
+        print("  SETTINGS:")
+        print()
         self.print_settings()
-        print
-        print "  EXTRAS:"
-        print
+        print()
+        print("  EXTRAS:")
+        print()
         self.print_extras()
-        print
-        print ' ' + '-' * 50
-        print
+        print()
+        print(' ' + '-' * 50)
+        print()
 
     def print_molecule(self):
         """
         Prints the molecule to I{stdout}.
         """
-        print self.get_molecule()
-        print "  charge: {Q}".format(Q=self.mol.get_charge())
+        print(self.get_molecule())
+        print(f"  charge: {self.mol.get_charge()}")
 
     def print_settings(self):
         """
         Prints the settings for the current job to I{stdout}.
         """
-        print self.settings
+        print(self.settings)
 
+    # noinspection PyMethodMayBeStatic
     def print_extras(self):
         """
         Prints the "extras" for this job. Whatever that is. There are no
         extras.
         """
-        print "  There are no extras."
+        print("  There are no extras.")
 
     def print_jobtype(self):
         """
@@ -1387,7 +1602,7 @@ class TurbomoleJob(job):
 
         If a job obviously failed, C{False} is returned; otherwise C{True}.
 
-        A job did not fail obviously iff [C{file_on_success} is undefined or
+        A job did not fail obviously if [C{file_on_success} is undefined or
         exists) and (C{file_on_fail} is undefined or does not exist)]. They
         have to be set by the derived job class.
 
@@ -1415,7 +1630,8 @@ class TurbomoleJob(job):
 
         return success and not fail
 
-    def get_checksum(self):
+    @property
+    def checksum(self):
         """
         Generate a checksum quasi-unique to this kind of job with this molecule
         and this settings.
@@ -1437,47 +1653,37 @@ class TurbomoleJob(job):
         not change the results (only the speed they are gained).
 
         For information on the md5 algorithm, please see the RFC 1321
-        U{http://tools.ietf.org/html/rfc1321.html}.
+        U{https://tools.ietf.org/html/rfc1321.html}.
 
         @returns: Hexadicimal hash
         @rtype:   L{str}
 
         """
-
-        import tempfile
         import pickle
         import hashlib
 
-        if self.checksum is None:
-
-            tmp = tempfile.NamedTemporaryFile(mode='wb')
-            pickle.dump(self.settings, tmp.file, protocol=pickle.HIGHEST_PROTOCOL)
-            tmp.file.close()
+        if self._checksum is None:
 
             m = hashlib.md5()
-            m.update(str(type(self)))
+            m.update(str(type(self)).encode())
 
             # In case  pickeling should  fail, we might  re-read an empty  file and
             # generate  a  checksum  that  isn't  representative.  We  detect  this
             # potential  source of  error by  comparing the  hash before  and after
             # re-reading the file and insisting in them being different.
-
             failed_hash = m.hexdigest()
 
-            with open(tmp.name, 'rb') as picklefile:
-                for line in picklefile:
-                    m.update(line)
-
+            m.update(pickle.dumps(self.settings, protocol=pickle.HIGHEST_PROTOCOL))
             settings_hash = m.hexdigest()
 
             if settings_hash == failed_hash:
                 raise PyAdfError("""Error while trying to compute the md5 hash
                 of the job. Hash equals empty hash.""")
 
-            mol_hash = self.mol.get_checksum(representation='tmol')
-            self.checksum = mol_hash + settings_hash
+            mol_hash = self.mol.checksum
+            self._checksum = mol_hash + settings_hash
 
-        return self.checksum
+        return self._checksum
 
 
 class TurbomoleSinglePointJob(TurbomoleJob):
@@ -1503,7 +1709,7 @@ class TurbomoleSinglePointJob(TurbomoleJob):
 
         """
 
-        super(TurbomoleSinglePointJob, self).__init__(mol)
+        super().__init__(mol)
 
         self.jobtype = "Turbomole single point job"
         self.file_on_success = 'energy'
@@ -1518,7 +1724,11 @@ class TurbomoleSinglePointJob(TurbomoleJob):
 
         # Chose reasonable default values for what the user hasn't specified.
 
+        # noinspection PyProtectedMember
         self.settings._set_charge(self.mol.get_charge())
+        # noinspection PyProtectedMember
+        self.settings._set_spin(self.mol.get_spin())
+        # noinspection PyProtectedMember
         self.settings._set_method(method)
         if self.settings.ri is None:
             if settings.method == 'dft':
@@ -1536,6 +1746,8 @@ class TurbomoleSinglePointJob(TurbomoleJob):
             self.settings.set_initial_occupation_guess_method('eht')
         if self.settings.ired is None:
             self.settings.set_redundant_internal_coordinates(False)
+        if self.settings.idef is None:
+            self.settings.define_internal_coordinates(False)
 
         # Chose the executing applications.
 
@@ -1558,7 +1770,7 @@ class TurbomoleSinglePointJob(TurbomoleJob):
 
 class TurbomoleGeometryOptimizationJob(TurbomoleJob):
     """
-    Optimize moecular geometries with I{Turbomole} using DFT or MP2 methods.
+    Optimize molecular geometries with I{Turbomole} using DFT or MP2 methods.
 
     """
 
@@ -1578,7 +1790,7 @@ class TurbomoleGeometryOptimizationJob(TurbomoleJob):
 
         """
 
-        super(TurbomoleGeometryOptimizationJob, self).__init__(mol)
+        super().__init__(mol)
 
         self.jobtype = "Turbomole geometry optimization job"
 
@@ -1592,7 +1804,11 @@ class TurbomoleGeometryOptimizationJob(TurbomoleJob):
 
         # Chose reasonable default values for what the user hasn't specified.
 
+        # noinspection PyProtectedMember
         self.settings._set_charge(self.mol.get_charge())
+        # noinspection PyProtectedMember
+        self.settings._set_spin(self.mol.get_spin())
+        # noinspection PyProtectedMember
         self.settings._set_method(method)
         if self.settings.ri is None:
             if settings.method == 'dft':
@@ -1619,6 +1835,8 @@ class TurbomoleGeometryOptimizationJob(TurbomoleJob):
             #    does, takes care of the `ired' settings herself.
 
             self.settings.set_redundant_internal_coordinates(self.mol.get_number_of_atoms() > 3)
+        if self.settings.idef is None:
+            self.settings.define_internal_coordinates(False)
         if self.settings.gcart is None:
             self.settings.set_convergence_criterion(4)
         if self.settings.max_iterations is None:
@@ -1639,6 +1857,21 @@ class TurbomoleGeometryOptimizationJob(TurbomoleJob):
         shellstring += ' -gcart ' + str(self.settings.gcart)
         shellstring += ' -c ' + str(self.settings.max_iterations)
         self.execute.append(shellstring)
+
+    def before_run(self):
+
+        super().before_run()
+
+        if self.settings.frozen_atoms:
+            print("Found frozen atoms list:", self.settings.frozen_atoms)
+            with open('coord_frozen', 'w') as out_file:
+                with open('coord') as in_file:
+                    for i, line in enumerate(in_file):
+                        if i in self.settings.frozen_atoms:
+                            out_file.write(line.rstrip('\n') + '    f' + '\n')
+                        else:
+                            out_file.write(line)
+            os.rename('coord_frozen', 'coord')
 
     def create_results_instance(self):
         # See docstring for mother method in `TurbomoleJob'.
@@ -1670,7 +1903,7 @@ class TurbomoleGradientJob(TurbomoleJob):
         @type  settings: L{TurbomoleGradientSettings}
         """
 
-        super(TurbomoleGradientJob, self).__init__(mol)
+        super().__init__(mol)
 
         self.jobtype = "Turbomole gradient job"
         self.file_on_success = None  # FIX THIS!
@@ -1686,7 +1919,11 @@ class TurbomoleGradientJob(TurbomoleJob):
 
         # Chose reasonable default values for what the user hasn't specified.
 
+        # noinspection PyProtectedMember
         self.settings._set_charge(self.mol.get_charge())
+        # noinspection PyProtectedMember
+        self.settings._set_spin(self.mol.get_spin())
+        # noinspection PyProtectedMember
         self.settings._set_method(method)
         if self.settings.ri is None:
             self.settings.set_ri(True)
@@ -1701,6 +1938,8 @@ class TurbomoleGradientJob(TurbomoleJob):
             self.settings.set_initial_occupation_guess_method('eht')
         if self.settings.ired is None:
             self.settings.set_redundant_internal_coordinates(False)
+        if self.settings.idef is None:
+            self.settings.define_internal_coordinates(False)
 
         if self.settings.ri:
             self.execute.append('ridft')
@@ -1737,7 +1976,7 @@ class TurbomoleForceFieldJob(TurbomoleJob):
 
         """
 
-        super(TurbomoleForceFieldJob, self).__init__(mol)
+        super().__init__(mol)
 
         self.jobtype = "Turbomole force field preoptimization job"
         self.file_on_success = None  # FIX THIS!

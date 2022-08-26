@@ -1,3 +1,8 @@
+import os
+from pyadf import *
+
+if 'pyadfenv' not in globals():
+    from pyadf.Initialization import *
 
 _verbose_level = 2
 
@@ -15,26 +20,25 @@ scf_energy = res.get_scf_energy()
 mp2_energy = res.get_mp2_energy()
 tot_energy = res.get_energy()
 
-print scf_energy, mp2_energy, tot_energy
+print(scf_energy, mp2_energy, tot_energy)
 
-if 'unittesting' in pyadfenv.options :
+if 'unittesting' in pyadfenv.options:
     testobj.assertAlmostEqual(scf_energy, -193.256223105, 5)
-    testobj.assertAlmostEqual(mp2_energy,   -0.621053202, 5)
+    testobj.assertAlmostEqual(mp2_energy, -0.621053202, 5)
     testobj.assertAlmostEqual(tot_energy, -193.877276308, 5)
 
 # MP2 geometry optimization
 
 # TODO: Not working properly yet
-#mol = molecule(os.path.join(pyadfenv.outdir, 'bad_water.xyz'))
+# mol = molecule(os.path.join(pyadfenv.outdir, 'bad_water.xyz'))
 #
-#settings = TurbomoleGeometryOptimizationSettings(verbose_level=_verbose_level)
-#job = TurbomoleGeometryOptimizationJob(mol, method='mp2', settings=settings)
-#res = job.run()
+# settings = TurbomoleGeometryOptimizationSettings(verbose_level=_verbose_level)
+# job = TurbomoleGeometryOptimizationJob(mol, method='mp2', settings=settings)
+# res = job.run()
 #
-#opt_mol = res.get_molecule()
+# opt_mol = res.get_molecule()
 #
-#mol.write(pyadfenv.outdir+'opt.xyz')
+# mol.write(pyadfenv.outdir+'opt.xyz')
 #
-#print res.get_energy()
+# print res.get_energy()
 #
-

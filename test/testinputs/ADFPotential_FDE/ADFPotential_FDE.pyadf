@@ -22,20 +22,25 @@
 #
 #######################################################################
 
+import os
+from pyadf import *
+if 'pyadfenv' not in globals():
+    from pyadf.Initialization import *
+
 ###################################################################
 # H2O reference calculations
 ###################################################################
 
-h2o1 = molecule (os.path.join(pyadfenv.outdir, 'H2O-1.xyz'))
+h2o1 = molecule(os.path.join(pyadfenv.outdir, 'H2O-1.xyz'))
 h2o1.set_symmetry('NOSYM')
-h2o2 = molecule (os.path.join(pyadfenv.outdir, 'H2O-2.xyz'))
+h2o2 = molecule(os.path.join(pyadfenv.outdir, 'H2O-2.xyz'))
 h2o2.set_symmetry('NOSYM')
 
 h2o_dimer = h2o1 + h2o2
 h2o_dimer.set_symmetry('NOSYM')
 
 settings = adfsettings()
-settings.set_save_tapes([21,10])
+settings.set_save_tapes([21, 10])
 settings.set_functional('BP86')
 settings.set_integration(3.0)
 
@@ -63,7 +68,7 @@ h2o2dens = h2o2_res.get_density(grid=grid)
 refdens = superdens - h2o2dens
 
 negdens = refdens.integral(ignore=(refdens.get_values()) > 0.0)
-print "Integral of negative density: ", negdens
+print("Integral of negative density: ", negdens)
 
 ##################################################
 # sum-of-fragments and standard FDE errors
@@ -71,12 +76,12 @@ print "Integral of negative density: ", negdens
 
 error_sumfrag = (refdens - h2o1dens).integral(func=lambda x: abs(x))
 
-print " Error (SumFrag): ", error_sumfrag
+print(" Error (SumFrag): ", error_sumfrag)
 
 # now run an FDE calulation
 
 frags = [fragment(h2o1_res, [h2o1], isfrozen=False),
-         fragment(h2o2_res, [h2o2], isfrozen=True) ]
+         fragment(h2o2_res, [h2o2], isfrozen=True)]
 
 fde_job = adffragmentsjob(frags, basis="DZ", settings=settings)
 fde_res = fde_job.run()
@@ -85,7 +90,7 @@ h2o1_fdedens = fde_res.get_nonfrozen_density(grid=grid)
 
 error_fde = (refdens - h2o1_fdedens).integral(func=lambda x: abs(x))
 
-print " Error (FDE) : ", error_fde
+print(" Error (FDE) : ", error_fde)
 
 ##########################################################################
 # now run FDE with potential reconstruction
@@ -94,13 +99,13 @@ print " Error (FDE) : ", error_fde
 settings.set_ncycles(500)
 
 frags = [fragment(h2o1_res, [h2o1], isfrozen=False),
-         fragment(h2o2_res, [h2o2], isfrozen=True) ]
+         fragment(h2o2_res, [h2o2], isfrozen=True)]
 
 # no startpot is given: use potential from first SCF iteration
 fdepot_job = adffragmentsjob(frags, basis="DZ", settings=settings)
-fdepot_job = adfpotentialjob(fdepot_job, refdens, 
-                             potoptions={'EIGENSHIFT':0.1, 'CONVERGE':2e-3, 'LAMBDA':0.0,
-                                         'FIXEDLAMBDA':'', 'CUTNEGATIVEDENS':'1E-8'})
+fdepot_job = adfpotentialjob(fdepot_job, refdens,
+                             potoptions={'EIGENSHIFT': 0.1, 'CONVERGE': 2e-3, 'LAMBDA': 0.0,
+                                         'FIXEDLAMBDA': '', 'CUTNEGATIVEDENS': '1E-8'})
 fdepot_res = fdepot_job.run()
 
 # density from reconstructed potential
@@ -108,7 +113,7 @@ h2o1_fdepotdens = fdepot_res.get_nonfrozen_density(grid=grid)
 
 error_fdepot = (refdens - h2o1_fdepotdens).integral(func=lambda x: abs(x))
 
-print " Error (FDE-Pot) : ", error_fdepot
+print(" Error (FDE-Pot) : ", error_fdepot)
 
 # write a cube file with the reconstructed part of the potential
 # (the start potential has to be added to this to get the total
@@ -127,9 +132,8 @@ pot.get_xyzvfile(os.path.join(pyadfenv.outdir, 'pot.xyzv'))
 # comparison of results
 #############################################
 
-if 'unittesting' in pyadfenv.options :
-    testobj.assertAlmostEqual(negdens,      -0.03563950457, 4)
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(negdens, -0.03563950457, 4)
     testobj.assertAlmostEqual(error_sumfrag, 0.17201571760, 4)
-    testobj.assertAlmostEqual(error_fde,     0.08430160173, 4)
-    testobj.assertAlmostEqual(error_fdepot,  0.07494324304, 4)
-
+    testobj.assertAlmostEqual(error_fde, 0.08430160173, 4)
+    testobj.assertAlmostEqual(error_fdepot, 0.07494324304, 4)

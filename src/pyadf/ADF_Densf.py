@@ -1,12 +1,10 @@
-# -*- coding: utf-8 -*-
-
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2021 by Christoph R. Jacob, Tobias Bergmann,
-# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Thomas Dresselhaus,
-# Andre S. P. Gomes, Andreas Goetz, Michal Handzlik, Karin Kiewisch,
-# Moritz Klammler, Lars Ridder, Jetze Sikkema, Lucas Visscher, and
-# Mario Wolter.
+# Copyright (C) 2006-2022 by Christoph R. Jacob, Tobias Bergmann,
+# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Maria Chekmeneva,
+# Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz, 
+# Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder, 
+# Jetze Sikkema, Lucas Visscher, Johannes Vornweg and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -19,7 +17,7 @@
 #    GNU General Public License for more details.
 #
 #    You should have received a copy of the GNU General Public License
-#    along with PyADF.  If not, see <http://www.gnu.org/licenses/>.
+#    along with PyADF.  If not, see <https://www.gnu.org/licenses/>.
 """
  Defines plotting related classes.
 
@@ -74,7 +72,7 @@
      >>> diffdens.get_cubfile('diffdens.cub')
 
  Finally, it is also possible to integrate densities and functions
- of the density. Not that this should be done using L{adfgrid} in
+ of the density. Note that this should be done using L{adfgrid} in
  order to obtain accurate results.
 
      - Number of electrons:
@@ -101,15 +99,15 @@
 
 import numpy
 
-from ADFBase import adfjob, adfresults
-from Errors import PyAdfError
+from .ADFBase import scmjob, scmresults
+from .Errors import PyAdfError
 
-from Plot.Grids import cubegrid
-from Plot.Properties import PlotProperty
-from Plot.GridFunctions import GridFunctionFactory
+from .Plot.Grids import cubegrid
+from .Plot.Properties import PlotProperty
+from .Plot.GridFunctions import GridFunctionFactory
 
 
-class densfresults(adfresults):
+class densfresults(scmresults):
     """
     Class representing densities (and related quantities) as produced
     by the ADF utility program C{densf} (or its replacement C{cjdensf}).
@@ -151,7 +149,7 @@ class densfresults(adfresults):
         """
         Constructor for densfresults.
         """
-        adfresults.__init__(self, j)
+        super().__init__(j)
 
         if j is not None:
             if grid is not None:
@@ -191,7 +189,7 @@ class densfresults(adfresults):
             values = values[:self.grid.npoints]
 
             if len(self.grid.shape) > 1:
-                values = values.reshape(self.grid.shape, order='Fortran')
+                values = values.reshape(self.grid.shape, order='F')
                 values = values.reshape((self.grid.npoints,))
         else:
             components = self.prop.components
@@ -202,7 +200,7 @@ class densfresults(adfresults):
                 values_comp = values_comp[:self.grid.npoints]
 
                 if len(self.grid.shape) > 1:
-                    values_comp = values_comp.reshape(self.grid.shape, order='Fortran')
+                    values_comp = values_comp.reshape(self.grid.shape, order='F')
                     values_comp = values_comp.reshape((self.grid.npoints,))
 
                 values[:, i] = values_comp
@@ -220,7 +218,7 @@ class densfresults(adfresults):
         else:
             gf_type = None
 
-        checksum = self.job.get_checksum()
+        checksum = self.job.checksum
 
         if self.job.nspin == 2 and self.prop.is_unrestricted:
             values_alpha = self._read_values_from_tape41(spin='alpha')
@@ -238,7 +236,7 @@ class densfresults(adfresults):
         return gf
 
 
-class densfjob(adfjob):
+class densfjob(scmjob):
     """
     A class for densf jobs.
 
@@ -268,7 +266,7 @@ class densfjob(adfjob):
         """
         # pylint: disable=W0621
 
-        adfjob.__init__(self)
+        super().__init__()
 
         self._adfresults = adfres
         if grid is None:
@@ -289,7 +287,7 @@ class densfjob(adfjob):
 
         if 'orbs' in self.prop.opts:
             if ('Loc' not in self.prop.opts['orbs']) and \
-                    not (self.prop.opts['orbs'].keys() == ['A']):
+                    not (list(self.prop.opts['orbs'].keys()) == ['A']):
                 raise PyAdfError('CJDENSF only working for NSYM=1 (irrep A) orbitals')
 
         if self.prop.pclass == 'potential':
@@ -309,14 +307,15 @@ class densfjob(adfjob):
 
     only_serial = True
 
+    # noinspection PyMethodOverriding
     def get_runscript(self, nproc=1):
         """
         Return a runscript for CJDENSF.
         """
         if self._olddensf:
-            runscript = adfjob.get_runscript(self, nproc=nproc, program='densf')
+            runscript = super().get_runscript(nproc=nproc, program='densf')
         else:
-            runscript = adfjob.get_runscript(self, nproc=nproc, program='cjdensf')
+            runscript = super().get_runscript(nproc=nproc, program='cjdensf')
 
         return runscript
 
@@ -335,12 +334,12 @@ class densfjob(adfjob):
         if self.prop.needs_locorbdens:
             inp += "LOCORBDENS \n"
             for i in self.prop.opts['orbs']['Loc']:
-                inp += "%i \n" % i
+                inp += f"{i:d} \n"
             inp += "END\n"
         elif self.prop.needs_orbdens:
             inp += "ORBDENS \n"
             for i in self.prop.opts['orbs']['A']:
-                inp += "%i \n" % i
+                inp += f"{i:d} \n"
             inp += "END\n"
 
         if self.prop.pclass == 'density':
@@ -361,7 +360,7 @@ class densfjob(adfjob):
 
         elif self.prop.pclass == 'potential':
             if self.prop.ptype == 'kinpot':
-                inp += 'KINPOT %s \n' % self.prop.opts['func'].upper()
+                inp += f'KINPOT {self.prop.opts["func"].upper()} \n'
             elif self.prop.ptype == 'embpot':
                 inp += 'EMBPOT\n'
             elif self.prop.ptype == 'embcoul':
@@ -373,9 +372,9 @@ class densfjob(adfjob):
             elif self.prop.ptype == 'nadkin':
                 inp += 'EMBPOT\n'
                 if 'func' in self.prop.opts:
-                    inp += 'NADKIN %s \n' % self.prop.opts['func'].upper()
+                    inp += f'NADKIN {self.prop.opts["func"].upper()} \n'
             else:
-                inp += "POTENTIAL %s \n" % self.prop.ptype.upper()
+                inp += f"POTENTIAL {self.prop.ptype.upper()} \n"
 
         elif self.prop.pclass == 'orbital':
             if self.prop.opts['irrep'] == "LOC":
@@ -389,7 +388,7 @@ class densfjob(adfjob):
         inp += "END INPUT\n"
 
         if self._checksum_only:
-            inp += self._adfresults.get_checksum()
+            inp += self._adfresults.checksum
 
         return inp
 
@@ -397,15 +396,15 @@ class densfjob(adfjob):
         return "DENSF job"
 
     def print_jobinfo(self):
-        print " " + 50 * "-"
-        print " Running " + self.print_jobtype()
-        print
-        print "   SCF taken from ADF job ", self._adfresults.fileid, " (results id)"
-        print
-        print "   Fragment used: ", self._frag
-        print
-        print "   Calculated property : ", self.prop.str
-        print
+        print(" " + 50 * "-")
+        print(" Running " + self.print_jobtype())
+        print()
+        print("   SCF taken from ADF job ", self._adfresults.fileid, " (results id)")
+        print()
+        print("   Fragment used: ", self._frag)
+        print()
+        print("   Calculated property : ", self.prop.str)
+        print()
 
     def before_run(self):
         self._adfresults.link_tape(21)

@@ -1,12 +1,10 @@
-# -*- coding: utf-8 -*-
-
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2021 by Christoph R. Jacob, Tobias Bergmann,
-# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Thomas Dresselhaus,
-# Andre S. P. Gomes, Andreas Goetz, Michal Handzlik, Karin Kiewisch,
-# Moritz Klammler, Lars Ridder, Jetze Sikkema, Lucas Visscher, and
-# Mario Wolter.
+# Copyright (C) 2006-2022 by Christoph R. Jacob, Tobias Bergmann,
+# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Maria Chekmeneva,
+# Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz, 
+# Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder, 
+# Jetze Sikkema, Lucas Visscher, Johannes Vornweg and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -19,7 +17,7 @@
 #    GNU General Public License for more details.
 #
 #    You should have received a copy of the GNU General Public License
-#    along with PyADF.  If not, see <http://www.gnu.org/licenses/>.
+#    along with PyADF.  If not, see <https://www.gnu.org/licenses/>.
 """
  Job and results for ADF single point calculation.
 
@@ -34,25 +32,28 @@
  @group Results:
     adfsinglepointresults
 """
-# pylint: disable=E1103
 
-from ADFBase import adfjob, adfresults
-from Plot.Grids import cubegrid, adfgrid
-from ADF_Densf import densfjob
 
-from Plot.Properties import PlotPropertyFactory
-from Plot.GridFunctions import GridFunctionFactory, GridFunctionDensityWithDerivatives
-from Plot.FileWriters import GridWriter
+from .ADFBase import adfjob, adfresults, amssettings
+from .Plot.Grids import adfgrid
+from .ADF_Densf import densfjob
 
-from Errors import PyAdfError
-from Molecule import molecule
-from Utils import au_in_eV
+from .DensityEvaluator import DensityEvaluatorInterface, use_default_grid
+
+from .Plot.Properties import PlotPropertyFactory
+from .Plot.GridFunctions import GridFunctionFactory
+from .Plot.FileWriters import GridWriter
+
+from .Errors import PyAdfError
+from .Molecule import molecule
+from .Utils import au_in_eV
 import os
 import re
 import shutil
+from functools import reduce
 
 
-class adfsettings(object):
+class adfsettings(amssettings):
     """
     Class that holds the settings for an ADF calculation.
 
@@ -109,10 +110,11 @@ class adfsettings(object):
         @param printing: extended output printing, see L{set_printing}
         @type  printing: bool
         """
+        super().__init__()
 
         # first declare all instance variables here
         self.functional = None
-        self.accint = None
+        self.accint = 0.0
         self.freeze_accmin = None
         self.acclist = None
         self.int_special = None
@@ -182,10 +184,10 @@ class adfsettings(object):
         else:
             s += " Non-Relativistic \n\n"
         s += "   XC functional   : " + self.functional + "\n"
-        s += "   Integration     : accint %-6.1f \n" % self.accint
+        s += f"   Integration     : accint {self.accint:<6.1f} \n"
         for i in self.int_special:
-            s += "                   : " + i + " %-6.1f \n" % self.int_special[i]
-        s += "   SCF convergence : %-6.1e \n" % self.converge[0]
+            s += "                   : " + i + f" {self.int_special[i]:<6.1f} \n"
+        s += f"   SCF convergence : {self.converge[0]:<6.1e} \n"
         s += "\n"
 
         if self.exactdens:
@@ -196,7 +198,7 @@ class adfsettings(object):
 
         if self.dependency:
             s += "   Dependent basis functions will be removed "
-            s += "(bas=%.1e fit=%.1e) \n\n" % (self.dependency_bas, self.dependency_fit)
+            s += f"(bas={self.dependency_bas:.1e} fit={self.dependency_fit:.1e}) \n\n"
 
         if len(self.tapelist) > 0:
             for t in self.tapelist:
@@ -260,9 +262,17 @@ class adfsettings(object):
 
         @param accint: general integration accuracy parameter
         @type  accint: float
+
         @param acclist: FIXME ADD DOCUMENTATION
+
+        @param int_special: additional special integration options, see ADF manual
+        @type int_special: dict
+
         @param dishul: DISHUL option, see ADF manual
         @type  dishul: None or float
+
+        @param becke: Whether to use a Becke integration grid (specify accuracy)
+        @type becke: str or None
         """
         if self.freeze_accmin:
             if accint < self.accint:
@@ -331,7 +341,7 @@ class adfsettings(object):
 
         @param vshift: level shifting parameter and additional options as a dictionary,
                        for example set_lshift(0.1) or set_lshift([0.1,{'Err':0.001}])
-        @type vshift: float or list
+        @type vshift: float or list or None
         """
         self.vshift = vshift
 
@@ -380,7 +390,7 @@ class adfsettings(object):
         @type cosmo: boolean, str, or list
         """
         self.cosmo = cosmo
-                
+
     def set_cosmosurf(self, cosmosurf):
         """
         COSMO surface type.
@@ -428,12 +438,12 @@ class adfsettings(object):
         @param printing: switch on extended output printing (default: off)
         @type  printing: bool
         @param printcharge: switch on printing of mulliken population etc (default: off)
-        @type  printing: bool
+        @type  printcharge: bool
         @param printfit: switch on printing of fit coefficients (default: off)
-        @type  printing: bool
+        @type  printfit: bool
         @param printeig: a dictionary of the form {"occ":[n_occ], "virt":[n_virt]} containing the
             number of occupied and virtual orbitals to print
-        @type  printing: dict 
+        @type  printeig: dict
         """
         self.printing = printing
         self.printcharge = printcharge
@@ -443,7 +453,7 @@ class adfsettings(object):
         if printeig is None:
             keys = []
         else:
-            keys = printeig.keys()
+            keys = list(printeig.keys())
 
         if 'occ' in keys:
             self.printeig['occ'] = printeig['occ']
@@ -527,7 +537,7 @@ class adfsettings(object):
         if len(tapelist) > 0:
             self.save_tapes = 'SAVE '
             for t in tapelist:
-                self.save_tapes += 'TAPE%2i  ' % t
+                self.save_tapes += f'TAPE{t:2d}  '
         else:
             self.save_tapes = ''
 
@@ -539,10 +549,17 @@ class adfsettings(object):
 
         # ZORA relativistic options
         if self.ZORA:
+            sblock += " Relativity\n"
+            sblock += "  formalism ZORA \n"
             if self.SpinOrbit:
-                sblock += " Relativistic SpinOrbit ZORA\n\n"
+                sblock += " level Spin-Orbit\n"
             else:
-                sblock += " Relativistic Scalar ZORA\n\n"
+                sblock += " level Scalar\n"
+            if self.noncollinear:
+                sblock += " SpinOrbitMagnetization NonCollinear\n"
+            sblock += "End\n\n"
+        else:
+            sblock += " Relativity level=None\n\n"
 
         # xc functional
         sblock += " XC\n"
@@ -554,40 +571,40 @@ class adfsettings(object):
         # integration
         if self.becke is None:
             sblock += " INTEGRATION \n"
-            sblock += "  accint %4.1f " % self.accint
+            sblock += f"  accint {self.accint:4.1f} "
             for a in self.acclist:
-                sblock += "%4.1f " % a
+                sblock += f"{a:4.1f} "
             sblock += " \n"
             for s in self.int_special:
-                sblock += "  " + s + " %4.1f\n" % self.int_special[s]
+                sblock += f"  {s} {self.int_special[s]:4.1f}\n"
             sblock += " END \n\n"
         else:
             sblock += " BeckeGrid \n"
-            sblock += "  Quality %s \n" % self.becke
+            sblock += f"  Quality {self.becke} \n"
             sblock += " END \n"
 
         # convergence
         sblock += " SCF\n"
-        sblock += "   iterations %4d \n" % self.ncycles
-        sblock += "   converge %6.1e %6.1e \n" % (self.converge[0], self.converge[1])
-        if self.mix != 0.2:
-            sblock += "   mixing %4f \n" % self.mix
+        sblock += f"   iterations {self.ncycles:4d} \n"
+        sblock += f"   converge {self.converge[0]:6.1e} {self.converge[1]:6.1e} \n"
+        if (self.mix is not None) and (self.mix != 0.2):
+            sblock += f"   mixing {self.mix:4f} \n"
         if self.vshift is not None:
             if not isinstance(self.vshift, list):
-                sblock += "   lshift %4f " % self.vshift
+                sblock += f"   lshift {self.vshift:4f} "
             else:
                 for opt, val in sorted(self.vshift[1].items()):
-                    sblock += "   lshift %4f %s=%4f" % (self.vshift[0], opt, val)
+                    sblock += f"   lshift {self.vshift[0]:4f} {opt}={val:4f}"
             sblock += "\n"
         if self.diis is not None:
             sblock += "   diis "
             for opt, val in sorted(self.diis.items()):
                 if opt == "n":
-                    sblock += "%s=%d " % (opt.lower(), val)
+                    sblock += f"{opt.lower()}={val:d} "
                 elif opt == "cyc":
-                    sblock += "%s=%d " % (opt.lower(), val)
+                    sblock += f"{opt.lower()}={val:d} "
                 else:
-                    sblock += "%s=%.6f " % (opt.lower(), val)
+                    sblock += f"{opt.lower()}={val:.6f} "
             sblock += "\n"
         if self.adiis:
             sblock += " ADIIS"
@@ -597,10 +614,6 @@ class adfsettings(object):
         # unrestricted
         if self.unrestricted:
             sblock += " UNRESTRICTED\n\n"
-
-        # noncollinear
-        if self.noncollinear:
-            sblock += " NONCOLLINEAR\n\n"
 
         # occupations
         if self.occupations is not None:
@@ -620,13 +633,13 @@ class adfsettings(object):
             if len(occopts) > 0:
                 sblock += " Occupations "
                 for occ in occopts:
-                    sblock += " %s " % occ
+                    sblock += f" {occ} "
                 sblock += " \n\n"
 
             if len(occs) > 0:
                 sblock += " IrrepOccupations \n"
                 for occ in occs:
-                    sblock += "  %s\n" % occ
+                    sblock += f"  {occ}\n"
                 sblock += " END"
                 sblock += "\n\n"
 
@@ -636,14 +649,14 @@ class adfsettings(object):
                 # If the parameter is a boolean, an empty solvation block should be printed (or not).
                 if self.cosmo:
                     sblock += " SOLVATION\n"
-                    sblock += " surf %s\n" % self.cosmosurf
+                    sblock += f" surf {self.cosmosurf}\n"
                     sblock += " END\n\n"
             elif isinstance(self.cosmo, str):
                 # If the parameter is a string, it contains the name of the solvent
                 sblock += " SOLVATION\n"
                 if self.cosmo != 'True':
-                    sblock += " solv name=%s\n" % self.cosmo
-                    sblock += " surf %s\n" % self.cosmosurf
+                    sblock += f" solv name={self.cosmo}\n"
+                    sblock += f" surf {self.cosmosurf}\n"
                 sblock += " END\n\n"
             elif isinstance(self.cosmo, list):
                 # If the parameter is a list, it should either contain only the name of the solvent,
@@ -664,18 +677,17 @@ class adfsettings(object):
                         except ValueError:
                             raise PyAdfError("Cosmo input list should contain either the solvent name, "
                                              "or the eps and rad parameters!")
-                    sblock += " eps=%f rad=%f\n" % (self.cosmo[0], self.cosmo[1])
-                    sblock += " surf %s\n" % self.cosmosurf
+                    sblock += f" eps={self.cosmo[0]:f} rad={self.cosmo[1]:f}\n"
+                    sblock += f" surf {self.cosmosurf}\n"
                 sblock += " END\n\n"
-   
+
         # exact density
         if self.exactdens:
             sblock += " EXACTDENSITY\n\n"
 
         # dependency
         if self.dependency:
-            sblock += " DEPENDENCY bas=%.1e fit=%.1e \n\n" % \
-                      (self.dependency_bas, self.dependency_fit)
+            sblock += f" DEPENDENCY bas={self.dependency_bas:.1e} fit={self.dependency_fit:.1e} \n\n"
 
         if not self.zlmfit:
             sblock += 'STOFIT\n\n'
@@ -690,7 +702,7 @@ class adfsettings(object):
         return sblock
 
 
-class adfscfsettings(object):
+class adfscfsettings:
     """
     Class for all settings of an ADF single point run.
 
@@ -724,21 +736,7 @@ class adfscfsettings(object):
         self.create_job = createproc
 
 
-def use_default_grid(func):
-    """
-    Decorator to ensure that get_* class method use the proper default grid.
-    """
-
-    def _wrapper(self, grid=None, spacing=0.5, *args, **kwargs):
-        if grid is None:
-            grid = self.get_default_grid(spacing)
-        # pylint: disable=E1102
-        return func(self, grid, *args, **kwargs)
-
-    return _wrapper
-
-
-class adfsinglepointresults(adfresults):
+class adfsinglepointresults(adfresults, DensityEvaluatorInterface):
     """
     Class for results of an ADF single point calculation.
 
@@ -771,9 +769,18 @@ class adfsinglepointresults(adfresults):
         """
         Constructor for adfsinglepointresults.
         """
-        adfresults.__init__(self, j)
-        self._grid = None
-        self._default_grids = {}
+        super().__init__(j)
+
+    @property
+    def grid(self):
+        """
+        The grid used in the calculation.
+
+        @type: L{adfgrid}
+        """
+        if self._grid is None:
+            self._grid = adfgrid(self)
+        return self._grid
 
     def get_molecule(self, InputOrder=True):
         """
@@ -864,6 +871,9 @@ class adfsinglepointresults(adfresults):
         @param orb: 'HOMO', 'LUMO' or symmetry label (e.g., '11a') of an orbital
         @type  orb: str
 
+        @param irrep: The irreducible representation to consider.
+        @param irrep: str
+
         @returns: the orbital energy, in eV
         @rtype: float
         """
@@ -890,6 +900,7 @@ class adfsinglepointresults(adfresults):
                              r"\s+(?P<orbenau>[-+]?(\d+(\.\d*)?|\d*\.\d+)([eE][-+]?\d+)?)"
                              r"\s+(?P<orbeneV>[-+]?(\d+(\.\d*)?|\d*\.\d+))\s*", re.VERBOSE)
 
+            startline = 0
             for i, line in enumerate(output):
                 m = start.match(line)
                 if m:
@@ -1010,40 +1021,15 @@ class adfsinglepointresults(adfresults):
 
         @rtype: bool
         """
-        from ADFFragments import adffragmentsjob
+        from .ADFFragments import adffragmentsjob
 
         if isinstance(self.job, adffragmentsjob):
             return self.job.is_fde_job()
         else:
             return False
 
-    @property
-    def grid(self):
-        """
-        The grid used in the calculation.
-
-        @type: L{adfgrid}
-        """
-        if self._grid is None:
-            self._grid = adfgrid(self)
-        return self._grid
-
-    def get_default_grid(self, spacing=0.5):
-        if spacing not in self._default_grids:
-            self._default_grids[spacing] = cubegrid(self.get_molecule(), spacing)
-        return self._default_grids[spacing]
-
     @use_default_grid
-    def get_nonfrozen_density(self, grid=None, fit=False, orbs=None, order=None):
-        """
-        Return the electron density of the nonfrozen fragments.
-
-        @rtype: L{GridFunctionDensity}
-        """
-        return self.get_density(grid=grid, fit=fit, orbs=orbs, order=order)
-
-    @use_default_grid
-    def get_density(self, grid=None, fit=False, orbs=None, order=None):
+    def get_density(self, grid=None, order=None, fit=False, orbs=None):
         """
         Returns the electron density.
 
@@ -1052,6 +1038,8 @@ class adfsinglepointresults(adfresults):
 
         @param grid: The grid to use. For details, see L{Plot.Grids}.
         @type  grid: subclass of L{grid}
+        @param order: order of derivatives of the density to calculate (1 and 2 possible)
+        @type order: int
         @param fit: If True, the fit density is returned, otherwise
                     the exact density.
         @type  fit: bool
@@ -1059,35 +1047,30 @@ class adfsinglepointresults(adfresults):
             a dictionary of the form {"irrep":[nums]} containing the
             orbitals to include. Use irrep "Loc" for localized orbitals
         @type orbs: dict
-        @param order: order of derivatives of the density to calculate (1 and 2 possible)
-        @type order: int
 
         @rtype: L{GridFunctionDensity}
         """
-        if (orbs is not None) and ('Loc' not in orbs.keys()):
+        if (orbs is not None) and ('Loc' not in list(orbs.keys())):
             if (order is not None) and (order > 1):
                 raise PyAdfError("Derivatives not implemented for orbital densities.")
             return self.get_orbital_density(grid, orbs)
-        elif (order is not None) and (order >= 1):
-            # the density itself
-            gfs = [self.get_density(grid, fit=fit, orbs=orbs, order=None)]
-
-            # density gradient
-            if order >= 1:
-                dg = self.get_densgradient(grid, fit=fit, orbs=orbs)
-                gfs.append(dg)
-
-            if order >= 2:
-                dh = self.get_density_hessian(grid, fit=fit, orbs=orbs)
-                gfs.append(dh)
-
-            return GridFunctionDensityWithDerivatives(gfs)
-
         else:
-            prop = PlotPropertyFactory.newDensity('dens', fit, orbs)
+            return super().get_density(grid, order=order, fit=fit, orbs=orbs)
 
-            dres = densfjob(self, prop, grid=grid).run()
-            return dres.get_gridfunction()
+    @use_default_grid
+    def _get_density(self, grid=None, fit=False, orbs=None):
+        """
+        Returns the electron density (without derivatives).
+
+        @param grid: The grid to use. For details, see L{Plot.Grids}.
+        @type  grid: subclass of L{grid}
+
+        @rtype: L{GridFunctionDensity}
+        """
+        prop = PlotPropertyFactory.newDensity('dens', fit, orbs)
+
+        dres = densfjob(self, prop, grid=grid).run()
+        return dres.get_gridfunction()
 
     @use_default_grid
     def get_orbital(self, grid=None, irrep=None, num=None):
@@ -1138,7 +1121,7 @@ class adfsinglepointresults(adfresults):
 
         @rtype: L{GridFunctionDensity}
         """
-        if orbs.keys() == ['A']:
+        if list(orbs.keys()) == ['A']:
             prop = PlotPropertyFactory.newDensity('dens', orbs=orbs)
             res = densfjob(self, prop, grid=grid).run()
             orbdens = res.get_gridfunction()
@@ -1275,15 +1258,6 @@ class adfsinglepointresults(adfresults):
         return res.get_gridfunction()
 
     @use_default_grid
-    def get_nonfrozen_potential(self, grid=None, pot='total'):
-        """
-        Return the potential of the nonfrozen fragments.
-
-        @rtype: L{GridFunctionPotential}
-        """
-        return self.get_potential(grid=grid, pot=pot)
-
-    @use_default_grid
     def get_potential(self, grid=None, pot='total', orbs=None):
         """
         Returns the total potential or one of its components.
@@ -1293,7 +1267,7 @@ class adfsinglepointresults(adfresults):
 
         @param grid: The grid to use. For details, see L{Plot.Grids}.
         @type  grid: subclass of L{grid}
-        @param pot: Which potential to calculate. One of: total, nuc, coul, xc
+        @param pot: Which potential to calculate. One of: total, nuc, coul, elstat, xc
         @type  pot: str
         @param orbs:
             Used for calculating the potential from the density of selected orbitals.
@@ -1303,10 +1277,47 @@ class adfsinglepointresults(adfresults):
 
         @rtype: L{GridFunctionPotential}
         """
-        prop = PlotPropertyFactory.newPotential(pot.lower(), orbs=orbs)
+        if pot == 'elstat':
+            return self._get_nuclear_potential(grid) + self._get_coulomb_potential(grid)
+        else:
+            prop = PlotPropertyFactory.newPotential(pot.lower(), orbs=orbs)
 
-        res = densfjob(self, prop, grid=grid).run()
-        return res.get_gridfunction()
+            res = densfjob(self, prop, grid=grid).run()
+            return res.get_gridfunction()
+
+    @use_default_grid
+    def _get_nuclear_potential(self, grid=None, orbs=None):
+        """
+        Returns the nuclear potential.
+
+        @param grid: The grid to use. For details, see L{Plot.Grids}.
+        @type  grid: subclass of L{grid}
+        @param orbs:
+            Used for calculating the potential from the density of selected orbitals.
+            A dictionary of the form {"irrep":[nums]} containing the
+            orbitals to include. Use irrep "Loc" for localized orbitals.
+        @type orbs: dict
+
+        @rtype: L{GridFunctionPotential}
+        """
+        return self.get_potential(grid, pot='nuc', orbs=orbs)
+
+    @use_default_grid
+    def _get_coulomb_potential(self, grid=None, orbs=None):
+        """
+        Returns the nuclear potential.
+
+        @param grid: The grid to use. For details, see L{Plot.Grids}.
+        @type  grid: subclass of L{grid}
+        @param orbs:
+            Used for calculating the potential from the density of selected orbitals.
+            A dictionary of the form {"irrep":[nums]} containing the
+            orbitals to include. Use irrep "Loc" for localized orbitals.
+        @type orbs: dict
+
+        @rtype: L{GridFunctionPotential}
+        """
+        return self.get_potential(grid, pot='coul', orbs=orbs)
 
     @use_default_grid
     def get_kinetic_potential(self, grid=None, func='THOMASFERMI', orbs=None):
@@ -1375,7 +1386,7 @@ class adfsinglepointresults(adfresults):
         """
 
         import numpy
-        from Utils import Bohr_in_Angstrom
+        from .Utils import Bohr_in_Angstrom
 
         # get density on ADF grid
         dens = self.get_density(grid=self.grid, orbs={'Loc': orbs})
@@ -1391,17 +1402,17 @@ class adfsinglepointresults(adfresults):
 
         densval = dens.get_values().flat
 
-        print "Densint: ", (weights * densval).sum()
+        print("Densint: ", (weights * densval).sum())
 
         # now calculate Coulomb potential on requested grid
         coulpot = numpy.zeros(grid.npoints)
         p = numpy.empty_like(coords)
 
-        print "Number of points to calculate: ", grid.npoints
+        print("Number of points to calculate: ", grid.npoints)
 
         for i, point in enumerate(grid.coorditer()):
             if i % 500 == 0:
-                print "Calculating potential for point %i of %i " % (i, grid.npoints)
+                print(f"Calculating potential for point {i:d} of {grid.npoints:d} ")
 
             p[:, 0] = point[0] / Bohr_in_Angstrom
             p[:, 1] = point[1] / Bohr_in_Angstrom
@@ -1414,14 +1425,14 @@ class adfsinglepointresults(adfresults):
 
         import hashlib
         m = hashlib.md5()
-        m.update("Numerically calculated Coulomb potential from :\n")
-        m.update(self.get_checksum())
-        m.update("using localized orbitals:")
-        m.update(repr(orbs))
-        m.update("on grid :\n")
-        m.update(grid.get_grid_block(True))
+        m.update(b"Numerically calculated Coulomb potential from :\n")
+        m.update(self.checksum.encode('utf-8'))
+        m.update(b"using localized orbitals:")
+        m.update(repr(orbs).encode('utf-8'))
+        m.update(b"on grid :\n")
+        m.update(grid.get_grid_block(True).encode('utf-8'))
 
-        return GridFunctionFactory.newGridFunction(grid, coulpot, m.digest(), 'potential')
+        return GridFunctionFactory.newGridFunction(grid, coulpot, m.hexdigest(), 'potential')
 
     def get_final_potential(self):
         """
@@ -1434,13 +1445,13 @@ class adfsinglepointresults(adfresults):
         """
         import hashlib
         m = hashlib.md5()
-        m.update("Total potential from ADF job :\n")
-        m.update(self.get_checksum())
+        m.update(b"Total potential from ADF job :\n")
+        m.update(self.checksum.encode('utf-8'))
 
         values = self.get_result_from_tape('Total Potential', 'vtot', tape=10)
         values = values[:self.grid.npoints]
 
-        return GridFunctionFactory.newGridFunction(self.grid, values, m.digest(), 'density')
+        return GridFunctionFactory.newGridFunction(self.grid, values, m.hexdigest(), 'density')
 
     def export_grid(self, filename):
         """
@@ -1479,7 +1490,9 @@ class adfsinglepointjob(adfjob):
         print_molecule, print_settings, print_extras
     """
 
-    def __init__(self, mol, basis, settings=None, core=None, pointcharges=None, fitbas=None, options=None):
+    def __init__(self, mol, basis, settings=None, core=None,
+                 pointcharges=None, electricfield=None,
+                 fitbas=None, options=None):
         """
         Constructor for ADF single point jobs.
 
@@ -1511,15 +1524,23 @@ class adfsinglepointjob(adfjob):
             If no charges are given, zero charges are used.
         @type pointcharges: float[3][n] or float[4][n]
 
+        @param electricfield:
+            Electric field (x, y, z in atomic units).
+        @type pointcharges: float[3]
+
         @param options:
             Additional options. These will each be included directly in the ADF input.
         @type options: list of str
         """
         import copy
 
-        adfjob.__init__(self)
+        if settings is None:
+            setts = adfsettings()
+        else:
+            setts = settings
 
-        self.mol = mol
+        super().__init__(mol, settings=setts)
+
         self.basis = basis
         self.fitbas = fitbas
         self.core = core
@@ -1528,16 +1549,13 @@ class adfsinglepointjob(adfjob):
         if self.mol and (self.basis is None):
             raise PyAdfError("Missing basis set in ADF single point job")
 
-        if settings is None:
-            self.settings = adfsettings()
-        else:
-            self.settings = settings
-
         self.pc = copy.deepcopy(pointcharges)
         if self.pc is not None:
             for pc in self.pc:
                 if len(pc) == 3:
                     pc.append(0.0)
+
+        self.efield = copy.deepcopy(electricfield)
 
         self.restart = None
         self.restartfile = None
@@ -1550,6 +1568,38 @@ class adfsinglepointjob(adfjob):
 
         if ('NOSYM' in self._options) and self.mol:
             self.mol.set_symmetry('NOSYM')
+
+    def check_success(self, outfile, errfile, logfile=None):
+        from .Utils import newjobmarker
+
+        try:
+            super().check_success(outfile, errfile, logfile)
+        except PyAdfError as ex:
+
+            # this is all a bit hacky: Sometimes, we want ADF to run no SCF cycles, e.g. to produce
+            # an initial guess potential or to provide only a grid. In this case, ADF (correctly)
+            # reports an error, but we want to ignore such errors. Thus, for ncycles=1, errors
+            # about the SCF not being converged are ignored, because nobody expecting a converged
+            # SCF solution should ask for only one cycle.
+
+            if self.settings.ncycles == 1:
+                if ex.args[0] == "NOT CONVERGED in AMS run":
+                    print("ADF calculation not converged, but proceeding because ncycles=1 was selected.")
+                    return True
+                if ex.args[0] == "ERROR DETECTED in AMS run":
+                    with open(outfile, encoding='utf-8') as f:
+                        lines = f.readlines()
+                    start = 0
+                    for i in range(len(lines)-1, 0, -1):
+                        if newjobmarker in lines[i]:
+                            start = i
+                            break
+                    lines = ''.join(lines[start:])
+                    if "Message from the engine:\nSCF did not converge" in lines:
+                        print("ADF calculation not converged, but proceeding because ncycles=1 was selected.")
+                        return True
+            raise
+        return True
 
     def create_results_instance(self):
         return adfsinglepointresults(self)
@@ -1610,43 +1660,48 @@ class adfsinglepointjob(adfjob):
             block += " END\n\n"
         return block
 
-    def get_atoms_block(self):
-        block = " ATOMS\n"
-        block += self.mol.print_coordinates(index=False)
-        block += " END\n\n"
-        return block
-
-    @staticmethod
-    def get_units_block():
-        return " UNITS\n   Length Angstrom\n   Angle Degree\n END\n\n"
-
     def get_charge_block(self):
         block = ""
         if isinstance(self.get_molecule().get_charge(), int):
-            block += " CHARGE %i" % self.get_molecule().get_charge()
+            block += f" CHARGE {self.get_molecule().get_charge():d}"
         else:
-            block += " CHARGE %f8.4" % self.get_molecule().get_charge()
-        if self.get_molecule().get_spin() > 0:
-            block += " %2i" % self.get_molecule().get_spin()
+            block += f" CHARGE {self.get_molecule().get_charge():8.4f}"
         block += " \n\n"
         return block
 
-    def get_symmetry_block(self):
-        tol = '1e-2'
+    def get_spin_block(self):
+        block = ""
+        if self.get_molecule().get_spin() > 0:
+            block += f"SPINPOLARIZATION {self.get_molecule().get_spin():2d}"
+            block += " \n\n"
+        return block
+
+    @property
+    def symtol(self):
+        tol = '1.89e-2'
         for o in self._options:
             o = str(o)
             if o.startswith('TOL'):
                 tol = o.strip('TOL').strip()
+        return tol
+
+    @property
+    def symmetrize(self):
+        symm = True
+        if 'NOSYM' in self._options:
+            symm = False
+        elif self.get_molecule().symmetry is not None:
+            if 'NOSYM' in self.get_molecule().symmetry:
+                symm = False
+        return symm
+
+    def get_symmetry_block(self):
         block = ""
         if 'NOSYM' in self._options:
-            #    block += " SYMMETRY NOSYM\n"
-            #    tol added again since necessary for some FDE calculations
-            #    might cause other problems (see svn log r30673)
-            block += " SYMMETRY NOSYM tol=" + tol + "\n\n"
-        elif self.get_molecule().symmetry is None:
-            block += " SYMMETRY tol=" + tol + "\n\n"
-        else:
-            block += " SYMMETRY " + self.get_molecule().symmetry + " tol=" + tol + "\n\n"
+            block += " SYMMETRY NOSYM\n"
+        elif self.get_molecule().symmetry is not None:
+            block += " SYMMETRY " + self.get_molecule().symmetry + "\n"
+        block += " SymmetryTolerance " + self.symtol + "\n\n"
         return block
 
     def get_fragments_block(self):
@@ -1697,7 +1752,7 @@ class adfsinglepointjob(adfjob):
                 basisdict['default'] = "ZORA/" + basisdict["default"]
 
             if isinstance(self.core, dict):
-                atoms = atoms.union(self.core.keys())
+                atoms = atoms.union(list(self.core.keys()))
                 coredict = self.core
             else:
                 coredict = {}
@@ -1705,41 +1760,41 @@ class adfsinglepointjob(adfjob):
             atoms = atoms.difference(['default'])
 
             for at in atoms:
-                basisfile = "$ADFRESOURCES/" + basisdict.get(at, basisdict['default']) + '/' + at
+                basisfile = "$AMSRESOURCES/ADF/" + basisdict.get(at, basisdict['default']) + '/' + at
                 if at in coredict:
                     if (coredict[at] is not None) and (coredict[at].lower() != "none"):
                         basisfile += '.' + coredict[at]
 
-                block += "  " + at + " " + basisfile + "\n"
+                block += "  PerAtomType Symbol=" + at + " File=" + basisfile + "\n"
 
         block += " END\n\n"
 
-        return block
-
-    def get_geometry_block(self):
-        block = " GEOMETRY \n"
-        block += "   sp \n"
-        block += " END\n\n"
         return block
 
     def get_efield_block(self):
         block = ""
-        if self.pc is not None:
-            block += " PointCharges \n"
-            for i in self.pc:
-                block += " %14.5f %14.5f %14.5f %14.5f\n" % tuple(i)
+        if (self.pc is not None) or (self.efield is not None):
+            block += " ElectrostaticEmbedding \n"
+            if self.pc is not None:
+                block += "  MultipolePotential \n"
+                block += "   Coordinates \n"
+                for i in self.pc:
+                    block += "    {:14.5f} {:14.5f} {:14.5f} {:14.5f}\n".format(*i)
+                block += "   END\n"
+                block += "  END\n"
+            if self.efield is not None:
+                block += "  ElectricField     {:14.5f} {:14.5f} {:14.5f} [a.u.]\n".format(*self.efield)
             block += " END\n\n"
         return block
 
     def get_restart_block(self):
         block = ""
         if self.restart is not None or self.restartfile is not None:
-            block += " RESTART \n"
-            block += "  File t21.restart \n"
             if len(self.restartoptions) > 0:
+                block += " RESTART \n"
                 for opt in self.restartoptions:
-                    block += "  %s\n" % opt
-            block += " END\n\n"
+                    block += f"  {opt}\n"
+                block += " END\n\n"
         return block
 
     def get_options_block(self):
@@ -1752,19 +1807,18 @@ class adfsinglepointjob(adfjob):
     def get_other_blocks(self):
         return ""
 
-    def get_input(self):
+    def get_properties_block(self):
+        return ""
+
+    def get_adf_input(self):
         adfinput = "Title Input generated by PyADF\n\n"
-        adfinput += self.get_atoms_block()
-        adfinput += self.get_units_block()
-        adfinput += self.get_charge_block()
         adfinput += self.get_symmetry_block()
+        adfinput += self.get_spin_block()
         adfinput += self.get_fragments_block()
         if self.needs_basis_block():
             adfinput += self.get_basis_block()
         adfinput += self.settings.get_settings_block()
         adfinput += self.get_printing_block()
-        adfinput += self.get_geometry_block()
-        adfinput += self.get_efield_block()
 
         adfinput += self.get_restart_block()
         adfinput += self.get_options_block()
@@ -1772,11 +1826,22 @@ class adfsinglepointjob(adfjob):
 
         return adfinput
 
+    def get_ams_restart_block(self):
+        block = ""
+        if self.restart is not None or self.restartfile is not None:
+            block += " EngineRestart t21.restart \n\n"
+        return block
+
+    def get_other_amsblocks(self):
+        amsblocks = super().get_other_amsblocks()
+        amsblocks += self.get_ams_restart_block()
+        return amsblocks
+
     def print_jobtype(self):
         return "ADF single point job"
 
     def before_run(self):
-        adfjob.before_run(self)
+        super().before_run()
 
         if self.restart is not None:
             self.restart.copy_tape(tape=21, name="t21.restart")
@@ -1784,43 +1849,43 @@ class adfsinglepointjob(adfjob):
             shutil.copyfile(self.restartfile, "t21.restart")
 
     def after_run(self):
-        adfjob.after_run(self)
+        super().after_run()
         if self.restart is not None or self.restartfile is not None:
             os.remove('t21.restart')
 
     def print_molecule(self):
 
-        print "   Molecule"
-        print "   ========"
-        print
-        print self.get_molecule()
-        print
+        print("   Molecule")
+        print("   ========")
+        print()
+        print(self.get_molecule())
+        print()
 
     def print_settings(self):
 
-        print "   Settings"
-        print "   ========"
-        print
-        print self.settings
-        print
+        print("   Settings")
+        print("   ========")
+        print()
+        print(self.settings)
+        print()
 
     def print_extras(self):
 
         if self._options:
-            print "   Options"
-            print "   ======="
-            print
+            print("   Options")
+            print("   =======")
+            print()
             for opt in self._options:
-                print "   " + opt
-            print
+                print("   " + opt)
+            print()
 
         if self.restart is not None:
-            print " Using restart file " + self.restart.get_tape_filename(21)
+            print(" Using restart file " + self.restart.get_tape_filename(21))
 
     def print_jobinfo(self):
-        print " " + 50 * "-"
-        print " Running " + self.print_jobtype()
-        print
+        print(" " + 50 * "-")
+        print(" Running " + self.print_jobtype())
+        print()
 
         self.print_molecule()
 
@@ -1846,14 +1911,22 @@ class adfspjobdecorator(adfsinglepointjob):
     """
 
     def __init__(self, wrappedjob):
-        adfsinglepointjob.__init__(self, wrappedjob.mol, wrappedjob.basis,
-                                   wrappedjob.settings, wrappedjob.core)
+        super().__init__(wrappedjob.mol, wrappedjob.basis, wrappedjob.settings, wrappedjob.core)
         self._wrappedjob = wrappedjob
 
-    def get_input(self):
-        adfinput = self._wrappedjob.get_input()
+    def get_adf_input(self):
+        adfinput = self._wrappedjob.get_adf_input()
         adfinput += self.get_other_blocks()
         return adfinput
+
+    def get_atoms_block(self):
+        return self._wrappedjob.get_atoms_block()
+
+    def get_charge_block(self):
+        return self._wrappedjob.get_charge_block()
+
+    def get_efield_block(self):
+        return self._wrappedjob.get_efield_block()
 
     def get_other_blocks(self):
         block = ""

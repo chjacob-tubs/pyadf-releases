@@ -1,12 +1,10 @@
-# -*- coding: utf-8 -*-
-
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2021 by Christoph R. Jacob, Tobias Bergmann,
-# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Thomas Dresselhaus,
-# Andre S. P. Gomes, Andreas Goetz, Michal Handzlik, Karin Kiewisch,
-# Moritz Klammler, Lars Ridder, Jetze Sikkema, Lucas Visscher, and
-# Mario Wolter.
+# Copyright (C) 2006-2022 by Christoph R. Jacob, Tobias Bergmann,
+# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Maria Chekmeneva,
+# Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz, 
+# Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder, 
+# Jetze Sikkema, Lucas Visscher, Johannes Vornweg and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -19,7 +17,7 @@
 #    GNU General Public License for more details.
 #
 #    You should have received a copy of the GNU General Public License
-#    along with PyADF.  If not, see <http://www.gnu.org/licenses/>.
+#    along with PyADF.  If not, see <https://www.gnu.org/licenses/>.
 """
  Job and results for ADF fragment analysis calculations, including NewFDE.
 
@@ -29,27 +27,29 @@
 
 """
 
-from ADFSinglePoint import adfsinglepointjob, adfsinglepointresults
-from ADFSinglePoint import use_default_grid
-from ADF_Densf import densfjob
-from Errors import PyAdfError
 
-from Plot.Properties import PlotPropertyFactory
-from Plot.GridFunctions import GridFunctionDensityWithDerivatives
+from .ADFSinglePoint import adfsinglepointjob, adfsinglepointresults
+from .ADFSinglePoint import use_default_grid
+from .ADF_Densf import densfjob
+from .Errors import PyAdfError
+
+from .Plot.Properties import PlotPropertyFactory
+from .Plot.GridFunctions import GridFunctionDensityWithDerivatives
 
 import copy
 import os.path
+from functools import reduce
 
 
-class fragment(object):
+class fragment:
     """
     A class representing a fragment (a fragment type, to be more precise).
 
     This is used to setup L{adffragmentsjob}s.
 
     @undocumented: __deepcopy__
-    @undocumented: __delattr__, __getattribute__, __hash__, __new__, __reduce__,
-                   __reduce_ex__, __repr__, __str__, __setattr__
+    @undocumented: __delattr__, __getattribute__, __hash__, __new__,
+                   __repr__, __str__, __setattr__
     """
 
     def __init__(self, frag_results, mols=None, subfrag=None, isfrozen=False,
@@ -62,17 +62,16 @@ class fragment(object):
             fragment is considered to be active, which means that it consists
             of atomic fragments for which fragment files will be prepared
             automatically.
-        @type  frag_results: L{adfsinglepointresults}
+        @type  frag_results: L{adfsinglepointresults} or None
 
         @param mols:
             A list of molecules, giving the coordinates where this fragment
             is used. Fragments can be used multiple times, but for each
             molecule it must be possible to rotate the fragment to this
             position.
-        @type mols: list of L{molecule}s
 
         @param subfrag: The name of the subfragment to be used.
-        @type  subfrag: str
+        @type  subfrag: str or None
 
         @param isfrozen: Specify if this fragment is frozen (FDE)
         @type  isfrozen: bool
@@ -83,7 +82,7 @@ class fragment(object):
             For frozen fragments: USEBASIS, RELAX, XC, DENSTYPE,
             For active fragments: LBDAMP, CAPRADIUS, SCFCONVTHRESH, NOCAPSEPCONV, LBMAXSTEP
             B{Options can be upper, lower or mixed case}
-        @type  fdeoptions: dictionary
+        @type  fdeoptions: dictionary or None
 
         @param occ: fragment occupation numbers
         @type occ: list of lists of three elements in the format
@@ -91,7 +90,7 @@ class fragment(object):
 
         @param fragoptions:
             For fragments, possibly a dictionary of adfsettings options
-        @type fragoptions: dictionary
+        @type fragoptions: dictionary or None
         """
 
         self._frag_results = copy.deepcopy(frag_results)
@@ -111,7 +110,7 @@ class fragment(object):
             self._fdeoptions = {}
         else:
             self._fdeoptions = {}
-            for k, v in fdeoptions.iteritems():
+            for k, v in fdeoptions.items():
                 if k.upper() in ['REALX', 'USEBASIS', 'XC', 'DENSTYPE']:
                     # these options should always be uppercase
                     self._fdeoptions[k.upper()] = v
@@ -128,7 +127,7 @@ class fragment(object):
             self._fragoptions = {}
         else:
             self._fragoptions = {}
-            for k, v in fragoptions.iteritems():
+            for k, v in fragoptions.items():
                 self._fragoptions[k.lower()] = v
 
         # the name use for this fragment. This is assigned by fragmentlist
@@ -145,27 +144,35 @@ class fragment(object):
 
         return other
 
-    def _set_isfrozen(self, isfrozen):
-        self._isfrozen = isfrozen
-
-    def _get_isfrozen(self):
+    @property
+    def isfrozen(self):
+        """
+        Whether this is a frozen fragment.
+        """
         return self._isfrozen
 
-    def _set_results(self, frag_results):
-        self._frag_results = frag_results
+    @isfrozen.setter
+    def isfrozen(self, isfrozen):
+        self._isfrozen = isfrozen
 
-    def _get_results(self):
+    @property
+    def results(self):
+        """
+         The results associated with this fragment.
+         """
         return self._frag_results
 
-    isfrozen = property(_get_isfrozen, _set_isfrozen, None,
-                        """
-                        Whether this is a frozen fragment.
-                        """)
+    @results.setter
+    def results(self, frag_results):
+        self._frag_results = frag_results
 
-    results = property(_get_results, _set_results, None,
-                       """
-                        The results associated with this fragment.
-                        """)
+    @property
+    def fragoptions(self):
+        return self._fragoptions
+
+    @property
+    def fdeoptions(self):
+        return self._fdeoptions
 
     def has_frag_results(self):
         return self._frag_results is not None
@@ -243,7 +250,7 @@ class fragment(object):
             return False
 
     def set_fdeoptions(self, opts):
-        for k, v in opts.iteritems():
+        for k, v in opts.items():
             if k.upper() in ['REALX', 'USEBASIS', 'XC', 'DENSTYPE']:
                 self._fdeoptions[k.upper()] = v
             else:
@@ -270,7 +277,7 @@ class fragment(object):
             self._fdeoptions[opt] = val
 
     def set_fragoptions(self, opts):
-        for k, v in opts.iteritems():
+        for k, v in opts.items():
             self._fragoptions[k.lower()] = v
 
     def has_fragoption(self, opt):
@@ -291,40 +298,38 @@ class fragment(object):
         Print information about the options used for this fragment.
         """
         if self.isfrozen:
-            print " type: frozen FDE fragment"
+            print(" type: frozen FDE fragment")
 
             FrozenFDEOptions = ""
 
-            for opt, value in self._fdeoptions.iteritems():
+            for opt, value in self._fdeoptions.items():
                 if opt not in ['LBdamp', 'CapRadius', 'ScfConvThresh', 'NoCapSepConv', 'LBmaxStep', 'FullGrid']:
                     if isinstance(value, float):
-                        FrozenFDEOptions += "           " + opt + "    " + "%.2f \n" % value
+                        FrozenFDEOptions += f"           {opt}    {value:.2f} \n"
                     if isinstance(value, str):
-                        FrozenFDEOptions += "           " + opt + "    " + "%s \n" % value
+                        FrozenFDEOptions += f"           {opt}    {value} \n"
             if FrozenFDEOptions != "":
-                print "        FDE options: "
-                print FrozenFDEOptions
+                print("        FDE options: ")
+                print(FrozenFDEOptions)
         else:
-            print " type: nonfrozen fragment"
+            print(" type: nonfrozen fragment")
 
             NonFrozenFDEOptions = ""
             for fdeoption in ['LBdamp', 'CapRadius', 'ScfConvThresh', 'NoCapSepConv', 'LBmaxStep', 'FullGrid']:
                 if fdeoption in self._fdeoptions:
                     if isinstance(self._fdeoptions[fdeoption], float):
-                        NonFrozenFDEOptions += "           " + fdeoption + "    " + "%.2f \n" % \
-                                               (self._fdeoptions[fdeoption])
+                        NonFrozenFDEOptions += f"           {fdeoption}    {self._fdeoptions[fdeoption]:.2f} \n"
                     if isinstance(self._fdeoptions[fdeoption], str):
-                        NonFrozenFDEOptions += "           " + fdeoption + "    " + "%s   \n" % \
-                                               (self._fdeoptions[fdeoption])
+                        NonFrozenFDEOptions += f"           {fdeoption}    {self._fdeoptions[fdeoption]}   \n"
             if NonFrozenFDEOptions != "":
-                print "        FDE options: "
-                print NonFrozenFDEOptions
+                print("        FDE options: ")
+                print(NonFrozenFDEOptions)
 
             if len(self._fragoptions) > 0:
-                print "        Fragment settings : "
-            for opt, value in self._fragoptions.iteritems():
-                print "           ", opt, "  ", value
-        print
+                print("        Fragment settings : ")
+            for opt, value in self._fragoptions.items():
+                print("           ", opt, "  ", value)
+        print()
 
     def get_atoms_block(self):
         """
@@ -366,11 +371,11 @@ class fragment(object):
         @rtype:   str
         """
         block = ""
-        if self._frag_results:
+        if self.has_frag_results():
             block += "  " + self.fragname + "  "
 
-            if checksumonly:
-                block += self._frag_results.get_checksum()
+            if checksumonly and self._frag_results is not None:
+                block += self._frag_results.checksum
             else:
                 block += self.get_fragment_filename()
 
@@ -413,9 +418,9 @@ class fragment(object):
     def get_fragoccupations_block(self):
         block = ''
         if self.has_occupations():
-            block += "  %s \n" % self.fragname
+            block += f"  {self.fragname} \n"
             for irrep in self._occ:
-                block += "   %s %i // %i\n" % (irrep[0], irrep[1], irrep[2])
+                block += f"   {irrep[0]} {irrep[1]:d} // {irrep[2]:d}\n"
             block += "  SubEnd \n"
 
         return block
@@ -442,12 +447,249 @@ class fragment(object):
         self.results = func(self._mols[0], **context)
 
 
-class fragmentlist(object):
+class FrozenDensFragment(fragment):
+
+    def __init__(self, mol, density, coulpot):
+
+        if density.grid is not coulpot.grid:
+            raise PyAdfError('Density and potential must use same grid in FrozenDensFragment')
+
+        self._density = density
+        self._coulpot = coulpot
+
+        super().__init__(None, mols=mol, subfrag='active', isfrozen=True,
+                         fdeoptions={'DENSTYPE': 'SCFexact'}, occ=None)
+
+    def has_frag_results(self):
+        return True
+
+    def is_fde_fragment(self):
+        return False
+
+    def get_fragment_filename(self):
+        return "DummyFragment.t21"
+
+    @staticmethod
+    def get_fileimport_filename():
+        return "FrozenDensFragment.t10"
+
+    def get_fdeoptions_block(self):
+        block = super().get_fdeoptions_block()
+        block += "     fileimport " + self.get_fileimport_filename() + "\n"
+        return block
+
+    def get_special_options_block(self):
+        block = super().get_special_options_block()
+        block += " IMPORTGRID " + self.get_fileimport_filename() + "\n\n"
+        return block
+
+    def write_dummy_fragment_file(self):
+        """
+        Writes a TAPE21 file with the minimum information ADF needs, even though
+        none of the fragment information is used (the density and potential are
+        imported from a separate T10-like file.
+        """
+        from .Utils import pse, Bohr_in_Angstrom
+
+        import numpy as np
+        import kf
+        filename = self.get_fragment_filename()
+
+        with kf.kffile(filename, buffered=True) as f:
+
+            f.writechars('General', 'title', 'Dummy fragment file generated by PyADF')
+            f.writeints('General', 'jobid', 42)
+            f.writereals('General', 'electrons', 0)
+            f.writeints('General', 'nspin', 1)
+            f.writeints('General', 'ioprel', 0)
+
+            atnums = self._mols[0].get_atomic_numbers()
+
+            ntyps = len(set(atnums))
+            natoms = len(atnums)
+
+            f.writeints('Geometry', 'nr of atomtypes', ntyps)
+            f.writeints('Geometry', 'nr of atoms', natoms)
+
+            atcharges = []
+            attyps = []
+            masses = []
+            for i in atnums:
+                if i not in atcharges:
+                    atcharges.append(i)
+                    attyps.append(pse.get_symbol(i))
+                    masses.append(pse.get_mass(i))
+            f.writechars('Geometry', 'atomtype', attyps)
+            f.writereals('Geometry', 'mass', masses)
+
+            xyz = np.zeros((natoms, 3))
+            coords = self._mols[0].get_coordinates()
+
+            natoms_per_typ = np.zeros((ntyps,), dtype=int)
+
+            pos = 0
+            for i in range(ntyps):
+                for j in range(natoms):
+                    if atnums[j] == atcharges[i]:
+                        xyz[pos, :] = coords[j]
+                        pos = pos + 1
+                        natoms_per_typ[i] = natoms_per_typ[i] + 1
+
+            f.writereals('Geometry', 'xyz', xyz / Bohr_in_Angstrom)
+
+            f.writereals('Geometry', 'atomtype total charge', atcharges)
+            f.writereals('Geometry', 'atomtype effective charge', atcharges)
+
+            natomt = np.zeros((ntyps+1,), dtype=int)
+
+            for i in range(ntyps):
+                natomt[i+1] = natomt[i] + natoms_per_typ[i]
+
+            f.writeints('Geometry', 'cum nr of atoms', natomt)
+            f.writeints('Geometry', 'nnuc', natoms)
+            f.writeints('Geometry', 'ntyp', ntyps)
+
+            f.writeints('Symmetry', 'nsym', 1)
+            f.writeints('Symmetry', 'nsetat', natoms)
+            f.writechars('Symmetry', 'grouplabel', 'NOSYM')
+
+            f.writeints('Symmetry', 'ngr', 1)
+            f.writeints('Symmetry', 'igr', 999)
+            f.writeints('Symmetry', 'nogr', 1)
+            npeq = natoms*(natoms+1) // 2
+            f.writeints('Symmetry', 'npeq', npeq)
+            f.writeints('Symmetry', 'nratst', [1] * natoms)
+
+            notyps = []
+            for i in range(ntyps):
+                notyps = notyps + [i+1] * natoms_per_typ[i]
+            f.writeints('Symmetry', 'notyps', notyps)
+            f.writeints('Symmetry', 'noat', list(range(1, natoms+1)))
+
+            f.writechars('Symmetry', 'symlab', 'A')
+
+            f.writeints('Symmetry', 'jsyml', 1)
+            f.writeints('Symmetry', 'jasym', [1] * npeq)
+            f.writeints('Symmetry', 'ja1ok', [1] * npeq)
+
+            f.writereals('Symmetry', 'faith', np.eye(3))
+
+            f.writeints('Basis', 'nbset', 1)
+            f.writeints('Basis', 'nbaspt', [1] + [2]*ntyps)
+            f.writeints('Basis', 'nqbas', [1])
+            f.writeints('Basis', 'lqbas', [0])
+            f.writereals('Basis', 'alfbas', [1.0])
+
+            f.writeints('Core', 'ncset', 0)
+            f.writeints('Core', 'ncorpt', [1]*(ntyps + 1))
+            f.writeints('Core', 'nqcor', [])
+            f.writeints('Core', 'lqcor', [])
+            f.writereals('Core', 'alfcor', [])
+
+            f.writeints('Core', 'nrcset', [0]*(4*ntyps))
+            f.writeints('Core', 'nrcorb', [0]*(4*ntyps))
+
+            f.writeints('Fit', 'nfset', 1)
+            f.writeints('Fit', 'nfitpt', [1] + [2]*ntyps)
+            f.writeints('Fit', 'nqfit', [1])
+            f.writeints('Fit', 'lqfit', [0])
+            f.writereals('Fit', 'alffit', [1.0])
+
+            f.writeints('Fit', 'nsfos', 1)
+            f.writeints('Fit', 'niskf', 1)
+            f.writeints('Fit', 'na1cof', 1)
+            f.writelogicals('Fit', 'lnosymfit', True)
+            f.writeints('Fit', 'na1ptr', [1] + [2]*natoms)
+            f.writeints('Fit', 'iskf', [1]*4)
+            f.writeints('Fit', 'numcom', [1])
+            f.writereals('Fit', 'cofcom', [1.0])
+
+            f.writereals('Fit', 'coef_SCF', [1.0]*natoms)
+
+            f.writeints('Symmetry', 'norb', 2)
+            f.writeints('Symmetry', 'nfcn', 2)
+
+            f.writeints('A', 'npart', [1, 2])
+            f.writeints('A', 'nmo_A', [2])
+            f.writereals('A', 'eps_A', [0.0, 0.0])
+            f.writereals('A', 'froc_A', [2.0, 0.0])
+            f.writereals('A', 'Eigen-Bas_A', [1.0, 1.0, 1.0, 1.0])
+
+            for i, at in enumerate(attyps):
+                section = f'Atyp{i + 1:3d} {at}'
+                f.writereals(section, 'rx val', 1.0)
+                f.writeints(section, 'nrint val', 5)
+
+                f.writereals(section, 'rup val', np.ones(5))
+                f.writeints(section, 'ncheb val', np.ones(5, dtype=int))
+                f.writereals(section, 'ccheb val', np.ones(88))
+
+                f.writeints(section, 'nrad', 10)
+                f.writereals(section, 'rmin', 1.0e-5)
+                f.writereals(section, 'rfac', 1.0)
+
+                f.writereals(section, 'valence den', np.zeros(10))
+                f.writereals(section, 'valence pot', np.zeros(10))
+                f.writereals(section, 'qval', atcharges[i])
+
+    def copy_fragment_file(self):
+        """
+        Copies the fragment file to the working directory.
+        """
+        from .Plot.FileWriters import GridWriter, GridFunctionWriter
+
+        self.write_dummy_fragment_file()
+
+        filename = self.get_fileimport_filename()
+        GridWriter.write_tape10(self._density.grid, filename)
+        GridFunctionWriter.write_t10(self._density[0], filename, "FrozenDensity", "rhoffd")
+        GridFunctionWriter.write_t10(self._density[1], filename, "FrozenDensityFirstDer", "drhoffd")
+        GridFunctionWriter.write_t10(self._density[2], filename, "FrozenDensitySecondDer", "d2rhoffd")
+
+        nucpot = self._mols[0].get_nuclear_potential(self._density.grid)
+        GridFunctionWriter.write_t10(nucpot + self._coulpot, filename, "FrozenDensityElpot", "ElpotFD")
+
+    def delete_fragment_file_copy(self):
+        """
+        Delete the fragment file that was previously copied to the working directory.
+        """
+        filename = self.get_fragment_filename()
+        if os.path.exists(filename):
+            os.remove(filename)
+
+        filename = self.get_fileimport_filename()
+        if os.path.exists(filename):
+            os.remove(filename)
+
+    def print_fragment_options(self):
+        """
+        Print information about the options used for this fragment.
+        """
+        print(" type: Imported Frozen Density Fragment")
+        print()
+
+    def get_fragments_block(self, checksumonly):
+        """
+        Return a line that is can be used in the FRAGMENTS block
+        of the ADF input for this fragment.
+
+        @returns: a string that can be used in the FRAGMENTS block
+        @rtype:   str
+        """
+
+        block = super().get_fragments_block(self)
+        if checksumonly:
+            block += self._density.checksum
+            block += self._coulpot.checksum
+        return block
+
+
+class fragmentlist:
     """
     A class repesenting a list of fragments, as used in L{adffragmentsjob}s.
 
-    @undocumented: __delattr__, __getattribute__, __hash__, __new__, __reduce__,
-                   __reduce_ex__, __repr__, __str__, __setattr__
+    @undocumented: __delattr__, __getattribute__, __hash__, __new__,
+                   __repr__, __str__, __setattr__
     """
 
     def __init__(self, frags=None):
@@ -455,7 +697,7 @@ class fragmentlist(object):
         Create a fragmentlist.
 
         @param frags: the list of L{fragment}s or C{None}
-        @type frags: list
+        @type frags: list or None
         """
         if frags is None:
             self._frags = []
@@ -481,6 +723,10 @@ class fragmentlist(object):
         Iteration loops over the list of fragments.
         """
         return self._frags.__iter__()
+
+    @property
+    def frags(self):
+        return self._frags
 
     def get_frozen_frags(self):
         """
@@ -582,8 +828,10 @@ class fragmentlist(object):
 
     def get_atoms_block(self):
         AtomsBlock = ""
+        AtomsBlock += " ATOMS [Angstrom]\n"
         for frag in self.__iter__():
             AtomsBlock += frag.get_atoms_block()
+        AtomsBlock += " END\n\n"
         return AtomsBlock
 
     def get_fragments_block(self, checksum_only):
@@ -640,14 +888,23 @@ class adffragmentsresults(adfsinglepointresults):
     """
     Results of a L{adffragmentsjob}.
 
-    @undocumented: __delattr__, __getattribute__, __hash__, __new__, __reduce__,
-                   __reduce_ex__, __repr__, __str__, __setattr__
-
+    @undocumented: __delattr__, __getattribute__, __hash__, __new__,
+                   __repr__, __str__, __setattr__
     """
 
     def __init__(self, j=None):
         # pylint: disable-msg=W0231
-        adfsinglepointresults.__init__(self, j)
+        super().__init__(j)
+
+        # cache the results checksum
+        _ = self.checksum
+
+        for frag in self.job.get_fragmentlist():
+            # remove density / potential gridfunctions from copied jobs,
+            # because these will fill up the memory and are not needed
+            if isinstance(frag, FrozenDensFragment):
+                frag._density = None
+                frag._potential = None
 
     def get_subfragments(self):
         """
@@ -687,6 +944,8 @@ class adffragmentsresults(adfsinglepointresults):
         @type filename_potential:  str
         @param filename_density: name of the file where the potential will be written
         @type filename_density:  str
+        @param hessian: Whether to include the density Hessian in the density file
+        @type hessian: str
         """
 
         if not self.job.is_fde_job():
@@ -700,7 +959,7 @@ class adffragmentsresults(adfsinglepointresults):
         nblock = self.get_result_from_tape('Points', 'nblock', tape=10)
         npoints = self.get_result_from_tape('Points', 'lblock', tape=10)
 
-        vemb_outfile.write("%d \n" % (nblock * npoints))
+        vemb_outfile.write(f"{nblock * npoints:d} \n")
 
         # exported_properties reflects the number of quantities, apart from the grid and weights, we are exporting
         #
@@ -717,7 +976,7 @@ class adffragmentsresults(adfsinglepointresults):
         else:
             exported_properties = 6
 
-        dens_outfile.write("%d     %d\n" % (nblock * npoints, exported_properties))
+        dens_outfile.write(f"{nblock * npoints:d}     {exported_properties:d}\n")
 
         PointsData = self.get_result_from_tape('Points', 'Data', tape=10, always_array=True)
         # andre: as far as i see, v_nuc is always together with v_H
@@ -736,7 +995,7 @@ class adffragmentsresults(adfsinglepointresults):
             ipoint = npoints * (iblock - 1)
 
             coords = PointsData[ipoint * 4:ipoint * 4 + 3 * npoints]
-            coords = coords.reshape((npoints, 3), order='Fortran')
+            coords = coords.reshape((npoints, 3), order='F')
             weights = PointsData[ipoint * 4 + 3 * npoints:ipoint * 4 + 4 * npoints]
 
             potel = elpotFD[ipoint:ipoint + npoints]
@@ -745,41 +1004,44 @@ class adffragmentsresults(adfsinglepointresults):
 
             dens = frzdens[ipoint * nspin:(ipoint + npoints) * nspin]
             densgrd = frzdensgrd[ipoint * nspin * 3:(ipoint + npoints) * nspin * 3]
-            densgrd = densgrd.reshape((npoints, 3, nspin), order='Fortran')
+            densgrd = densgrd.reshape((npoints, 3, nspin), order='F')
 
             if nspin == 2:
-                potxc = potxc.reshape((npoints, nspin), order='Fortran')
+                potxc = potxc.reshape((npoints, nspin), order='F')
                 potxc = 0.5 * (potxc[:, 0] + potxc[:, 1])
                 # we export the total density now, so we sum alpha and beta components
-                dens = dens.reshape((npoints, nspin), order='Fortran')
+                dens = dens.reshape((npoints, nspin), order='F')
                 dens = dens[:, 0] + dens[:, 1]
                 # and we also average the gradients..? (todo)
                 densgrd = densgrd[:, :, 0] + densgrd[:, :, 1]
+            else:
+                densgrd = densgrd[:, :, 0]
 
             for c, w, e, ef, x in zip(coords, weights, potel, potefld, potxc):
                 vemb_outfile.write(
-                    "%25.18e  %25.18e  %25.18e  %25.18e %25.18e \n" % (c[0], c[1], c[2], w, (e + ef + x)))
+                    f"{c[0]:25.18e}  {c[1]:25.18e}  {c[2]:25.18e}  {w:25.18e} {(e + ef + x):25.18e} \n")
                 vemb_points_written += 1
 
             if hessian:
                 denshes = frzdenshes[ipoint * nspin * 6:(ipoint + npoints) * nspin * 6]
-                denshes = denshes.reshape((npoints, 6, nspin), order='Fortran')
+                denshes = denshes.reshape((npoints, 6, nspin), order='F')
                 if nspin == 2:
                     denshes = denshes[:, :, 0] + denshes[:, :, 1]
+                else:
+                    denshes = denshes[:, :, 0]
 
                 for c, w, e, ef, n, dg, dh in zip(coords, weights, potel, potefld, dens, densgrd, denshes):
-                    lineformat = " %25.18e   %25.18e   %25.18e   %25.18e       %25.18e   %25.18e     " \
-                                 " %25.18e   %25.18e  %25.18e  %25.18e   %25.18e  %25.18e  %25.18e" \
-                                 " %25.18e  %25.18e  %25.18e\n"
-                    dens_outfile.write(lineformat % (c[0], c[1], c[2], w, e, ef, n,
-                                                     dg[0], dg[1], dg[2], dh[0], dh[1],
-                                                     dh[2], dh[3], dh[4], dh[5]))
+                    dens_outfile.write(" {:25.18e}   {:25.18e}   {:25.18e}   {:25.18e}      "
+                                       " {:25.18e}   {:25.18e}     {:25.18e}  "
+                                       " {:25.18e}  {:25.18e}  {:25.18e}   {:25.18e}  {:25.18e}  {:25.18e}"
+                                       " {:25.18e}  {:25.18e}  {:25.18e}\n"
+                                       .format(*c, w, e, ef, n, *dg, *dh))
                     dens_points_written += 1
             else:
                 for c, w, e, ef, n, dg in zip(coords, weights, potel, potefld, dens, densgrd):
-                    lineformat = " %25.18e   %25.18e   %25.18e   %25.18e       %25.18e   %25.18e      %25.18e" \
-                                 " %25.18e  %25.18e  %25.18e\n"
-                    dens_outfile.write(lineformat % (c[0], c[1], c[2], w, e, ef, n, dg[0], dg[1], dg[2]))
+                    dens_outfile.write(" {:25.18e}   {:25.18e}   {:25.18e}   {:25.18e}       "
+                                       "{:25.18e}   {:25.18e}      {:25.18e}   {:25.18e}  {:25.18e}  {:25.18e}\n"
+                                       .format(*c, w, e, ef, n, *dg))
                     dens_points_written += 1
 
         vemb_outfile.write("-42\n")
@@ -802,7 +1064,7 @@ class adffragmentsresults(adfsinglepointresults):
     #   @use_default_grid
     def get_fragment_density(self, grid=None, fit=False, orbs=None, order=None, frag=None):
 
-        if (orbs is not None) and ('Loc' not in orbs.keys()):
+        if (orbs is not None) and ('Loc' not in list(orbs.keys())):
             if (order is not None) and (order >= 1):
                 raise PyAdfError("Derivatives not implemented for orbital densities.")
             if (frag is not None) and not (frag == 'active'):
@@ -851,6 +1113,8 @@ class adffragmentsresults(adfsinglepointresults):
             orbitals to include. Use irrep "Loc" for localized orbitals
         @type orbs: dict
 
+        @param order: order of derivatives of the density to calculate (1 and 2 possible)
+        @type order: int
         """
         return self.get_fragment_density(grid=grid, fit=fit, orbs=orbs, order=order, frag='Active')
 
@@ -867,6 +1131,13 @@ class adffragmentsresults(adfsinglepointresults):
         @param fit: If True, the fit density is returned, otherwise
                     the exact density.
         @type  fit: bool
+        @param orbs:
+            a dictionary of the form {"irrep":[nums]} containing the
+            orbitals to include. Use irrep "Loc" for localized orbitals
+        @type orbs: dict
+
+        @param order: order of derivatives of the density to calculate (1 and 2 possible)
+        @type order: int
         """
         frozendens = []
         for f in self.job.get_fragmentlist().get_frozen_frags():
@@ -895,7 +1166,8 @@ class adffragmentsresults(adfsinglepointresults):
             a dictionary of the form {"irrep":[nums]} containing the
             orbitals to include. Use irrep "Loc" for localized orbitals
         @type orbs: dict
-
+        @param order: order of derivatives of the density to calculate (1 and 2 possible)
+        @type order: int
         """
         if not self.job.is_fde_job() or orbs is not None:
             return self.get_nonfrozen_density(grid=grid, fit=fit, orbs=orbs, order=order)
@@ -910,6 +1182,9 @@ class adffragmentsresults(adfsinglepointresults):
 
         @param grid: The grid to use. For details, see L{Plot.Grids}.
         @type  grid: subclass of L{grid}
+
+        @param pot: Which potential to calculate. One of: total, nuc, coul, elstat, xc
+        @type  pot: str
         """
 
         if not self.job.is_fde_job():
@@ -941,6 +1216,9 @@ class adffragmentsresults(adfsinglepointresults):
 
         @param grid: The grid to use. For details, see L{Plot.Grids}.
         @type  grid: subclass of L{grid}
+
+        @param pot: Which potential to calculate. One of: total, nuc, coul, elstat, xc
+        @type  pot: str
         """
         if not self.job.is_fde_job():
             raise PyAdfError("Can get frozen potential only for FDE jobs")
@@ -957,12 +1235,15 @@ class adffragmentsresults(adfsinglepointresults):
         return frozenpot
 
     @use_default_grid
-    def get_nonfrozen_potential(self, grid=None, spacing=0.5, pot="total"):
+    def get_nonfrozen_potential(self, grid=None, pot="total"):
         """
         Returns the potential of the electron density of the nonfrozen (active) subsystem.
 
         @param grid: The grid to use. For details, see L{Plot.Grids}.
         @type  grid: subclass of L{grid}
+
+        @param pot: Which potential to calculate. One of: total, nuc, coul, elstat, xc
+        @type  pot: str
         """
         prop = PlotPropertyFactory.newPotential(pot.lower())
 
@@ -974,8 +1255,8 @@ class adffragmentsjob(adfsinglepointjob):
     """
     ADF fragments analysis job.
 
-    @undocumented: __delattr__, __getattribute__, __hash__, __new__, __reduce__,
-                   __reduce_ex__, __repr__, __str__, __setattr__
+    @undocumented: __delattr__, __getattribute__, __hash__, __new__,
+                   __repr__, __str__, __setattr__
     """
 
     def __init__(self, fragments, basis=None, settings=None, core=None,
@@ -1006,11 +1287,11 @@ class adffragmentsjob(adfsinglepointjob):
             self._fde = {}
         else:
             self._fde = {}
-            for k, v in fde.iteritems():
+            for k, v in fde.items():
                 self._fde[k.upper()] = v
 
-        adfsinglepointjob.__init__(self, None, basis, core=core, settings=settings,
-                                   pointcharges=pointcharges, fitbas=fitbas, options=options)
+        super().__init__(None, basis, core=core, settings=settings,
+                         pointcharges=pointcharges, fitbas=fitbas, options=options)
 
         if self._fragments.has_fde_fragments():
             if 'ALLOW PARTIALSUPERFRAGS' not in self._options:
@@ -1051,68 +1332,70 @@ class adffragmentsjob(adfsinglepointjob):
 
     def print_molecule(self):
 
-        print "   Total Molecule"
-        print "   =============="
-        print
-        print self.get_molecule()
-        print
-        print "   Fragments "
-        print "   =========="
-        print
+        print("   Total Molecule")
+        print("   ==============")
+        print()
+        print(self.get_molecule())
+        print()
+        print("   Fragments ")
+        print("   ==========")
+        print()
         for num_ftyp, frag in enumerate(self._fragments):
-            print "     Fragment Typ ", num_ftyp + 1, "  ",
+            print("     Fragment Typ ", num_ftyp + 1, "  ", end=' ')
             frag.print_fragment_options()
             for num_frag, m in enumerate(frag.get_molecules()):
-                print "     Fragment Typ ", num_ftyp + 1, ", Fragment ", num_frag + 1
-                print m
-        print
+                print("     Fragment Typ ", num_ftyp + 1, ", Fragment ", num_frag + 1)
+                print(m)
+        print()
 
-        print "   Fragment Files "
-        print "   ============== "
-        print
+        print("   Fragment Files ")
+        print("   ============== ")
+        print()
         for num_ftyp, frag in enumerate(self._fragments):
             filename = frag.get_fragment_filename()
             if filename:
-                print "     Fragment Typ ", num_ftyp + 1, ": ", filename
+                print("     Fragment Typ ", num_ftyp + 1, ": ", filename)
 
-        print
+        print()
 
     def print_settings(self):
 
-        print "   Settings"
-        print "   ========"
-        print
-        print self.settings
-        print
+        print("   Settings")
+        print("   ========")
+        print()
+        print(self.settings)
+        print()
 
         if self.is_fde_job():
-            print "   FDE settings"
-            print "   ============"
-            print
+            print("   FDE settings")
+            print("   ============")
+            print()
             if 'TNAD' not in self._fde:
-                print '   TNAD  PW91k'
-            for k, v in self._fde.iteritems():
-                print '   %s  %s' % (k, v)
-            print
+                print('   TNAD  PW91k')
+            for k, v in self._fde.items():
+                print(f'   {k}  {v}')
+            print()
 
     def get_atoms_block(self):
         """
         give back the atoms input key for ADF input files
-        (plus UNITS and CHARGE keys)
         """
-        AtomsBlock = ""
-        AtomsBlock += " ATOMS\n"
-        AtomsBlock += self._fragments.get_atoms_block()
-        AtomsBlock += " END\n\n"
-        return AtomsBlock
+        return self._fragments.get_atoms_block()
 
     def get_charge_block(self):
         block = ""
-        if self._fragments.get_nonfrozen_molecule().get_spin() > 0:
-            block += " CHARGE %2i %2i \n\n" % (self._fragments.get_nonfrozen_molecule().get_charge(),
-                                               self._fragments.get_nonfrozen_molecule().get_spin())
+        if isinstance(self.get_molecule().get_charge(), int):
+            block += f" CHARGE {self._fragments.get_nonfrozen_molecule().get_charge():d}"
         else:
-            block += " CHARGE %2i \n\n" % self._fragments.get_nonfrozen_molecule().get_charge()
+            block += f" CHARGE {self._fragments.get_nonfrozen_molecule().get_charge():8.4f}"
+        block += " \n\n"
+        return block
+
+    def get_spin_block(self):
+        block = ""
+        if self.get_molecule().get_spin() > 0:
+            block += f"SPINPOLARIZATION {self._fragments.get_nonfrozen_molecule().get_spin():2d}"
+            block += " \n\n"
         return block
 
     def get_fragments_block(self):
@@ -1129,7 +1412,7 @@ class adffragmentsjob(adfsinglepointjob):
         return block
 
     def get_other_blocks(self):
-        block = adfsinglepointjob.get_other_blocks(self)
+        block = super().get_other_blocks()
         block += self._fragments.get_special_options_block()
         if self.is_fde_job():
             block += self.get_fde_block()
@@ -1139,8 +1422,9 @@ class adffragmentsjob(adfsinglepointjob):
 
     def get_fde_block(self):
 
-        for k, v in self._fde.iteritems():
-            if k in ['COULOMB', 'THOMASFERMI', 'PW91K', 'PW91Kscaled', 'TW02', 'TF9W', 'PBE2', 'PBE3', 'PBE4'] and v is '' :
+        for k, v in self._fde.items():
+            if k in ['COULOMB', 'THOMASFERMI', 'PW91K', 'PW91Kscaled', 'TW02', 'TF9W', 'PBE2', 'PBE3', 'PBE4'] \
+                    and v == '':
                 raise PyAdfError('   Incorrect definition of KEF. Use the TNAD keyword to specify the functional')
 
         block = " FDE\n"
@@ -1148,7 +1432,7 @@ class adffragmentsjob(adfsinglepointjob):
             block += '   ' + self._fde['TNAD'] + '\n'
         else:
             block += "   PW91k\n"
-        for opt, val in self._fde.iteritems():
+        for opt, val in self._fde.items():
             if opt == 'TNAD':
                 continue
             block += "   " + opt + " " + str(val) + "\n"
@@ -1156,9 +1440,9 @@ class adffragmentsjob(adfsinglepointjob):
         return block
 
     def before_run(self):
-        adfsinglepointjob.before_run(self)
+        super().before_run()
         self._fragments.copy_fragment_files()
 
     def after_run(self):
-        adfsinglepointjob.after_run(self)
+        super().after_run()
         self._fragments.delete_fragment_files_copy()

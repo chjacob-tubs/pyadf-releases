@@ -1,12 +1,10 @@
-# -*- coding: utf-8 -*-
-
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2021 by Christoph R. Jacob, Tobias Bergmann,
-# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Thomas Dresselhaus,
-# Andre S. P. Gomes, Andreas Goetz, Michal Handzlik, Karin Kiewisch,
-# Moritz Klammler, Lars Ridder, Jetze Sikkema, Lucas Visscher, and
-# Mario Wolter.
+# Copyright (C) 2006-2022 by Christoph R. Jacob, Tobias Bergmann,
+# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Maria Chekmeneva,
+# Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz, 
+# Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder, 
+# Jetze Sikkema, Lucas Visscher, Johannes Vornweg and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -19,10 +17,10 @@
 #    GNU General Public License for more details.
 #
 #    You should have received a copy of the GNU General Public License
-#    along with PyADF.  If not, see <http://www.gnu.org/licenses/>.
+#    along with PyADF.  If not, see <https://www.gnu.org/licenses/>.
 
 import unittest
-from PyAdfTestCase import PyAdfTestCase
+from .PyAdfTestCase import PyAdfTestCase
 
 import numpy
 from pyadf.Plot.GridFunctions import GridFunction
@@ -35,11 +33,14 @@ from pyadf.Plot.GridFunctions import GridFunctionFactory
 from pyadf.Plot.GridFunctions import GridFunctionContainer
 
 
-class MockGrid(object):
+class MockGrid:
     npoints = 3
     shape = (1, 3, 1)
 
-    def coorditer(self):
+    checksum = "MockGrid"
+
+    @staticmethod
+    def coorditer():
         return [[0., 0., 0.], [1., 1., 1.], [2., 2., 2.]]
 
     weights = numpy.array([1.0, 0.5, 0.5])
@@ -47,11 +48,9 @@ class MockGrid(object):
     def weightiter(self):
         return self.weights.__iter__()
 
-    def voronoiiter(self):
+    @staticmethod
+    def voronoiiter():
         return [1, 1, 2]
-
-    def get_checksum(self):
-        return "MockGrid"
 
 
 class TestGridFunction(PyAdfTestCase):
@@ -415,6 +414,7 @@ class TestGridFunctionOperatorsResultTypes(PyAdfTestCase):
         self.assertNotIsInstance(res, GridFunctionPotential)
 
 
+# noinspection PyTypeChecker,PyUnresolvedReferences
 class TestGridFunctionContainer(PyAdfTestCase):
 
     def setUp(self):

@@ -1,12 +1,10 @@
-# -*- coding: utf-8 -*-
-
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2021 by Christoph R. Jacob, Tobias Bergmann,
-# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Thomas Dresselhaus,
-# Andre S. P. Gomes, Andreas Goetz, Michal Handzlik, Karin Kiewisch,
-# Moritz Klammler, Lars Ridder, Jetze Sikkema, Lucas Visscher, and
-# Mario Wolter.
+# Copyright (C) 2006-2022 by Christoph R. Jacob, Tobias Bergmann,
+# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Maria Chekmeneva,
+# Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz, 
+# Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder, 
+# Jetze Sikkema, Lucas Visscher, Johannes Vornweg and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -19,22 +17,100 @@
 #    GNU General Public License for more details.
 #
 #    You should have received a copy of the GNU General Public License
-#    along with PyADF.  If not, see <http://www.gnu.org/licenses/>.
+#    along with PyADF.  If not, see <https://www.gnu.org/licenses/>.
 """
  General utilities that are used internally.
 
  @author:       Christoph Jacob and Michal Hanzlik
 """
 
-from Errors import PTError, UnitsError
+
+from .Errors import PTError, UnitsError
+from . import __version__
 
 import math
 
 newjobmarker = '--- PyADF *** new job *** PyADF ---\n'
 
 
+class VersionInfo:
+    version = __version__
+
+    @staticmethod
+    def print_version_from_git():
+        import subprocess
+        import os
+
+        try:
+            GIT_VERSION = subprocess.check_output(["git", "describe", "--always"], stderr=subprocess.DEVNULL,
+                                                  cwd=os.path.dirname(os.path.abspath(__file__))).strip().decode()
+        except (OSError, subprocess.CalledProcessError):
+            pass
+        else:
+            print(" *      Git version: ", GIT_VERSION)
+
+    @staticmethod
+    def print_git_version_info():
+        import subprocess
+        import os
+
+        try:
+            GIT_BRANCH = subprocess.check_output(["git", "rev-parse", "--abbrev-ref", "HEAD"],
+                                                 stderr=subprocess.DEVNULL,
+                                                 cwd=os.path.dirname(os.path.abspath(__file__))
+                                                 ).strip().decode()
+            GIT_COMMIT_HASH = subprocess.check_output(["git", "--no-pager", "show", "-s", "--pretty=format:%h", "-n 1"],
+                                                      stderr=subprocess.DEVNULL,
+                                                      cwd=os.path.dirname(os.path.abspath(__file__))
+                                                      ).strip().decode()
+            GIT_COMMIT_AUTHOR = subprocess.check_output(
+                ["git", "--no-pager", "show", "-s", "--pretty=format:%aN", "-n 1"],
+                stderr=subprocess.DEVNULL,
+                cwd=os.path.dirname(os.path.abspath(__file__))).strip().decode()
+            GIT_COMMIT_DATE = subprocess.check_output(
+                ["git", "--no-pager", "show", "-s", "--pretty=format:%ad", "-n 1"],
+                stderr=subprocess.DEVNULL, cwd=os.path.dirname(os.path.abspath(__file__))
+                ).strip().decode()
+        except (OSError, subprocess.CalledProcessError):
+            print(" No Git version information available")
+        else:
+            print(" Git version information:")
+            print("     Branch        : ", GIT_BRANCH)
+            print("     Commit hash   : ", GIT_COMMIT_HASH)
+            print("     Commit author : ", GIT_COMMIT_AUTHOR)
+            print("     Commit date   : ", GIT_COMMIT_DATE)
+        print()
+
+    @staticmethod
+    def print_package_versions():
+        # Openbabel
+        try:
+            from openbabel import openbabel
+            print(" Openbabel Version : ", openbabel.OBReleaseVersion())
+        except ImportError:
+            openbabel = None
+
+        # RDKit
+        try:
+            # noinspection PyPackageRequirements
+            import rdkit
+            print(" RDKit Version     : ", rdkit.__version__)
+        except ImportError:
+            rdkit = None
+
+        # PySCF
+        try:
+            # noinspection PyPackageRequirements
+            import pyscf
+            print(" PySCF Version     : ", pyscf.__version__)
+        except ImportError:
+            pyscf = None
+
+        print()
+
+
 # noinspection PyTypeChecker
-class PeriodicTable(object):
+class PeriodicTable:
     data = ['XX', 0.0, 0.0, 0] * 150
     # [symbol, mass, radius, connectors]
     data[0] = ['Xx', 0.00000, 0.22, 0]
@@ -213,22 +289,22 @@ class PeriodicTable(object):
 PT = PeriodicTable
 
 
-class Units(object):
-    # Bohr radius (in 10^-10 m) according to CODATA 2010
+class Units:
+    # Bohr radius (in 10^-10 m) according to CODATA 2018
     # see http://physics.nist.gov/cgi-bin/cuu/Value?bohrrada0
-    bohr_radius = 0.52917721092
+    bohr_radius = 0.529177210903
 
-    # Avogadro constant according to CODATA 2010
+    # Avogadro constant according to CODATA 2018
     # see http://physics.nist.gov/cgi-bin/cuu/Value?na
-    avogadro_constant = 6.02214129e23
+    avogadro_constant = 6.02214076e23
 
-    # Speed of light (in m/s), exact value according to CODATA 2010
+    # Speed of light (in m/s), exact value according to CODATA 2018
     # see http://physics.nist.gov/cgi-bin/cuu/Value?c
     speed_of_light = 299792458
 
-    # Electron charge (in Coulomb), according to CODATA 2010
+    # Electron charge (in Coulomb), according to CODATA 2018
     # see http://physics.nist.gov/cgi-bin/cuu/Value?e
-    electron_charge = 1.602176565e-19
+    electron_charge = 1.602176634e-19
 
     dicts = []
 
@@ -237,12 +313,12 @@ class Units(object):
     distance['au'] = distance['bohr']
     dicts.append(distance)
 
-    # Hartree energy in eV according to CODATA 2010
+    # Hartree energy in eV according to CODATA 2018
     # see http://physics.nist.gov/cgi-bin/cuu/Value?threv
-    # Hartree energy in kJ according to CODATA 2010
+    # Hartree energy in kJ according to CODATA 2018
     # see http://physics.nist.gov/cgi-bin/cuu/Value?threv
-    energy = {'__': 'Energy', 'au': 1.0, 'hartree': 1.0, 'Hartree': 1.0, 'eV': 27.21138505,
-              'kJ/mol': 4.35974434e-21 * avogadro_constant}
+    energy = {'__': 'Energy', 'au': 1.0, 'hartree': 1.0, 'Hartree': 1.0, 'eV': 27.211386245988,
+              'kJ/mol': 4.3597447222071e-21 * avogadro_constant}
     energy['ev'] = energy['eV']
     # By definition (ISO 31-4): 1 kcal = 4.184 kJ
     # see https://en.wikipedia.org/wiki/Calorie
@@ -272,7 +348,7 @@ class Units(object):
     @classmethod
     def conversion(cls, inp, out):
         for d in cls.dicts:
-            if inp in d.keys() and out in d.keys():
+            if inp in list(d.keys()) and out in list(d.keys()):
                 return d[out] / d[inp]
         raise UnitsError('Invalid conversion call: unsupported units')
 
@@ -286,16 +362,16 @@ class Units(object):
 
     @classmethod
     def printinfo(cls, values=False):
-        print 'Units supported for conversion:'
+        print('Units supported for conversion:')
         for i in cls.dicts:
-            print i['__'] + ':',
-            for j in i.keys():
+            print(i['__'] + ':', end=' ')
+            for j in list(i.keys()):
                 if j != '__':
                     if values:
-                        print j + '=' + str(i[j]) + ',',
+                        print(j + '=' + str(i[j]) + ',', end=' ')
                     else:
-                        print j + ',',
-            print ''
+                        print(j + ',', end=' ')
+            print('')
 
 
 def f2f(literal):

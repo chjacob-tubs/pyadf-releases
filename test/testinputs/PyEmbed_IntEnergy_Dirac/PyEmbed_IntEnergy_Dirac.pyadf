@@ -1,3 +1,8 @@
+import os
+from pyadf import *
+if 'pyadfenv' not in globals():
+    from pyadf.Initialization import *
+
 import numpy
 import xcfun
 from pyadf.Plot.FileReaders import GridFunctionReader
@@ -18,7 +23,7 @@ settings.set_integration(4.0, becke='Normal')
 settings.set_ncycles(1)  # do not converge SCF, we only need the grid
 settings.set_save_tapes([21, 10])
 
-res_super_adf = adfsinglepointjob(mol, basis='TZP',settings=settings,
+res_super_adf = adfsinglepointjob(mol, basis='TZP', settings=settings,
                                   options=['TOTALENERGY', 'NumericalQuality Normal']).run()
 
 # supermolecular calculation with Dirac
@@ -36,14 +41,14 @@ toten_h2o = res_h2o.get_energy()
 toten_nh3 = res_nh3.get_energy()
 
 inten = toten_supermol - toten_h2o - toten_nh3
-print "Interaction energy from supermolecular calc. (Total Energy): ", inten * au_in_eV
+print("Interaction energy from supermolecular calc. (Total Energy): ", inten * au_in_eV)
 
 if 'unittesting' in pyadfenv.options:
     testobj.assertAlmostEqual(inten * au_in_eV, -0.37869901278796925, 4)
 
 ######################################################################
-## PyEmbed part
-## calculate FDE interaction energy from the fragment calculations
+# PyEmbed part
+# calculate FDE interaction energy from the fragment calculations
 ######################################################################
 
 # #############################################################
@@ -56,6 +61,7 @@ if 'unittesting' in pyadfenv.options:
 agrid, pot_a, nucpot_a, dens_a = GridFunctionReader.read_density_elpot_xml(res_h2o.get_gridout_filename())
 elpot_a = pot_a - nucpot_a
 
+# noinspection PyRedeclaration
 agrid, pot_b, nucpot_b, dens_b = GridFunctionReader.read_density_elpot_xml(res_nh3.get_gridout_filename())
 elpot_b = pot_b - nucpot_b
 
@@ -71,23 +77,23 @@ nnint = mol_a.get_nuclear_interaction_energy(mol_b)
 enint = (nucpot_a * dens_b[0]).integral() + (nucpot_b * dens_a[0]).integral()
 
 # electron-electron interaction energy
-eeint = 0.5*(elpot_a * dens_b[0]).integral() + 0.5*(elpot_b * dens_a[0]).integral()
+eeint = 0.5 * (elpot_a * dens_b[0]).integral() + 0.5 * (elpot_b * dens_a[0]).integral()
 
 inten_elstat = nnint + enint + eeint
 
-print nnint, enint, eeint
+print(nnint, enint, eeint)
 
 ################################################################
 # nonadditive XC energy
 
 fun = xcfun.Functional({'BeckeX': 1.0, 'LYPC': 1.0})
 
-xc_a = numpy.dot(agrid.get_weights(),
+xc_a = numpy.dot(agrid.weights,
                  fun.eval_energy_n(density=dens_a[0].values, densgrad=dens_a[1].values))
-xc_b = numpy.dot(agrid.get_weights(),
+xc_b = numpy.dot(agrid.weights,
                  fun.eval_energy_n(density=dens_b[0].values, densgrad=dens_b[1].values))
-xc_tot = numpy.dot(agrid.get_weights(),
-                 fun.eval_energy_n(density=dens_tot[0].values, densgrad=dens_tot[1].values))
+xc_tot = numpy.dot(agrid.weights,
+                   fun.eval_energy_n(density=dens_tot[0].values, densgrad=dens_tot[1].values))
 
 inten_xc = xc_tot - xc_a - xc_b
 
@@ -96,27 +102,27 @@ inten_xc = xc_tot - xc_a - xc_b
 
 fun = xcfun.Functional({'pw91k': 1.0})
 
-kin_a = numpy.dot(agrid.get_weights(),
-                 fun.eval_energy_n(density=dens_a[0].values, densgrad=dens_a[1].values))
-kin_b = numpy.dot(agrid.get_weights(),
-                 fun.eval_energy_n(density=dens_b[0].values, densgrad=dens_b[1].values))
-kin_tot = numpy.dot(agrid.get_weights(),
-                 fun.eval_energy_n(density=dens_tot[0].values, densgrad=dens_tot[1].values))
+kin_a = numpy.dot(agrid.weights,
+                  fun.eval_energy_n(density=dens_a[0].values, densgrad=dens_a[1].values))
+kin_b = numpy.dot(agrid.weights,
+                  fun.eval_energy_n(density=dens_b[0].values, densgrad=dens_b[1].values))
+kin_tot = numpy.dot(agrid.weights,
+                    fun.eval_energy_n(density=dens_tot[0].values, densgrad=dens_tot[1].values))
 
 inten_kin = kin_tot - kin_a - kin_b
 
-print "Electrostatic interaction energy: ", inten_elstat * au_in_eV
-print
+print("Electrostatic interaction energy: ", inten_elstat * au_in_eV)
+print()
 
-print "Nonadditive XC energy: ", inten_xc * au_in_eV
-print
+print("Nonadditive XC energy: ", inten_xc * au_in_eV)
+print()
 
-print "Nonadditive kinetic energy: ", inten_kin * au_in_eV
-print
+print("Nonadditive kinetic energy: ", inten_kin * au_in_eV)
+print()
 
 inten_tot = inten_elstat + inten_xc + inten_kin
 
-print "Total interaction energy (PyEmbed): ", inten_tot * au_in_eV
+print("Total interaction energy (PyEmbed): ", inten_tot * au_in_eV)
 
 ################################################################
 # same, but using PyEmbed interaction energy function
@@ -134,9 +140,9 @@ inten_tot_pyembed = embed_eval.get_interaction_energy(dens_a, nucpot_a, elpot_a,
 inten_tot_pyembed = inten_tot_pyembed + nnint
 
 if 'unittesting' in pyadfenv.options:
-    testobj.assertAlmostEqual(inten_elstat * au_in_eV, -0.48654857255245215, 4)
+    testobj.assertAlmostEqual(inten_elstat * au_in_eV, -0.402291865952313, 4)
     testobj.assertAlmostEqual(inten_xc * au_in_eV, -0.1723855742854333, 4)
-    testobj.assertAlmostEqual(inten_kin * au_in_eV,  0.3821874157745374, 4)
+    testobj.assertAlmostEqual(inten_kin * au_in_eV, 0.3821874157745374, 4)
 
-    testobj.assertAlmostEqual(inten_tot * au_in_eV,  -0.27674673106339637, 4)
-    testobj.assertAlmostEqual(inten_tot_pyembed * au_in_eV,  -0.27674673106339637, 4)
+    testobj.assertAlmostEqual(inten_tot * au_in_eV, -0.1925013162886444, 4)
+    testobj.assertAlmostEqual(inten_tot_pyembed * au_in_eV, -0.1925013162886444, 4)

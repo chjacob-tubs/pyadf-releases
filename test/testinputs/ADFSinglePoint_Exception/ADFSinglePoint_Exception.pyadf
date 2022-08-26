@@ -1,0 +1,27 @@
+import os
+from pyadf import *
+if 'pyadfenv' not in globals():
+    from pyadf.Initialization import *
+
+h2o = molecule(os.path.join(pyadfenv.outdir, 'H2O.xyz'))
+
+try:
+    # This job will fail (ncycles too small) and raise a PyAdfError
+    settings = adfsettings(ncycles=2)
+    results = adfsinglepointjob(h2o, 'SZ', settings=settings).run()
+
+except PyAdfError:
+    # If the calculation fails with ncycles=2, retry with ncycles=100
+    settings = adfsettings(ncycles=100)
+    results = adfsinglepointjob(h2o, 'SZ', settings=settings).run()
+
+dipole_vect = results.get_dipole_vector()
+dipole_magn = results.get_dipole_magnitude()
+
+print(f"Dipole moment magnitude: {dipole_magn:12.6f}")
+print(f"Dipole monent vector: [{dipole_vect[0]:12.6f}, {dipole_vect[1]:12.6f}, {dipole_vect[2]:12.6f}]")
+
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(dipole_magn, 0.6676590261, 6)
+    testobj.assertAlmostEqual(dipole_vect, [0.0, 0.0, 0.6676590261], 6)
+

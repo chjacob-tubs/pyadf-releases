@@ -1,62 +1,122 @@
-def check_results (testobj, dipole_vect, dipole_magn):
-    
-    testobj.assertAlmostEqual(dipole_magn,     0.6629161489, 6) 
+import os
+from pyadf import *
+if 'pyadfenv' not in globals():
+    from pyadf.Initialization import *
 
-    testobj.assertAlmostEqual(dipole_vect[0],  0.0,          6) 
-    testobj.assertAlmostEqual(dipole_vect[1],  0.0,          6) 
-    testobj.assertAlmostEqual(dipole_vect[2], -0.6629161489, 6) 
+
+def check_results(dip_vect, dip_magn):
+    testobj.assertAlmostEqual(dip_magn, 0.6676590261, 6)
+    testobj.assertAlmostEqual(dip_vect, [0.0, 0.0, 0.6676590261], 6)
+
+
+def check_results_dz(dip_vect, dip_magn):
+    testobj.assertAlmostEqual(dip_magn, 1.0017315443278967, 6)
+    testobj.assertAlmostEqual(dip_vect, [0.0, 0.0, 1.0017315443278967], 6)
+
 
 # delete the standard file manager
 myfiles.cleanup()
+
+# create a custom file manager
+first_filemanager = adf_filemanager(pyadfenv.outdir, pyadfenv.jobid)
+first_filemanager.outputfilename = "first_adfoutput"
+
 DefaultJobRunner.instance = None
-job_runner_conf = JobRunnerConfiguration(conffile=pyadfenv.options['jobrunner_conffile'])
+job_runner_conf = JobRunnerConfiguration(conffile=pyadfenv.options['jobrunner_conffile'],
+                                         jobbasedir=pyadfenv.outdir)
 DefaultJobRunner(conf=job_runner_conf)
 
-#create a custom file manager
-first_filemanager = adf_filemanager (pyadfenv.outdir, pyadfenv.jobid)
-first_filemanager.set_outputfilename ("first_adfoutput")
-
-h2o = molecule (os.path.join(pyadfenv.outdir, 'H2O.xyz'))
+h2o = molecule(os.path.join(pyadfenv.outdir, 'H2O.xyz'))
 
 results = adfsinglepointjob(h2o, 'SZ').run()
 
-dipole_vect = results.get_dipole_vector ()
-dipole_magn = results.get_dipole_magnitude ()
+dipole_vect = results.get_dipole_vector()
+dipole_magn = results.get_dipole_magnitude()
 
-check_results (testobj, dipole_vect, dipole_magn)
+check_results(dipole_vect, dipole_magn)
 
-savedir = os.path.join(pyadfenv.outdir, "pyadf_results."+pyadfenv.jobid)
+savedir = os.path.join(pyadfenv.outdir, "pyadf_results." + pyadfenv.jobid)
 os.mkdir(savedir)
-first_filemanager.copy_all_results_to_dir (savedir)
-print " Results were saved to: ", savedir
-print
+first_filemanager.copy_all_results_to_dir(savedir)
+print(" Results were saved to: ", savedir)
+print()
 
 # delete the old file manager and create a new one
 first_filemanager.cleanup()
-del(first_filemanager)
+del first_filemanager
+
+second_filemanager = adf_filemanager(pyadfenv.outdir, pyadfenv.jobid)
+second_filemanager.outputfilename = "second_adfoutput"
+
 DefaultJobRunner.instance = None
-job_runner_conf = JobRunnerConfiguration(conffile=pyadfenv.options['jobrunner_conffile'])
+job_runner_conf = JobRunnerConfiguration(conffile=pyadfenv.options['jobrunner_conffile'],
+                                         jobbasedir=pyadfenv.outdir)
 DefaultJobRunner(conf=job_runner_conf)
 
-second_filemanager = adf_filemanager (pyadfenv.outdir, pyadfenv.jobid)
-second_filemanager.set_outputfilename ("second_adfoutput")
-
 # import results from first run
-second_filemanager.import_resultsdir (savedir)
+second_filemanager.import_resultsdir(savedir)
 
-print "Imported results from", savedir
+print("Imported results from", savedir)
 
 results = adfsinglepointjob(h2o, 'SZ').run()
 
-dipole_vect = results.get_dipole_vector ()
-dipole_magn = results.get_dipole_magnitude ()
+dipole_vect = results.get_dipole_vector()
+dipole_magn = results.get_dipole_magnitude()
 
-check_results (testobj, dipole_vect, dipole_magn)
+check_results(dipole_vect, dipole_magn)
 
-if os.path.exists(second_filemanager.outputfilename) :
+if os.path.exists(second_filemanager.outputfilename):
     testobj.fail('job was executed a second time')
-if os.path.exists(second_filemanager.errfilename) :
+if os.path.exists(second_filemanager.errfilename):
     testobj.fail('job was executed a second time')
+
+results = adfsinglepointjob(h2o, 'DZ').run()
+
+dipole_vect = results.get_dipole_vector()
+dipole_magn = results.get_dipole_magnitude()
+
+check_results_dz(dipole_vect, dipole_magn)
+
+savedir_dz = os.path.join(pyadfenv.outdir, "pyadf_results_two." + pyadfenv.jobid)
+os.mkdir(savedir_dz)
+second_filemanager.copy_all_results_to_dir(savedir_dz)
+print(" Results were saved to: ", savedir_dz)
+print()
 
 second_filemanager.cleanup()
+del second_filemanager
+
+third_filemanager = adf_filemanager(pyadfenv.outdir, pyadfenv.jobid)
+third_filemanager.outputfilename = "third_adfoutput"
+
+DefaultJobRunner.instance = None
+job_runner_conf = JobRunnerConfiguration(conffile=pyadfenv.options['jobrunner_conffile'],
+                                         jobbasedir=pyadfenv.outdir)
+DefaultJobRunner(conf=job_runner_conf)
+
+# import results from first and second run
+third_filemanager.import_resultsdir(savedir)
+print("Imported results from", savedir)
+third_filemanager.import_resultsdir(savedir_dz)
+print("Imported results from", savedir_dz)
+
+results = adfsinglepointjob(h2o, 'SZ').run()
+
+dipole_vect = results.get_dipole_vector()
+dipole_magn = results.get_dipole_magnitude()
+
+check_results(dipole_vect, dipole_magn)
+
+results = adfsinglepointjob(h2o, 'DZ').run()
+
+dipole_vect = results.get_dipole_vector()
+dipole_magn = results.get_dipole_magnitude()
+
+check_results_dz(dipole_vect, dipole_magn)
+
+if os.path.exists(third_filemanager.outputfilename):
+    testobj.fail('job was executed a second time')
+if os.path.exists(third_filemanager.errfilename):
+    testobj.fail('job was executed a second time')
+
 DefaultJobRunner.instance = None

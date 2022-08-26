@@ -1,9 +1,15 @@
-def check_results(testobj, dipole_vect, dipole_magn):
-    testobj.assertAlmostEqual(dipole_magn, 0.6629161489, 6)
+import os
+from pyadf import *
+if 'pyadfenv' not in globals():
+    from pyadf.Initialization import *
 
-    testobj.assertAlmostEqual(dipole_vect[0], 0.0, 6)
-    testobj.assertAlmostEqual(dipole_vect[1], 0.0, 6)
-    testobj.assertAlmostEqual(dipole_vect[2], -0.6629161489, 6)
+
+def check_results(dip_vect, dip_magn):
+    testobj.assertAlmostEqual(dip_magn, 0.66765902, 6)
+
+    testobj.assertAlmostEqual(dip_vect[0], 0.0, 6)
+    testobj.assertAlmostEqual(dip_vect[1], 0.0, 6)
+    testobj.assertAlmostEqual(dip_vect[2], 0.66765902, 6)
 
 
 h2o = molecule(os.path.join(pyadfenv.outdir, 'H2O.xyz'))
@@ -13,16 +19,16 @@ results1 = adfsinglepointjob(h2o, 'SZ').run()
 dipole_vect = results1.get_dipole_vector()
 dipole_magn = results1.get_dipole_magnitude()
 
-check_results(testobj, dipole_vect, dipole_magn)
+check_results(dipole_vect, dipole_magn)
 
-settings = adfsettings(ncycles=1)
+settings = adfsettings(ncycles=3)
 
 job = adfsinglepointjob(h2o, 'SZ', settings=settings)
-job.set_restart(results1, options=['NoGeo', 'NoHes'])
+job.set_restart(results1)
 
 results2 = job.run()
 
 dipole_vect = results2.get_dipole_vector()
 dipole_magn = results2.get_dipole_magnitude()
 
-check_results(testobj, dipole_vect, dipole_magn)
+check_results(dipole_vect, dipole_magn)

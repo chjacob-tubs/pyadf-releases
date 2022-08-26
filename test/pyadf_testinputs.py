@@ -1,12 +1,10 @@
-# -*- coding: utf-8 -*-
-
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2021 by Christoph R. Jacob, Tobias Bergmann,
-# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Thomas Dresselhaus,
-# Andre S. P. Gomes, Andreas Goetz, Michal Handzlik, Karin Kiewisch,
-# Moritz Klammler, Lars Ridder, Jetze Sikkema, Lucas Visscher, and
-# Mario Wolter.
+# Copyright (C) 2006-2022 by Christoph R. Jacob, Tobias Bergmann,
+# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Maria Chekmeneva,
+# Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz, 
+# Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder, 
+# Jetze Sikkema, Lucas Visscher, Johannes Vornweg and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -19,7 +17,7 @@
 #    GNU General Public License for more details.
 #
 #    You should have received a copy of the GNU General Public License
-#    along with PyADF.  If not, see <http://www.gnu.org/licenses/>.
+#    along with PyADF.  If not, see <https://www.gnu.org/licenses/>.
 
 import unittest
 from pyadf_unittests.PyAdfTestCase import PyAdfTestCase
@@ -37,11 +35,12 @@ import glob
 class PyADFInputTestCase(PyAdfTestCase):
     # pylint: disable=R0904
 
-    def __init__(self, methodName='runTest', testname='bla', keep=False,
+    def __init__(self, methodName='runTest', testname='bla', duration='unknown', keep=False,
                  prof=False, molclass="openbabel", jobrunnerconf=None):
 
-        unittest.TestCase.__init__(self, methodName)
+        super().__init__(methodName)
         self._testname = testname
+        self._duration = duration
         self._keep = keep
         self._profile = prof
         self._molclass = molclass
@@ -50,6 +49,12 @@ class PyADFInputTestCase(PyAdfTestCase):
 
     def __str__(self):
         return "PyADF test input file: " + self._testname
+
+    def shortName(self):
+        return self._testname
+
+    def testDuration(self):
+        return self._duration
 
     def setUp(self):
 
@@ -93,20 +98,22 @@ class PyADFInputTestCase(PyAdfTestCase):
         gc.collect()
 
     def runTest(self):
+        globs = globals().copy()
+        globs.update({'pyadfinput': self._testname + ".pyadf", 'testobj': self,
+                      'testing_molclass': self._molclass, 'testing_jobrunnerconf': self._jobrunnerconf})
 
-        globs = {'pyadfinput': self._testname + ".pyadf", 'testobj': self,
-                 'testing_molclass': self._molclass, 'testing_jobrunnerconf': self._jobrunnerconf}
-
+        with open(os.path.join(self._pyadfpath, 'pyadf'), "rb") as fin:
+            source = fin.read()
+        code = compile(source, os.path.join(self._pyadfpath, 'pyadf'), "exec")
         if not self._profile:
-            execfile(os.path.join(self._pyadfpath, 'pyadf'), globs, {})
+            exec(code, globs, {})
         else:
-            profile.runctx("execfile (pyadf_path)", globs,
-                           {'pyadf_path': os.path.join(self._pyadfpath, 'pyadf')}, "pyadf_profile")
+            profile.runctx(code, globs, {'pyadf_path': os.path.join(self._pyadfpath, 'pyadf')}, "pyadf_profile")
 
         del globs
 
 
-def make_testinputs_suite(tests="all", testnames=None, dalton=True, dirac=True, nwchem=True,
+def make_testinputs_suite(tests="all", testnames=None, dalton=True, adf=True, dirac=True, nwchem=True,
                           espresso=True, molcas=True, turbomole=True, orca=True, openbabel=True,
                           keep=False, prof=False, molclass="openbabel", jobrunnerconf=None):
 
@@ -135,10 +142,16 @@ def make_testinputs_suite(tests="all", testnames=None, dalton=True, dirac=True, 
                 testset = 'medium'
             elif os.path.exists(os.path.join(testdir, testname, 'long')):
                 testset = 'long'
+            else:
+                testset = 'all'
 
             use_test = False
             if tests == 'dalton':
                 use_test = ('dalton' in testname.lower())
+            elif tests == 'adf' and not openbabel:
+                use_test = (('adf' in testname.lower()) and not (('openbabel' in testname.lower()) or ('3fde' in testname.lower())))
+            elif tests == 'adf':
+                use_test = ('adf' in testname.lower())
             elif tests == 'dirac':
                 use_test = ('dirac' in testname.lower())
             elif tests == 'nwchem':
@@ -156,6 +169,8 @@ def make_testinputs_suite(tests="all", testnames=None, dalton=True, dirac=True, 
             elif testsetorder.index(tests) >= testsetorder.index(testset):
                 use_test = True
                 if ('dalton' in testname.lower()) and not dalton:
+                    use_test = False
+                if ('adf' in testname.lower()) and not adf:
                     use_test = False
                 if ('dirac' in testname.lower()) and not dirac:
                     use_test = False
@@ -175,7 +190,9 @@ def make_testinputs_suite(tests="all", testnames=None, dalton=True, dirac=True, 
                     use_test = False
 
             if use_test:
-                suite.addTest(PyADFInputTestCase(testname=testname, keep=keep, prof=prof,
+                suite.addTest(PyADFInputTestCase(testname=testname, duration=testset, keep=keep, prof=prof,
                                                  molclass=molclass, jobrunnerconf=jobrunnerconf))
+        else:
+            raise FileNotFoundError('One of the test folders seems to be missing a test script: ' + testname)
 
     return suite

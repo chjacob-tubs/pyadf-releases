@@ -1,12 +1,10 @@
-# -*- coding: utf-8 -*-
-
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2021 by Christoph R. Jacob, Tobias Bergmann,
-# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Thomas Dresselhaus,
-# Andre S. P. Gomes, Andreas Goetz, Michal Handzlik, Karin Kiewisch,
-# Moritz Klammler, Lars Ridder, Jetze Sikkema, Lucas Visscher, and
-# Mario Wolter.
+# Copyright (C) 2006-2022 by Christoph R. Jacob, Tobias Bergmann,
+# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Maria Chekmeneva,
+# Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz, 
+# Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder, 
+# Jetze Sikkema, Lucas Visscher, Johannes Vornweg and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -19,7 +17,7 @@
 #    GNU General Public License for more details.
 #
 #    You should have received a copy of the GNU General Public License
-#    along with PyADF.  If not, see <http://www.gnu.org/licenses/>.
+#    along with PyADF.  If not, see <https://www.gnu.org/licenses/>.
 """
  The basics needed for ADF calculations: simple jobs and results.
 
@@ -36,12 +34,12 @@
 import kf
 import os
 
-from Errors import PyAdfError
-from Molecule import molecule
-from BaseJob import results, job
+from .Errors import PyAdfError
+from .Molecule import molecule
+from .BaseJob import results, job
 
 
-class amssettings(object):
+class amssettings:
 
     def __init__(self):
         pass
@@ -51,7 +49,7 @@ class amssettings(object):
         return ss
 
 
-class adfresults(results):
+class scmresults(results):
     """
     Class for results of an ADF calculation.
 
@@ -71,18 +69,18 @@ class adfresults(results):
     @group Retrieval of specific results:
       get_result_from_tape
     @group Access to internal properties:
-      get_checksum
+      checksum
     """
 
     def __init__(self, j=None):
         """
-        Constructor for adfresults.
+        Constructor for amsresults.
         """
-        results.__init__(self, j)
+        super().__init__(j)
 
     def import_tape_files(self, fn_list, tape_list):
         """
-        Initialize adfresults by importing tape files.
+        Initialize amsresults by importing tape files.
 
         @param fn_list: a list of the files to import
         @type  fn_list: list of str
@@ -90,7 +88,7 @@ class adfresults(results):
         @type  tape_list: list of int
         """
 
-        from Files import adf_filemanager
+        from .Files import adf_filemanager
         self.files = adf_filemanager()
 
         name = ''
@@ -176,13 +174,13 @@ class adfresults(results):
         return result
 
 
-class amsresults(adfresults):
+class amsresults(scmresults):
 
     def __init__(self, j=None):
         """
         Constructor for amsresults.
         """
-        adfresults.__init__(self, j)
+        super().__init__(j)
 
     def get_molecule(self):
         """
@@ -234,23 +232,30 @@ class amsresults(adfresults):
         Return the normal modes (not normalized, not mass-weighted)
         """
         import numpy
-
         natoms = self.get_result_from_tape('Molecule', 'nAtoms')
         nmodes = self.get_result_from_tape('Vibrations', 'nNormalModes')
 
         modes_c = numpy.zeros((nmodes, 3 * natoms))
         for i in range(nmodes):
             modes_c[i, :] = self.get_result_from_tape('Vibrations',
-                                                      'NoWeightNormalMode(%i)' % (i + 1))
-
+                                                      f'NoWeightNormalMode({i + 1:d})')
         return modes_c
 
 
-class adfjob(job):
-    """
-    An abstract base class for ADF jobs (ADF and related programs).
+class adfresults(amsresults):
 
-    Corresponding results class: L{adfresults}
+    def __init__(self, j=None):
+        """
+        Constructor for adfresults.
+        """
+        super().__init__(j)
+
+
+class scmjob(job):
+    """
+    An abstract base class for SCM jobs (AMS and related programs).
+
+    Corresponding results class: L{scmresults}
 
     @group Initialization:
         __init__
@@ -264,22 +269,23 @@ class adfjob(job):
         """
         Constructor for adfjob.
         """
-        job.__init__(self)
+        super().__init__()
         self._checksum_only = False
 
     def create_results_instance(self):
         """
         Create an instance of the matching results object for this job.
         """
-        return adfresults(self)
+        return scmresults(self)
 
     def get_input(self):
         """
         Abstract method to obtain an input file for ADF or a related program.
         """
-        return None
+        raise NotImplementedError
 
-    def get_checksum(self):
+    @property
+    def checksum(self):
         """
         Obtain a checksum for the job.
 
@@ -293,12 +299,12 @@ class adfjob(job):
         if inp is not None:
             import hashlib
             m = hashlib.md5()
-            m.update(inp)
-            return m.digest()
+            m.update(inp.encode('utf-8'))
+            return m.hexdigest()
         else:
             return None
 
-    def get_runscript(self, nproc=1, program="adf", inputfile=None):
+    def get_runscript(self, nproc=1, program="ams", inputfile=None):
         """
         Return a runscript for ADF or a related program.
 
@@ -312,19 +318,23 @@ class adfjob(job):
         @param inputfile: The input file to use. If None (default), L{get_input} is called.
         @type  inputfile: str or C{None}
         """
+        runscript = ''
         if inputfile is None:
             inp = "<<eor"
+            runscript += "cat <<eor\n"
+            runscript += self.get_input()
+            runscript += "eor\n"
         else:
             inp = "<" + inputfile
-        runscript = ''
+            runscript += "cat " + inputfile + "\n"
         if nproc == 1:
-            runscript += "$ADFBIN/" + program + " -n1 " + inp + " || exit $? \n"
+            runscript += "$AMSBIN/" + program + " -n1 " + inp + " || exit $? \n"
         else:
-            runscript += "export NSCM=%i \n\n" % nproc
+            runscript += f"export NSCM={nproc:d} \n\n"
             runscript += 'if [ -n "$SLURM_JOB_ID" ]; then \n'
-            runscript += '   export SCM_MPIOPTIONS="-np %i" \n' % nproc
+            runscript += f'   export SCM_MPIOPTIONS="-np {nproc:d}" \n'
             runscript += 'fi \n'
-            runscript += "$ADFBIN/" + program + " " + inp + " || exit $? \n"
+            runscript += "$AMSBIN/" + program + " " + inp + " || exit $? \n"
         if inputfile is None:
             runscript += self.get_input()
             runscript += "eor\n"
@@ -338,29 +348,29 @@ class adfjob(job):
             logfilename = logfile
 
         # check if the ADF run was successful
-        f = open(logfilename, 'r')
+        f = open(logfilename)
         lastline = ''.join(f.readlines()[-3:])
         f.close()
         if lastline.find('ERROR') >= 0:
-            raise PyAdfError('ERROR DETECTED in ADF run')
+            raise PyAdfError('ERROR DETECTED in AMS run')
         elif lastline.find('NORMAL TERMINATION') == -1:
-            raise PyAdfError('Unknown Error in ADF run')
+            raise PyAdfError('Unknown Error in AMS run')
 
         # check for warnings in PyAdf
         all_warnings = []
-        f = open(logfilename, 'r')
+        f = open(logfilename)
         for line in f.readlines():
             if line.find('WARNING') >= 0:
-                print " Found WARNING in ADF logfile:"
+                print(" Found WARNING in AMS logfile:")
                 warning = ' '.join(line.split()[3:])
-                print warning
+                print(warning)
                 all_warnings.append(warning)
         f.close()
-        print
+        print()
 
         for warning in all_warnings:
             if "NOT CONVERGED" in warning:
-                raise PyAdfError('NOT CONVERGED in ADF run')
+                raise PyAdfError('NOT CONVERGED in AMS run')
 
         os.remove(logfilename)
 
@@ -370,13 +380,13 @@ class adfjob(job):
         return ['TAPE21', 'TAPE10', 'TAPE41']
 
 
-class amsjob(adfjob):
+class amsjob(scmjob):
     """
     Base class for ADF jobs using the AMS engine.
     """
 
     def __init__(self, mol, task='SinglePoint', settings=None):
-        adfjob.__init__(self)
+        super().__init__()
         self.mol = mol
         self.task = task
 
@@ -388,44 +398,133 @@ class amsjob(adfjob):
     def create_results_instance(self):
         return amsresults(self)
 
+    def get_molecule(self):
+        return self.mol
+
     def get_input(self):
         amsinput = ""
+        amsinput += self.get_system_block()
+        if self.symmetrize:
+            amsinput += self.get_symtol_block()
         amsinput += self.get_task_block()
         amsinput += self.get_properties_block()
-        amsinput += self.get_system_block()
+        amsinput += self.get_other_amsblocks()
         amsinput += self.get_engine_block()
         return amsinput
 
     def get_task_block(self):
-        block = " TASK %s \n\n" % self.task
+        block = f"TASK {self.task} \n\n"
+        return block
+
+    def get_charge_block(self):
+        return ""
+
+    def get_efield_block(self):
+        return ""
+
+    @property
+    def symmetrize(self):
+        return False
+
+    @property
+    def symtol(self):
+        return None
+
+    def get_atoms_block(self):
+        block = " ATOMS [Angstrom]\n"
+        block += self.get_molecule().print_coordinates(index=False)
+        block += " END\n"
         return block
 
     def get_system_block(self):
-        block = " SYSTEM\n"
-        block += "  ATOMS [Angstrom]\n"
-        block += self.mol.print_coordinates(index=False)
-        block += "  END\n"
-        block += " END\n\n"
+        block = "SYSTEM\n"
+        if self.symmetrize:
+            block += " SYMMETRIZE\n"
+            if self.get_molecule().symmetry is not None:
+                block += f" SYMMETRY {self.get_molecule().symmetry} \n"
+        block += self.get_atoms_block()
+        block += self.get_charge_block()
+        block += self.get_efield_block()
+        block += "END\n\n"
+        return block
+
+    def get_symtol_block(self):
+        block = ""
+        if self.symtol is not None:
+            block = "SYMMETRY \n "
+            block += " SymmetrizeTolerance " + str(self.symtol) + "\n"
+            block += "END \n\n"
         return block
 
     def get_properties_block(self):
         return ""
 
+    def get_other_amsblocks(self):
+        return ""
+
     def get_engine_block(self):
         pass
 
+    # noinspection PyMethodOverriding
     def get_runscript(self, nproc=1):
         """
         Return a runscript for AMS.
         """
-        return adfjob.get_runscript(self, nproc=nproc, program='ams')
+        runscript = super().get_runscript(nproc=nproc, program='ams')
+        runscript += "retcode=$?\n"
+        runscript += "cat ams.results/ams.log\n"
+
+        runscript += "exit $retcode\n"
+        return runscript
 
     def check_success(self, outfile, errfile, logfile=None):
         if logfile is None:
             logfilename = os.path.join('ams.results', 'ams.log')
         else:
             logfilename = logfile
-        return adfjob.check_success(self, outfile, errfile, logfilename)
+        return super().check_success(outfile, errfile, logfilename)
 
     def result_filenames(self):
-        return [os.path.join('ams.results', f) for f in ['ams.rkf', 'dftb.rkf']]
+        return [os.path.join('ams.results', f) for f in ['ams.rkf']]
+
+
+class adfjob(amsjob):
+    """
+    An abstract base class for ADF jobs.
+
+    Corresponding results class: L{adfresults}
+
+    @group Initialization:
+        __init__
+    @group Input Generation:
+        get_input
+    @group Running:
+        run
+    """
+
+    def __init__(self, mol, settings=None):
+        if settings is None:
+            mysettings = amssettings()
+        else:
+            mysettings = settings
+
+        super().__init__(mol, task='SinglePoint', settings=mysettings)
+
+    def create_results_instance(self):
+        """
+        Create an instance of the matching results object for this job.
+        """
+        return adfresults(self)
+
+    def result_filenames(self):
+        fns = super().result_filenames()
+        return fns + [os.path.join('ams.results', f) for f in ['adf.rkf', 'TAPE10']]
+
+    def get_adf_input(self):
+        pass
+
+    def get_engine_block(self):
+        block = "Engine ADF\n"
+        block += self.get_adf_input()
+        block += "EndEngine\n\n"
+        return block

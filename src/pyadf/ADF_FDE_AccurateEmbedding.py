@@ -1,12 +1,10 @@
-# -*- coding: utf-8 -*-
-
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2021 by Christoph R. Jacob, Tobias Bergmann,
-# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Thomas Dresselhaus,
-# Andre S. P. Gomes, Andreas Goetz, Michal Handzlik, Karin Kiewisch,
-# Moritz Klammler, Lars Ridder, Jetze Sikkema, Lucas Visscher, and
-# Mario Wolter.
+# Copyright (C) 2006-2022 by Christoph R. Jacob, Tobias Bergmann,
+# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Maria Chekmeneva,
+# Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz, 
+# Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder, 
+# Jetze Sikkema, Lucas Visscher, Johannes Vornweg and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -19,7 +17,7 @@
 #    GNU General Public License for more details.
 #
 #    You should have received a copy of the GNU General Public License
-#    along with PyADF.  If not, see <http://www.gnu.org/licenses/>.
+#    along with PyADF.  If not, see <https://www.gnu.org/licenses/>.
 """
  Job and results for ADF FDE calculations.
  This module is derived from ADF_3FDE.
@@ -32,18 +30,18 @@
 
 """
 
-from BaseJob import metajob
-from ADFSinglePoint import adfsinglepointjob
-from ADFFragments import fragment, adffragmentsjob
-from ADFPotential import adfpotentialjob
-from Plot.Grids import adfgrid
-from Utils import Bohr_in_Angstrom
+from .BaseJob import metajob
+from .ADFSinglePoint import adfsinglepointjob
+from .ADFFragments import fragment, adffragmentsjob
+from .ADFPotential import adfpotentialjob
+from .Plot.Grids import adfgrid
+from .Utils import Bohr_in_Angstrom
 from pyadf.Errors import PyAdfError
 
 import os.path
 
 
-class adfaccurateembeddingresults(object):
+class adfaccurateembeddingresults:
 
     def __init__(self):
         self.super = None
@@ -97,7 +95,7 @@ class adfaccurateembeddingresults(object):
 class adfaccurateembeddingjob(metajob):
 
     def __init__(self, frag1, frag2, basis, ghostbasis, settings, potoptions):
-        metajob.__init__(self)
+        super().__init__()
         self.frag1 = frag1
         self.frag2 = frag2
 
@@ -133,19 +131,19 @@ class adfaccurateembeddingjob(metajob):
         if number_of_locorbs % 2 == 1:
             raise PyAdfError('odd number of electrons for supermolecule')
         else:
-            number_of_locorbs = number_of_locorbs / 2
+            number_of_locorbs = number_of_locorbs // 2
 
         number_of_locorbs_1 = results.frag1.get_number_of_electrons()
         if number_of_locorbs_1 % 2 == 1:
             raise PyAdfError('odd number of electrons for subsystem 1')
         else:
-            number_of_locorbs_1 = number_of_locorbs_1 / 2
+            number_of_locorbs_1 = number_of_locorbs_1 // 2
 
         number_of_locorbs_2 = results.frag2.get_number_of_electrons()
         if number_of_locorbs_2 % 2 == 1:
             raise PyAdfError('odd number of electrons for supsystem 2')
         else:
-            number_of_locorbs_2 = number_of_locorbs_2 / 2
+            number_of_locorbs_2 = number_of_locorbs_2 // 2
 
         # now calculate the density for each localized orbital of the
         # supermolecular calculation and assign it to the subsystem
@@ -168,12 +166,12 @@ class adfaccurateembeddingjob(metajob):
         for i in range(1, number_of_locorbs + 1):
             locorb_dens = results.super.get_locorb_density(grid=adfGrid, orbs=[i])
             center_of_density = calc_center_of_density(locorb_dens)
-            print "center of density of localized orbital nr. ", i, "  : ", center_of_density
+            print("center of density of localized orbital nr. ", i, "  : ", center_of_density)
 
             dist1 = self.frag1.distance_to_point(center_of_density, ghosts=False)
             dist2 = self.frag2.distance_to_point(center_of_density, ghosts=False)
-            print "distance to subsystem 1: ", dist1
-            print "distance to subsystem 2: ", dist2
+            print("distance to subsystem 1: ", dist1)
+            print("distance to subsystem 2: ", dist2)
             if dist1 < dist2 - 1e-4:
                 results.locorb_set1.append(i)
             elif dist1 > dist2 + 1e-4:
@@ -186,8 +184,8 @@ class adfaccurateembeddingjob(metajob):
                 else:
                     raise PyAdfError('localized orbital can not be assigned clearly to one of the subsystems')
 
-        print "locorb_set1 :", results.locorb_set1
-        print "locorb_set2 :", results.locorb_set2
+        print("locorb_set1 :", results.locorb_set1)
+        print("locorb_set2 :", results.locorb_set2)
 
         if not (len(results.locorb_set1) == number_of_locorbs_1):
             raise PyAdfError('wrong number of localized orbitals for subsystem 1')
@@ -224,7 +222,7 @@ class adfaccurateembeddingjob(metajob):
         # results.sys2_dens = results.super.get_locorb_density(grid=adfGrid, orbs=results.locorb_set2)
         # results.sys2_dens.prop = 'density scf'
 
-        print 'reference calculations finished'
+        print('reference calculations finished')
 
         #  Now comes the potential reconstruction:
 
@@ -233,7 +231,7 @@ class adfaccurateembeddingjob(metajob):
         job = adffragmentsjob([fragment(results.frag1, [self.frag1])], self.basis, settings=self.settings)
         potjob = adfpotentialjob(job, sys1_dens, potoptions=self.potoptions)
 
-        print 'Running potential reconstruction job ... '
+        print('Running potential reconstruction job ... ')
         results.pot = potjob.run()
 
         # Calculate the error in the density

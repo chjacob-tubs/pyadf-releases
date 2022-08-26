@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 #
 # Simple Python module for numerically solving a one-electron 
 # Schrodinger equation for a given potential.
@@ -16,9 +16,11 @@
 
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2012 by Christoph R. Jacob, S. Maya Beyhan,
-# Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Karin Kiewisch,
-# Jetze Sikkema, and Lucas Visscher
+# Copyright (C) 2006-2022 by Christoph R. Jacob, Tobias Bergmann,
+# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Maria Chekmeneva,
+# Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz, 
+# Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder, 
+# Jetze Sikkema, Lucas Visscher, Johannes Vornweg and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -31,7 +33,7 @@
 #    GNU General Public License for more details.
 #
 #    You should have received a copy of the GNU General Public License
-#    along with PyADF.  If not, see <http://www.gnu.org/licenses/>.
+#    along with PyADF.  If not, see <https://www.gnu.org/licenses/>.
 
 import math
 import numpy
@@ -41,7 +43,7 @@ import scipy.sparse.linalg
 Bohr_in_Angstrom = 0.5291772108
 
 
-class Grid(object):
+class Grid:
 
     def __init__(self, N):
         self.N = N  # number of inner grid points
@@ -100,7 +102,7 @@ class Grid(object):
 
     def get_discrete_laplacian(self):
         w2 = scipy.sparse.diags([self.w2], [0], format='csc')
-        w4 = scipy.sparse.diags([self.w2 * self.w2], [0], format='csc')
+        # w4 = scipy.sparse.diags([self.w2 * self.w2], [0], format='csc')
         w = scipy.sparse.diags([numpy.sqrt(self.w2)], [0], format='csc')
 
         # symmetric Laplacian, requires l-dependent correction for the first grid-point
@@ -172,7 +174,7 @@ class Grid(object):
 class RationalGrid(Grid):
 
     def __init__(self, N, b):
-        Grid.__init__(self, N)
+        super().__init__(N)
 
         self.b = b
         self.r = b * self.s / (1 - self.s)
@@ -188,7 +190,7 @@ class RationalGrid(Grid):
 class LogGrid(Grid):
 
     def __init__(self, N, b=0.1, rmax=1000.0):
-        Grid.__init__(self, N)
+        super().__init__(N)
         self.b = b
         self.rmax = rmax
 
@@ -213,6 +215,8 @@ def eigh_davidson(A, k, startvecs, convmax=1e-7, convnorm=1e-12):
     maxres = 1e10
     resnorm = 1e10
     it = 0
+
+    evals = []
 
     while (maxres > convmax) and (resnorm > convnorm) and (it < n):
         it = it + 1
@@ -241,7 +245,7 @@ def eigh_davidson(A, k, startvecs, convmax=1e-7, convnorm=1e-12):
         maxres = numpy.max(numpy.abs(resid))
         resnorm = numpy.linalg.norm(resid)
 
-        # print "Davidson It %3i, Res %14.6e " % (it, maxres), evals
+        # print(f"Davidson It {it:3d}, Res {maxres:14.6e} ", evals)
 
         # construct new basis vectors (diagonal preconditioner)
         b_new = numpy.zeros((n, k))
@@ -257,7 +261,7 @@ def eigh_davidson(A, k, startvecs, convmax=1e-7, convnorm=1e-12):
     return evals[:k], bvecs[:, :k]
 
 
-class OneDimSolver(object):
+class OneDimSolver:
 
     def __init__(self, grid):
         self.grid = grid
@@ -265,17 +269,17 @@ class OneDimSolver(object):
 
         self.lapl_symmetrized = 0.5 * (grid.lapl + grid.lapl.transpose())
 
-    def calc_orbitals(self, pot, l, norbs, kmat=None):
+    def calc_orbitals(self, pot, ll, norbs, kmat=None):
 
         A = self.grid.lapl_symm.copy()
 
         # apply correction for first grid point
-        if l == 0:
+        if ll == 0:
             Z = -pot[0] * self.grid.r[0]
             d0 = 5.0 * (1.0 + self.grid.h * Z * self.grid.cs1) / (1.0 - self.grid.h * Z * self.grid.cs1)
-        elif l == 1:
+        elif ll == 1:
             d0 = -5.0
-        elif l == 2:
+        elif ll == 2:
             d0 = 5.0
         else:
             d0 = 0.0
@@ -283,13 +287,14 @@ class OneDimSolver(object):
         A[0, 0] = A[0, 0] + d0 * (1.0 / (60.0 * self.grid.h * self.grid.h)) * self.grid.w2[0] * self.grid.w2[0]
 
         # add potential
-        A = -0.5 * A + scipy.sparse.diags([pot + 0.5 * l * (l + 1) / (self.grid.r * self.grid.r)], [0], format='csc')
+        A = -0.5 * A + scipy.sparse.diags([pot + 0.5 * ll * (ll + 1) / (self.grid.r * self.grid.r)], [0], format='csc')
 
         A = A.toarray()
         if kmat is not None:
             A = A + kmat
 
-        if True:
+        method = 'full_diag'
+        if method == 'full_diag':
             # if not self.old_evecs.has_key(l) :
 
             # evals, evecs  = numpy.linalg.eigh(A.toarray())
@@ -299,11 +304,13 @@ class OneDimSolver(object):
             evals = evals[order[:norbs]]
             evecs = evecs[:, order[:norbs]]
 
+        elif method == 'davidson':
+            evals, evecs = eigh_davidson(A, norbs, self.old_evecs[ll])
+
         else:
+            raise Exception('Unknown diagonalization method')
 
-            evals, evecs = eigh_davidson(A, norbs, self.old_evecs[l])
-
-        self.old_evecs[l] = evecs.copy(order='K')
+        self.old_evecs[ll] = evecs.copy(order='K')
 
         for i in range(norbs):
             # convert from (P/w) back to P
@@ -312,11 +319,11 @@ class OneDimSolver(object):
             evecs[:, i] = 1.0 / math.sqrt(self.grid.h) * evecs[:, i]
 
             # multiply by angular part
-            if l == 0:  # s orbital
+            if ll == 0:  # s orbital
                 evecs[:, i] = 1.0 / math.sqrt(4.0 * math.pi) * evecs[:, i]
-            if l == 1:  # p_x orbital along x-axis
+            if ll == 1:  # p_x orbital along x-axis
                 evecs[:, i] = math.sqrt(3.0 / (4.0 * math.pi)) * evecs[:, i]
-            if l == 2:  # d_z2 orbital along z-axis
+            if ll == 2:  # d_z2 orbital along z-axis
                 evecs[:, i] = 0.5 * math.sqrt(5.0 / math.pi) * evecs[:, i]
 
         return evals, evecs
@@ -325,16 +332,16 @@ class OneDimSolver(object):
 
         dens = numpy.zeros_like(self.grid.r)
 
-        for l, norbs in occs.iteritems():
-            evals, evecs = self.calc_orbitals(pot, l, norbs)
+        for ll, norbs in occs.items():
+            evals, evecs = self.calc_orbitals(pot, ll, norbs)
             if output:
-                print "Eigenvalues for l=%2i : " % l, evals
+                print(f"Eigenvalues for l={ll:2d} : ", evals)
 
             for i in range(norbs):
                 if ons is None:
                     dens = dens + 2.0 * evecs[:, i]**2
                 else:
-                    dens = dens + ons[l][i] * evecs[:, i]**2
+                    dens = dens + ons[ll][i] * evecs[:, i]**2
 
         return dens
 
@@ -343,27 +350,27 @@ class OneDimSolver(object):
         dens = numpy.zeros_like(self.grid.r)
         e_tot = 0.0
 
-        for l, norbs in occs.iteritems():
-            evals, evecs = self.calc_orbitals(pot, l, norbs)
+        for ll, norbs in occs.items():
+            evals, evecs = self.calc_orbitals(pot, ll, norbs)
             if output:
-                print "Eigenvalues for l=%2i : " % l, evals
+                print(f"Eigenvalues for l={ll:2d} : ", evals)
 
             for i in range(norbs):
                 if ons is None:
                     dens = dens + 2.0 * evecs[:, i]**2
-                    e_tot = e_tot + 2.0 * (2 * l + 1) * evals[i]
+                    e_tot = e_tot + 2.0 * (2 * ll + 1) * evals[i]
                 else:
-                    dens = dens + ons[l][i] * evecs[:, i]**2
-                    e_tot = e_tot + ons[l][i] * (2 * l + 1) * evals[i]
+                    dens = dens + ons[ll][i] * evecs[:, i]**2
+                    e_tot = e_tot + ons[ll][i] * (2 * ll + 1) * evals[i]
 
         e_pot = 4.0 * math.pi * self.grid.calc_integral(pot * dens)
 
         return dens, e_tot - e_pot, e_pot
 
 
-def calc_orbitals(grid, pot, l, norbs, kmat=None):
+def calc_orbitals(grid, pot, ll, norbs, kmat=None):
     solver = OneDimSolver(grid)
-    return solver.calc_orbitals(pot, l, norbs, kmat)
+    return solver.calc_orbitals(pot, ll, norbs, kmat)
 
 
 def calc_density(grid, pot, occs, ons=None, output=True):
@@ -385,7 +392,7 @@ def reconstruct_potential(grid, refdens, startpot, occs, denserr=1e-4):
         it = it + 1
         dens = calc_density(grid, startpot + recpot, occs, output=False)
         err = 4.0 * math.pi * grid.calc_integral(abs(dens - refdens))
-        print "Iteration %4i: error=%14.6e " % (it, err)
+        print(f"Iteration {it:4d}: error={err:14.6e} ")
 
         recpot = recpot - (refdens - dens) / grid.r
 
@@ -393,7 +400,7 @@ def reconstruct_potential(grid, refdens, startpot, occs, denserr=1e-4):
     return recpot
 
 
-class CalcFuncGrad(object):
+class CalcFuncGrad:
     def __init__(self, grid, occs, refdens, startpot, ons=None, lambd=0.0):
         self.solver = OneDimSolver(grid)
 
@@ -405,11 +412,11 @@ class CalcFuncGrad(object):
 
         maxl = max(occs.keys())
         if ons is None:
-            self.ons = [[2.0] * occs[l] for l in range(maxl + 1)]
+            self.ons = [[2.0] * occs[ll] for ll in range(maxl + 1)]
         else:
             self.ons = ons
-            for l in range(maxl + 1):
-                if not (len(ons[l]) == occs[l]):
+            for ll in range(maxl + 1):
+                if not (len(ons[ll]) == occs[ll]):
                     raise Exception('inconsistent occs and ons')
 
         self.refdens = refdens
@@ -418,6 +425,8 @@ class CalcFuncGrad(object):
 
         self.ncomp = 0
         self.nit = 0
+
+        self.dens = None
 
     def gradient(self, pot, lambda_smooth=None):
         self.dens = self.solver.calc_density(pot / self.grid.r, self.occs, ons=self.ons, output=False)
@@ -439,25 +448,25 @@ class CalcFuncGrad(object):
 
         maxl = max(self.occs.keys())
 
-        for l in range(maxl + 1):
-            print "Constructing Hessian for l = ", l
+        for ll in range(maxl + 1):
+            print("Constructing Hessian for l = ", ll)
 
-            ens, orbs = OneDimSolver(self.grid).calc_orbitals(pot / self.grid.r, l, self.grid.N)
+            ens, orbs = OneDimSolver(self.grid).calc_orbitals(pot / self.grid.r, ll, self.grid.N)
 
             Hl = numpy.zeros((self.grid.N, self.grid.N))
 
-            for iocc in range(self.occs[l]):
+            for iocc in range(self.occs[ll]):
                 # for ivirt in range(self.occs[l], self.grid.N) :
                 for ivirt in range(self.grid.N):
                     if not (iocc == ivirt):
                         prodorbs = orbs[:, iocc] * orbs[:, ivirt]
-                        Hl = Hl + self.ons[l][iocc] * numpy.outer(prodorbs, prodorbs) / (ens[iocc] - ens[ivirt])
+                        Hl = Hl + self.ons[ll][iocc] * numpy.outer(prodorbs, prodorbs) / (ens[iocc] - ens[ivirt])
 
-            if l == 0:  # s shell
+            if ll == 0:  # s shell
                 H = H + 4.0 * math.pi * Hl
-            if l == 1:  # p shell
+            if ll == 1:  # p shell
                 H = H + (4.0 * math.pi / 3.0) * Hl
-            if l == 2:  # d shell
+            if ll == 2:  # d shell
                 H = H + (4.0 * math.pi / 5.0) * Hl
 
         H = numpy.outer(1.0 / (self.grid.r * self.grid.w2), 1.0 / (self.grid.r * self.grid.w2)) * H
@@ -470,6 +479,7 @@ class CalcFuncGrad(object):
 
         return H
 
+    # noinspection DuplicatedCode
     def invhess(self, pot):
         H = self.hess(pot)
 
@@ -489,17 +499,17 @@ class CalcFuncGrad(object):
 
         return abserr, maxdens
 
-    def info(self, pot):
+    def info(self):
         self.nit = self.nit + 1
 
         abserr, maxdens = self.error()
         gradnorm = numpy.linalg.norm(self.grad)
 
-        print "BFGS Iteration %4i: ncomp=%4i     abserr=%14.6e maxdens=%14.6e norm=%14.6e" % (
-        self.nit, self.ncomp, abserr, maxdens, gradnorm)
+        print("BFGS Iteration %4i: ncomp=%4i     abserr=%14.6e maxdens=%14.6e norm=%14.6e" %
+              (self.nit, self.ncomp, abserr, maxdens, gradnorm))
 
 
-class CalcFuncGradSpin(object):
+class CalcFuncGradSpin:
 
     def __init__(self, grid, occs_alpha, occs_beta, refdens_alpha, refdens_beta, startpot, lambd_tot=0.0,
                  lambd_spin=0.0):
@@ -512,9 +522,6 @@ class CalcFuncGradSpin(object):
 
         self.func_alpha = CalcFuncGrad(grid, occs_alpha, refdens_alpha, startpot, lambd=0.0)
         self.func_beta = CalcFuncGrad(grid, occs_beta, refdens_beta, startpot, lambd=0.0)
-
-    def lagrangian(self, pot):
-        return self.func_alpha(pot[:self.grid.N]) + self.func_beta[self.grid.N:]
 
     def gradient(self, pot):
         grad_alpha = self.func_alpha.gradient(pot[:self.grid.N], lambda_smooth=0.0)
@@ -541,6 +548,7 @@ class CalcFuncGradSpin(object):
         H = numpy.vstack((numpy.hstack((Haa, Hab)), numpy.hstack((Hba, Hbb))))
         return H
 
+    # noinspection DuplicatedCode
     def invhess(self, pot):
         H = self.hess(pot)
 
@@ -551,28 +559,26 @@ class CalcFuncGradSpin(object):
 
         return Hinv
 
-    def info(self, pot):
+    def info(self):
         self.nit = self.nit + 1
 
         abserr_alpha, maxdens_alpha = self.func_alpha.error()
         abserr_beta, maxdens_beta = self.func_beta.error()
         gradnorm = numpy.linalg.norm(self.grad)
 
-        print "BFGS Iteration %4i:  ALPHA: abserr=%14.6e maxdens=%14.6e     BETA: abserr=%14.6e maxdens=%14.6e     GRADNORM=%14.6e" % \
-              (self.nit, abserr_alpha, maxdens_alpha, abserr_beta, maxdens_beta, gradnorm)
+        print(("BFGS Iteration %4i:  ALPHA: abserr=%14.6e maxdens=%14.6e     " +
+              "BETA: abserr=%14.6e maxdens=%14.6e     GRADNORM=%14.6e") %
+              (self.nit, abserr_alpha, maxdens_alpha, abserr_beta, maxdens_beta, gradnorm))
 
 
-def reconstruct_potential_sd(grid_in, refdens_in, startpot_in, occs_in, denserr=1e-4, method=None):
-    from bfgs_only_fprime import fmin_bfgs_onlygrad, fmin_newton_onlygrad
-    from scipy.optimize import fmin_bfgs
+def reconstruct_potential_sd(grid_in, refdens_in, startpot_in, occs_in, method=None):
+    from bfgs_only_fprime import fmin_bfgs_onlygrad
+    # from scipy.optimize import fmin_bfgs
 
     funcs = CalcFuncGrad(grid_in, occs_in, refdens_in, startpot_in * grid_in.r, lambd=1e-8)
     # funcs = CalcFuncGrad(grid_in, occs_in, refdens_in, startpot_in*grid_in.r, lambd=0.0)
 
-    if (method is None) or (method == 'BFGS'):
-        recpot = fmin_bfgs(funcs.lagrangian, startpot_in * grid_in.r, fprime=funcs.gradient, callback=funcs.info,
-                           norm=2, disp=True, gtol=1e-8) / grid_in.r
-    elif (method == 'BFGS_OnlyGrad'):
+    if method == 'BFGS_OnlyGrad':
         recpot = fmin_bfgs_onlygrad(funcs.gradient, startpot_in * grid_in.r, invhess=funcs.invhess, callback=funcs.info,
                                     gtol=1e-10) / grid_in.r
     else:
@@ -583,8 +589,8 @@ def reconstruct_potential_sd(grid_in, refdens_in, startpot_in, occs_in, denserr=
 
 def reconstruct_spinpotential_sd(grid_in, refdens_alpha_in, refdens_beta_in, startpot_in, occs_alpha_in, occs_beta_in,
                                  lamb_tot=0.0, lamb_spin=0.0, gradnorm=1e-8):
-    from bfgs_only_fprime import fmin_bfgs_onlygrad, fmin_newton_onlygrad
-    from scipy.optimize import fmin_bfgs
+    from bfgs_only_fprime import fmin_bfgs_onlygrad
+    # from scipy.optimize import fmin_bfgs
 
     funcs = CalcFuncGradSpin(grid_in, occs_alpha_in, occs_beta_in, refdens_alpha_in, refdens_beta_in,
                              startpot_in * grid_in.r, lamb_tot, lamb_spin)
@@ -596,8 +602,8 @@ def reconstruct_spinpotential_sd(grid_in, refdens_alpha_in, refdens_beta_in, sta
 
 
 def reconstruct_restrpotential_sd(grid_in, refdens_tot_in, startpot_in, occs_in, ons, lamb, gradnorm=1e-8):
-    from bfgs_only_fprime import fmin_bfgs_onlygrad, fmin_newton_onlygrad
-    from scipy.optimize import fmin_bfgs
+    from bfgs_only_fprime import fmin_bfgs_onlygrad
+    # from scipy.optimize import fmin_bfgs
 
     funcs = CalcFuncGrad(grid_in, occs_in, refdens_tot_in, startpot_in * grid_in.r, ons, lamb)
 

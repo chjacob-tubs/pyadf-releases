@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 
 """
 kf.py - Implementation of a Python interface to read and write KF files.
@@ -9,7 +9,7 @@ Copyright (C) 2006-2008 by Scientific Computing and Modelling NV.
 For support, contact SCM support (support at scm . com)
 
 This file is part of the ADF software
-For more information, see <http://www.scm.com>
+For more information, see <https://www.scm.com>
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU Lesser General Public License as published by
@@ -34,7 +34,7 @@ import _kftools
 # --------------
 class PyADFException(Exception):
     def __init__(self, aMessage='A PyADFException occurred.'):
-        Exception.__init__(self, aMessage)
+        super().__init__(aMessage)
 
     # --------------
 
@@ -65,24 +65,13 @@ class KFType:
         pass
 
     def stringForData(self, data):
-        import string
-        try:
-            s = string.join(map(str, data), ' ')
-        except:
-            raise PyADFException('Failed to convert data to string')
-        return s
+        pass
 
-    def formatData(self, data, nperline, fmt):
-        s = ""
-        count = 0
-        for r in data:
-            count = count + 1
-            if count > nperline:
-                s = s + "\n"
-                count = 1
-            sstr = fmt % r
-            s = s + sstr
-        return s
+    @staticmethod
+    def formatData(data, nperline, fmt):
+        fmt_data = [fmt.format(r) for r in data]
+        fmt_lines = [''.join(fmt_data[i:i+nperline]) for i in range(0, len(fmt_data), nperline)]
+        return '\n'.join(fmt_lines)
 
     def len(self, d):
         return len(d)
@@ -102,7 +91,7 @@ class KFIntegerType(KFType):
         return int
 
     def stringForData(self, data):
-        return self.formatData(data, 8, "%10i")
+        return self.formatData(data, 8, "{:10d}")
 
 
 class KFRealType(KFType):
@@ -119,7 +108,7 @@ class KFRealType(KFType):
         return float
 
     def stringForData(self, data):
-        return self.formatData(data, 3, "%28.16e")
+        return self.formatData(data, 3, "{:28.16e}")
 
 
 class KFCharacterType(KFType):
@@ -145,7 +134,7 @@ class KFCharacterType(KFType):
             s1 = longstr[0:79]
             s2 = longstr[80:159]
             s = s + s1 + "\n" + s2 + "\n"
-        return s
+        return s[:-1]
 
 
 class KFLogicalType(KFType):
@@ -208,28 +197,40 @@ class kffile:
 
     env = None
 
-    def __init__(self, fileName):
+    def __init__(self, fileName, buffered=True):
         import os
         self._fileName = fileName
         if self.env is not None:
-            self._kfpath = self.env.setdefault('ADFBIN', '')
+            self._kfpath = self.env.setdefault('AMSBIN', '')
         else:
-            self._kfpath = os.environ.setdefault('ADFBIN', '')
+            self._kfpath = os.environ.setdefault('AMSBIN', '')
         self._contentsdict = None
+
+        self._changed = False
+
+        self._buffered = buffered
+        self._write_buffer = None
+        self._write_buffer_vars = []
 
         self._kftools_file = _kftools.KFFile(fileName)
 
-    def delete(self):
-        import os
-        os.remove(self._fileName)
-
     def close(self):
-        # for compatibility with binary version
-        pass
+        if self._buffered:
+            self._write_from_buffer()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.close()
+
+    def __del__(self):
+        self.close()
 
     def _readcontents(self):
         """Read the table of contents using dmpkf."""
-        import os, subprocess
+        import os
+        import subprocess
         curdir = os.getcwd()
         try:
             newdir = os.path.dirname(self._fileName)  # to shorten the filename. dmpkf does not like names too long
@@ -241,7 +242,7 @@ class kffile:
             DEVNULL = open(os.devnull, 'wb')
             s = subprocess.Popen(dumpCmd, stdout=subprocess.PIPE, stderr=DEVNULL,
                                  env=self.env).communicate()[0]
-        except:
+        except Exception:
             os.chdir(curdir)
             raise
         os.chdir(curdir)
@@ -270,7 +271,7 @@ class kffile:
         """Returns array of strings containing all section names."""
         if not self._contentsdict:
             self._contentsdict = self._readcontents()
-        sortedKeys = self._contentsdict.keys()
+        sortedKeys = list(self._contentsdict.keys())
         sortedKeys.sort()
         return sortedKeys
 
@@ -298,17 +299,34 @@ class kffile:
 
         # test it d is iterable; if not, make list out of it
         try:
-            it = iter(d)
+            _ = iter(d)
         except TypeError:
             d = [d]
 
         typ = KFTypeForEnum(dataEnum)
         ll = typ.len(d)
 
-        varString = '%s\n%s\n%10d%10d%10d\n%s\n' % (section, variable, ll, ll, dataEnum, typ.stringForData(d))
-        self._storeString(varString, section, variable)
+        varString = f'{section}\n{variable}\n{ll:10d}{ll:10d}{dataEnum:10d}\n{typ.stringForData(d)}\n'
 
-        self._kftools_file.reinit_reader()
+        if self._buffered:
+            self._write_buffer_vars.append((section, variable))
+            if self._write_buffer is None:
+                self._write_buffer = varString
+            else:
+                self._write_buffer = self._write_buffer + varString
+        else:
+            self._storeString(varString, [(section, variable)])
+
+        self._changed = True
+
+    def _write_from_buffer(self):
+        if self._write_buffer is not None:
+            self._storeString(self._write_buffer, self._write_buffer_vars)
+
+            self._write_buffer = None
+            self._write_buffer_vars = []
+
+            self._kftools_file.reinit_reader()
 
     def writereals(self, sec, var, data):
         self._write(sec, var, data, RealType)
@@ -323,24 +341,47 @@ class kffile:
         self._write(sec, var, data, CharacterType)
 
     def read(self, section, variable):
+        if self._buffered and self._changed:
+            self._write_from_buffer()
+        if self._changed:
+            self._kftools_file.reinit_reader()
+            self._changed = False
         return self._kftools_file.read(section, variable, return_as_list=True)
 
-    def _storeString(self, sstr, sec, var):
+    def _storeString(self, sstr, sec_vars):
         """
         Copies the string passed, into the binary kf file.
         Assumes udmpkf can parse the string.
         """
-        import os, subprocess
+        import os
+        import subprocess
         import tempfile
 
         # Undump string data with udmpkf
-        path = tempfile.mktemp(dir=os.getcwd())
+        with tempfile.NamedTemporaryFile(dir=os.getcwd(), delete=False) as tf:
+            path = tf.name
+            tf.file.close()
+            os.remove(path)
 
         udumpCmd = os.path.join(self._kfpath, 'udmpkf')
 
-        DEVNULL = open(os.devnull, 'wb')
-        subprocess.Popen([udumpCmd, path], stdin=subprocess.PIPE, stderr=DEVNULL,
-                         env=self.env).communicate(input=sstr)
+        # The following code is much nicer, but adds an approximately
+        # 20-fold overhead due to the communication of the string to
+        # the subprocess.
+        #
+        # DEVNULL = open(os.devnull, 'wb')
+        # subprocess.Popen([udumpCmd, path], stdin=subprocess.PIPE, stderr=DEVNULL,
+        #                  env=self.env).communicate(input=sstr)
+
+        # This is an ugly, but much faster workaround:
+        # We write the string to a temporary file, and then use a shell pipe
+
+        with tempfile.NamedTemporaryFile() as tf_sstr:
+            path_sstr = tf_sstr.name
+            tf_sstr.write(sstr.encode())
+            tf_sstr.file.close()
+
+            subprocess.call(f'{udumpCmd} {path} < {path_sstr}', shell=True, env=self.env)
 
         # Work around start script bug: __0 files only renamed in current directory
         if os.path.isfile(path + '__0'):
@@ -348,7 +389,10 @@ class kffile:
 
         # Use cpkf to merge the two binary files
         copyCmd = os.path.join(self._kfpath, 'cpkf')
-        copyCmd = [copyCmd, path, self._fileName,  sec + '%' + var]
+        copyCmd = [copyCmd, path, self._fileName]
+
+        for sec, var in sec_vars:
+            copyCmd.append(sec + '%' + var)
 
         DEVNULL = open(os.devnull, 'wb')
         subprocess.Popen(copyCmd, stderr=DEVNULL, env=self.env).wait()
@@ -359,105 +403,3 @@ class kffile:
 
 def setup_kf_environment(env):
     kffile.env = env
-
-
-# ---------------
-# Unit tests
-# ---------------
-from unittest import *
-
-
-class KFFileTests(TestCase):
-    """
-    Unit tests for the KFFile class.
-    """
-
-    def setUp(self):
-        import tempfile
-        import os.path
-        self.kfPath = os.path.join(tempfile.gettempdir(), 'KFFileTests_TAPE21')
-        self.kf = kffile(self.kfPath)
-
-    def tearDown(self):
-        import os
-        if os.path.isfile(self.kfPath):
-            os.remove(self.kfPath)
-
-    def testLogicals(self):
-        lint = 1
-        self.kf.writelogicals('Logicals', 'scalar true', lint)
-        linf = 0
-        self.kf.writelogicals('Logicals', 'scalar false', linf)
-        lout = self.kf.read('Logicals', 'scalar true')
-        self.assertEqual(lout[0], lint)
-        self.assertEqual(len(lout), 1)
-        lout = self.kf.read('Logicals', 'scalar false')
-        self.assertEqual(lout[0], linf)
-        self.assertEqual(len(lout), 1)
-        lin = numpy.array([0, 1, 0, 1])
-        self.kf.writelogicals('Logicals', 'list', lin)
-        lout = self.kf.read('Logicals', 'list')
-        numpy.testing.assert_equal(lout, lin)
-
-    def testReals(self):
-        rin = 3.14
-        self.kf.writereals('Reals', 'scalar', rin)
-        rout = self.kf.read('Reals', 'scalar')
-        self.assertEqual(rin, rout[0])
-        rin = [0.0, 3.14, -1.0e-16, 3e24]
-        self.kf.writereals('Reals', 'list', rin)
-        rout = self.kf.read('Reals', 'list')
-        numpy.testing.assert_equal(rin, rout)
-
-    def testChars(self):
-        cin = "This is a long character string to test the pykf stuff, will it work or will it not? "+\
-              "The string certainly is long."
-        self.kf.writechars('String', 'scalar', cin)
-        cout = self.kf.read('String', 'scalar')
-        self.assertEqual(cin, cout[0])
-        cin = ["String 1", "String 2", "Yet another String"]
-        self.kf.writechars('String', 'list', cin)
-        cout = self.kf.read('String', 'list')
-        numpy.testing.assert_equal(cin, cout)
-
-    def testInts(self):
-        iin = 3
-        self.kf.writeints('Ints', 'scalar', iin)
-        iout = self.kf.read('Ints', 'scalar')
-        self.assertEqual(iin, iout[0])
-        iin = [0, 1, 2, 3, 4, 5, -123]
-        self.kf.writereals('Ints', 'list', iin)
-        iout = self.kf.read('Ints', 'list')
-        numpy.testing.assert_equal(iin, iout)
-
-    def testNone(self):
-        self.kf.writeints('Bla', 'BlaBla', 1)
-        with self.assertRaises(KeyError):
-            res = self.kf.read('Blurb', 'jojo')
-
-    def testCasesensitive(self):
-        i = 0
-        self.kf.writeints('Names', 'Aap', i)
-        with self.assertRaises(KeyError):
-            ii = self.kf.read('Names', 'aap')
-        with self.assertRaises(KeyError):
-            ii = self.kf.read('names', 'Aap')
-        ii = self.kf.read('Names', 'Aap')
-        self.assertEqual(ii[0], i)
-
-    def testDeleteFile(self):
-        import os
-        self.kf.writechars('Test', 'string', "Hello World")
-        self.failUnless(os.path.isfile(self.kfPath))
-        self.kf.delete()
-        self.failIf(os.path.isfile(self.kfPath))
-
-
-def runTests():
-    allTestsSuite = TestSuite([makeSuite(KFFileTests, 'test')])
-    runner = TextTestRunner()
-    runner.run(allTestsSuite)
-
-
-if __name__ == "__main__":
-    runTests()

@@ -1,12 +1,10 @@
-# -*- coding: utf-8 -*-
-
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2021 by Christoph R. Jacob, Tobias Bergmann,
-# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Thomas Dresselhaus,
-# Andre S. P. Gomes, Andreas Goetz, Michal Handzlik, Karin Kiewisch,
-# Moritz Klammler, Lars Ridder, Jetze Sikkema, Lucas Visscher, and
-# Mario Wolter.
+# Copyright (C) 2006-2022 by Christoph R. Jacob, Tobias Bergmann,
+# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Maria Chekmeneva,
+# Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz, 
+# Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder, 
+# Jetze Sikkema, Lucas Visscher, Johannes Vornweg and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -19,7 +17,7 @@
 #    GNU General Public License for more details.
 #
 #    You should have received a copy of the GNU General Public License
-#    along with PyADF.  If not, see <http://www.gnu.org/licenses/>.
+#    along with PyADF.  If not, see <https://www.gnu.org/licenses/>.
 
 from xml.sax.handler import ContentHandler
 from xml.sax import make_parser
@@ -32,6 +30,8 @@ import numpy
 class GridHandler(ContentHandler):
 
     def __init__(self, file_name):
+        super().__init__()
+
         self.data_name = 'dataset'
         self.data_grid = 'grid'
         self.data_tape = file_name
@@ -104,7 +104,7 @@ class GridHandler(ContentHandler):
             # get one block of points
             block = self.data[ipoint:ipoint + self.lblock]
             # points have to be written in Fortran ordering !
-            block = block.flatten(True)
+            block = block.flatten(order='F')
 
             outdata[iblock, :] = block
 
@@ -122,7 +122,7 @@ class GridHandler(ContentHandler):
         else:
             self.dummypoints = self.lblock - (self.npoints % self.lblock)
         self.npoints_total = self.npoints + self.dummypoints
-        self.nblock = self.npoints_total / self.lblock
+        self.nblock = self.npoints_total // self.lblock
 
         # FIXME: nspin = 1 hardcoded
         self.outfile.writeints('General', 'nspin', 1)

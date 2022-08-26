@@ -1,12 +1,10 @@
-# -*- coding: utf-8 -*-
-
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2021 by Christoph R. Jacob, Tobias Bergmann,
-# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Thomas Dresselhaus,
-# Andre S. P. Gomes, Andreas Goetz, Michal Handzlik, Karin Kiewisch,
-# Moritz Klammler, Lars Ridder, Jetze Sikkema, Lucas Visscher, and
-# Mario Wolter.
+# Copyright (C) 2006-2022 by Christoph R. Jacob, Tobias Bergmann,
+# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Maria Chekmeneva,
+# Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz, 
+# Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder, 
+# Jetze Sikkema, Lucas Visscher, Johannes Vornweg and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -19,14 +17,15 @@
 #    GNU General Public License for more details.
 #
 #    You should have received a copy of the GNU General Public License
-#    along with PyADF.  If not, see <http://www.gnu.org/licenses/>.
+#    along with PyADF.  If not, see <https://www.gnu.org/licenses/>.
 
 
-from Errors import PyAdfError
-from BaseJob import results, job
+from .Errors import PyAdfError
+from .BaseJob import job
+from .DensityEvaluator import GTODensityEvaluatorMixin
 
 
-class OrcaResults(results):
+class OrcaResults(GTODensityEvaluatorMixin):
     """
 
     Class for results of a Orca calculation.
@@ -35,7 +34,8 @@ class OrcaResults(results):
         __init__
     @group Retrieval of specific results:
         get_singlepointenergy, get_optimized_molecule,
-        get_dipole_vector, get_dipole_magnitude
+        get_dipole_vector, get_dipole_magnitude,
+        get_hess_value, get_frequencies, get_intensities
 
     """
 
@@ -43,8 +43,8 @@ class OrcaResults(results):
         """
         Constructor
         """
+        super().__init__(j)
         self.resultstype = "Orca results"
-        results.__init__(self, j)
 
     def get_gwb_filename(self):
         return self.files.get_results_filename(self.fileid, tape=21)
@@ -77,6 +77,137 @@ class OrcaResults(results):
             raise PyAdfError("ORCA geometry optimization xyz file not found")
         return fn
 
+    def get_hess_filename(self):
+        try:
+            fn = self.files.get_results_filename(self.fileid, tape=42)
+        except PyAdfError:
+            raise PyAdfError("ORCA frequencies hessian file not found")
+        return fn
+
+    @staticmethod
+    def _fix_orca_molden_file(file_contents):
+        """
+        Orca writes non-standard molden files, which need to be fixed
+        in order to agree with the common convention.
+
+        This method builds on the detective work that the developers
+        of the multiwfn project (see http://sobereva.com/multiwfn/)
+        have done, in particular the comments in multiwfn's fileIO.f90.
+        """
+        import math
+        import scipy.special
+
+        lval_dict = {'s': 0, 'p': 1, 'd': 2, 'f': 3, 'g': 4, 'h': 5, 'i': 6, 'j': 7}
+
+        lines = file_contents.splitlines()
+        lines_basis_fixed = []
+
+        section = None
+        lval = None
+        nbas = 0
+
+        aos_to_invert = []
+
+        for line in lines:
+            if line.startswith('['):
+                section = line[1:line.index(']')].upper()
+                lines_basis_fixed.append(line)
+            elif line and section == 'GTO':
+                dat = line.split()
+                if dat[0].lower() in lval_dict:
+                    lval = lval_dict[dat[0].lower()]
+                    nbas = nbas + (2 * lval + 1)
+
+                    if lval == 3:  # f functions; f(+3) and f(-3) need to be changed
+                        aos_to_invert.append(nbas - 1)
+                        aos_to_invert.append(nbas)
+                    elif lval == 4:  # g functions; (+/- 3) and (+/- 4) need to be changed
+                        aos_to_invert.append(nbas - 3)
+                        aos_to_invert.append(nbas - 2)
+                        aos_to_invert.append(nbas - 1)
+                        aos_to_invert.append(nbas)
+                    elif lval == 5:  # h functions; (+/- 3) and (+/- 4) need to be changed
+                        aos_to_invert.append(nbas - 5)
+                        aos_to_invert.append(nbas - 4)
+                        aos_to_invert.append(nbas - 3)
+                        aos_to_invert.append(nbas - 2)
+                    # there might be more problems with higher l, but usually
+                    # molden files cannot handle those anyways
+
+                    lines_basis_fixed.append(line)
+                elif not dat[0].isdigit():
+                    exponent = float(dat[0])
+                    coeff = float(dat[1])
+
+                    # correct the normalization of the basis functions
+                    # Orca includes the normalization constants in the
+                    # contraction coefficients, which needs to be corrected
+                    renorm = math.sqrt(2.0 * (2.0 * exponent)**(lval + 1.5) / scipy.special.gamma(lval + 1.5))
+                    renorm = renorm * math.sqrt(1.0 / (4.0 * math.pi))
+
+                    # with this correction, the (contracted) Orca basis functions
+                    # might not be normalized to one, but this is corrected by
+                    # PySCF by default, and the MO coefficients correctly refer
+                    # to the normalized basis functions
+
+                    fixed_line = f'{exponent:21.10f} {coeff / renorm:21.10f}'
+                    lines_basis_fixed.append(fixed_line)
+                else:
+                    lines_basis_fixed.append(line)
+
+            else:
+                lines_basis_fixed.append(line)
+
+        # now we do a second pass in which we correct the MO coefficients
+        # Orca molden files use the wrong sign for F(+/-3), G(+/-3), G(+/-4),
+        # H(+/-3) and H(+/-4)
+        # Above, the relevant AO numbers have been identified and collected
+        # in the list aos_to_invert
+
+        lines_mos_fixed = []
+
+        for line in lines_basis_fixed:
+            if line.startswith('['):
+                section = line[1:line.index(']')].upper()
+                lines_mos_fixed.append(line)
+            elif line and section == 'MO':
+                dat = line.split()
+                if dat[0].isdigit():
+                    nao = int(dat[0])
+                    coeff = float(dat[1])
+                    if nao in aos_to_invert:
+                        coeff = -coeff
+                    fixed_line = f"{nao:5d} {coeff:20.12f}"
+                    lines_mos_fixed.append(fixed_line)
+                else:
+                    lines_mos_fixed.append(line)
+            else:
+                lines_mos_fixed.append(line)
+
+        file_contents_fixed = '\n'.join(lines_mos_fixed)
+
+        return file_contents_fixed
+
+    def read_molden_file(self):
+        """
+        Returns Molden results file as a string.
+
+        Orca writes non-standard molden files, which are fixed
+        here on the fly (see L{_fix_orca_molden_file}).
+        """
+
+        try:
+            molden_filename = self.files.get_results_filename(self.fileid, tape=41)
+        except PyAdfError:
+            raise PyAdfError("ORCA Molden file not found")
+
+        with open(molden_filename, encoding='utf-8') as f:
+            content = f.read()
+
+        content = self._fix_orca_molden_file(content)
+
+        return content
+
     def get_energy(self):
         import re
 
@@ -90,7 +221,7 @@ class OrcaResults(results):
         return energy
 
     def get_molecule(self):
-        from Molecule import molecule
+        from .Molecule import molecule
 
         try:
             xyz_fn = self.get_xyz_filename()
@@ -109,17 +240,48 @@ class OrcaResults(results):
                 found = i
         if found is None:
             raise PyAdfError('Dipole moment not found in ORCA properties file')
-        vector = lines[found+2].strip().split()
-        vector = [float(vector[ii]) for ii in range(1,4)]
+        vector = [float(ii.split()[1]) for ii in lines[found+2:found+5]]
         return vector
 
+    def get_hess_values(self, values):
+        if max(values) > 5 :
+            raise PyAdfError('IR spectrum entry only contains 6 colums!')
 
-class OrcaSettings(object):
+        hess_fn = self.get_hess_filename()
+
+        with open(hess_fn) as f:
+            lines = f.readlines()
+        found = None
+        for i, ll in enumerate(lines):
+            if ll.startswith('$ir_spectrum'):
+                found = i
+        if found is None:
+            raise PyAdfError('IR spectrum not found in ORCA hess file')
+
+        n_values = int(lines[found+1].strip())
+
+        hess_values = []
+
+        for i in range(found+8,found+n_values+2):
+            sequence = lines[i].strip().split()
+            hess_values.append([float(sequence[n]) for n in values])
+
+        return hess_values
+
+    def get_frequencies(self):
+        freqs = self.get_hess_values([0])
+        return freqs
+
+    def get_intensities(self):
+        ints = self.get_hess_values([2])
+        return ints
+
+class OrcaSettings:
     """
     Class that holds the settings for a orca calculation
     """
 
-    def __init__(self, method='DFT', basis='def2-SVP', functional='LDA', ri=True, maxiter=None):
+    def __init__(self, method='DFT', basis='def2-SVP', functional='LDA', ri=None, disp=False, maxiter=None):
         """
         Constructor for OrcaSettings.
 
@@ -132,7 +294,7 @@ class OrcaSettings(object):
         @type  functional: str
         @param basis: the basis set for the calculation
         @type  basis: str
-        @param ri:  C{True} to switch on RI approximation, C{False} to switch off.
+        @param ri:  C{True} to switch on RI approximation, C{False} to switch off; C{None} to use method's default.
         @type  ri:  L{bool}
         @param maxiter: the maximum number of SCF iterations
         @type  maxiter: int
@@ -140,8 +302,9 @@ class OrcaSettings(object):
         # declare all
         self.method = None
         self.basis = None
-        self.functional = None
+        self._functional = None
         self.ri = None
+        self.disp = None
         self.maxiter = None
         self.extra_keywords = None
         self.extra_blocks = None
@@ -149,9 +312,20 @@ class OrcaSettings(object):
         # initialize the setter
         self.set_method(method)
         self.set_basis(basis)
-        self.set_functional(functional)
+        if self.method == 'DFT':
+            self.set_functional(functional)
         self.set_ri(ri)
+        self.set_disp(disp)
         self.set_maxiter(maxiter)
+
+    def set_method(self, method):
+        """
+        Select the computational method.
+
+        @param method: string identifying the selected method.
+        @type  method: str
+        """
+        self.method = method.upper()
 
     def set_basis(self, basisset):
         """
@@ -162,6 +336,13 @@ class OrcaSettings(object):
         """
         self.basis = basisset
 
+    @property
+    def functional(self):
+        if self.method == 'DFT':
+            return self._functional
+        else:
+            return None
+
     def set_functional(self, functional):
         """
         Select the exchange-correlation functional for DFT.
@@ -171,7 +352,10 @@ class OrcaSettings(object):
             See Orca manual for available options.
         @type functional: str
         """
-        self.functional = functional
+        if self.method == 'DFT':
+            self._functional = functional
+        else:
+            raise PyAdfError('Functional can only be set for DFT calculations')
 
     def set_ri(self, value):
         """
@@ -180,7 +364,21 @@ class OrcaSettings(object):
         @param value:  C{True} to switch on RI approximation, C{False} to switch off.
         @type  value:  L{bool}
         """
-        self.ri = value
+        if value is None:
+            self.ri = (self.method == 'DFT')
+        else:
+            self.ri = value
+
+    def set_disp(self, dispersion):
+        """
+        Set dispersion correction
+
+        @param dispersion:  A string identifying the dispersion correction.
+        @type  dispersion:  bool or str
+        """
+        if dispersion not in ['D3', 'D3BJ', 'D3Zero', 'D4', True, False]:
+            raise PyAdfError('Unknown dispersion correction in OrcaJob')
+        self.disp = dispersion
 
     def set_maxiter(self, maxiter):
         """
@@ -215,15 +413,6 @@ class OrcaSettings(object):
             else:
                 self.extra_keywords = kws
 
-    def set_method(self, method):
-        """
-        Select the computational method.
-
-        @param method: string identifying the selected method.
-        @type  method: str
-        """
-        self.method = method.upper()
-
     def set_extra_block(self, block, append=False):
         """
         Set additional input blocks for the calculation
@@ -251,16 +440,16 @@ class OrcaSettings(object):
         @returns: Text block
         @rtype:   L{str}
         """
-        s = '   Method: %s ' % self.method
+        s = f'   Method: {self.method} '
         if self.ri:
             s += '(RI: ON) \n'
         else:
             s += '(RI: OFF) \n'
-        s += '   Basis Set: %s \n' % self.basis
+        s += f'   Basis Set: {self.basis} \n'
         if self.method == 'DFT':
-            s += '   Exchange-correlation functional: %s \n' % self.functional
+            s += f'   Exchange-correlation functional: {self.functional} \n'
         if self.maxiter is not None:
-            s += '   Maximum number of SCF iterations %i \n' % self.maxiter
+            s += f'   Maximum number of SCF iterations {self.maxiter:d} \n'
         if self.extra_keywords is not None:
             s += '   Extra keywords: ' + str(self.extra_keywords)
         if self.extra_blocks is not None:
@@ -269,7 +458,11 @@ class OrcaSettings(object):
         return s
 
     def get_keywords(self):
-        kws = [self.basis]
+        kws = [self.basis, self.method]
+        if self.method == 'DFT':
+            kws.append(self.functional)
+        if self.disp:
+            kws.append(self.disp)
         if self.ri:
             kws.append('RI')
         else:
@@ -278,26 +471,16 @@ class OrcaSettings(object):
             kws = kws + self.extra_keywords
         return kws
 
-    def get_method_block(self):
-        block = ''
-        block += "%method\n"
-        block += "method " + self.method + "\n"
-        if self.method == 'DFT':
-            block += "functional " + self.functional + "\n"
-        block += "end\n"
-        return block
-
     def get_scf_block(self):
         block = ''
         if self.maxiter is not None:
             block += "%scf\n"
-            block += "MaxIter %i \n" % self.maxiter
+            block += f"MaxIter {self.maxiter:d} \n"
             block += "end\n"
         return block
 
     def get_input_blocks(self):
         blocks = ''
-        blocks += self.get_method_block()
         blocks += self.get_scf_block()
 
         if self.extra_blocks is not None:
@@ -325,7 +508,7 @@ class OrcaJob(job):
         else:
             self.settings = settings
 
-        job.__init__(self)
+        super().__init__()
 
     def print_jobtype(self):
         return "Orca job"
@@ -348,16 +531,19 @@ class OrcaJob(job):
         runscript += "fi\n"
         runscript += "retcode=$?\n"
 
+        runscript += "$ORCA_PATH/orca_2mkl INPUT -molden\n"
+
         runscript += "rm INPUT.inp\n"
         runscript += "exit $retcode\n"
 
         return runscript
 
     def result_filenames(self):
-        return ['INPUT.gbw', 'INPUT_property.txt', 'INPUT.engrad', 'INPUT.xyz', 'INPUT_trj.xyz']
+        return ['INPUT.gbw', 'INPUT_property.txt', 'INPUT.engrad', 'INPUT.xyz',
+                'INPUT_trj.xyz', 'INPUT.molden.input', 'INPUT.hess']
 
     def check_success(self, outfile, errfile):
-        f = open(outfile)
+        f = open(outfile, encoding="utf-8")
         success = False
         for ll in f.readlines()[-10:]:
             if '**ORCA TERMINATED NORMALLY**' in ll:
@@ -380,7 +566,7 @@ class OrcaJob(job):
         block = ''
         if nproc > 1:
             block += "%pal\n"
-            block += "nprocs %i \n" % nproc
+            block += f"nprocs {nproc:d} \n"
             block += "end\n"
         return block
 
@@ -389,7 +575,7 @@ class OrcaJob(job):
         orcafile = "! " + ' '.join(self.get_keywords()) + "\n"
         orcafile += self.get_input_blocks(nproc) + "\n"
 
-        orcafile += "*xyz %i %i \n" % (self.mol.get_charge(), self.mol.get_spin()+1)
+        orcafile += f"*xyz {self.mol.get_charge():d} {self.mol.get_spin() + 1:d} \n"
         xyz_file = self.mol.get_xyz_file()
         orcafile += ''.join(xyz_file.splitlines(True)[2:])
         orcafile += "*\n"
@@ -399,36 +585,37 @@ class OrcaJob(job):
     def create_results_instance(self):
         return OrcaResults(self)
 
-    def get_checksum(self):
+    @property
+    def checksum(self):
         import hashlib
 
         m = hashlib.md5()
-        m.update(self.get_orcafile())
-        return m.digest()
+        m.update(self.get_orcafile().encode('utf-8'))
+        return m.hexdigest()
 
     def print_molecule(self):
 
-        print "   Molecule"
-        print "   ========"
-        print
-        print self.get_molecule()
-        print
+        print("   Molecule")
+        print("   ========")
+        print()
+        print(self.get_molecule())
+        print()
 
     def print_settings(self):
 
-        print "   Settings"
-        print "   ========"
-        print
-        print self.settings
-        print
+        print("   Settings")
+        print("   ========")
+        print()
+        print(self.settings)
+        print()
 
     def print_extras(self):
         pass
 
     def print_jobinfo(self):
-        print " " + 50 * "-"
-        print " Running " + self.print_jobtype()
-        print
+        print(" " + 50 * "-")
+        print(" Running " + self.print_jobtype())
+        print()
 
         self.print_molecule()
 
@@ -445,7 +632,7 @@ class OrcaSinglePointJob(OrcaJob):
     """
 
     def __init__(self, mol, settings=None):
-        OrcaJob.__init__(self, mol, settings)
+        super().__init__(mol, settings)
 
     def print_jobtype(self):
         return "Orca single point job"
@@ -462,10 +649,43 @@ class OrcaGeometryOptimizationJob(OrcaJob):
     """
 
     def __init__(self, mol, settings=None):
-        OrcaJob.__init__(self, mol, settings)
+        super().__init__(mol, settings)
 
     def print_jobtype(self):
         return "Orca geometry optimization job"
 
     def get_keywords(self):
-        return ['Opt'] + self.settings.get_keywords()
+        return ['OPT'] + self.settings.get_keywords()
+
+
+class OrcaFrequenciesJob(OrcaJob):
+    """
+    A class for Orca frequencies jobs.
+
+    Corresponding results class: L{OrcaResults}
+    """
+
+    def __init__(self, mol, settings=None):
+        super().__init__(mol, settings)
+
+    def print_jobtype(self):
+        return "Orca frequencies job"
+
+    def get_keywords(self):
+        return ['FREQ'] + self.settings.get_keywords()
+
+class OrcaOptFrequenciesJob(OrcaGeometryOptimizationJob):
+    """
+    A class for Orca optimization and frequencies jobs.
+
+    Corresponding results class: L{OrcaResults}
+    """
+
+    def __init__(self, mol, settings=None):
+        super().__init__(mol, settings)
+
+    def print_jobtype(self):
+        return "Orca optimization and frequencies job"
+
+    def get_keywords(self):
+        return ['OPT FREQ'] + self.settings.get_keywords()

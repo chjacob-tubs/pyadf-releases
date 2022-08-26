@@ -1,12 +1,10 @@
-# -*- coding: utf-8 -*-
-
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2021 by Christoph R. Jacob, Tobias Bergmann,
-# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Thomas Dresselhaus,
-# Andre S. P. Gomes, Andreas Goetz, Michal Handzlik, Karin Kiewisch,
-# Moritz Klammler, Lars Ridder, Jetze Sikkema, Lucas Visscher, and
-# Mario Wolter.
+# Copyright (C) 2006-2022 by Christoph R. Jacob, Tobias Bergmann,
+# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Maria Chekmeneva,
+# Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz, 
+# Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder, 
+# Jetze Sikkema, Lucas Visscher, Johannes Vornweg and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -19,7 +17,7 @@
 #    GNU General Public License for more details.
 #
 #    You should have received a copy of the GNU General Public License
-#    along with PyADF.  If not, see <http://www.gnu.org/licenses/>.
+#    along with PyADF.  If not, see <https://www.gnu.org/licenses/>.
 """
  JobRunner classes for PyADF.
 
@@ -29,16 +27,15 @@
 
 """
 
-from PatternsLib import Singleton
-from Errors import PyAdfError
-from JobRunnerConfiguration import JobRunnerConfiguration
+from .PatternsLib import Singleton
+from .Errors import PyAdfError
+from .JobRunnerConfiguration import JobRunnerConfiguration
 
 
-class JobRunner(object):
+class JobRunner(metaclass=Singleton):
     """
     Abstract base class for job runners.
     """
-    __metaclass__ = Singleton
 
     def __init__(self, conf=None):
         if conf is None:
@@ -65,9 +62,9 @@ class SerialJobRunner(JobRunner):
     """
 
     def __init__(self, conf=None):
-        JobRunner.__init__(self, conf)
+        super().__init__(conf)
 
-        from Files import adf_filemanager
+        from .Files import adf_filemanager
         self._files = adf_filemanager()
 
     def write_runscript_and_execute(self, job):
@@ -75,7 +72,7 @@ class SerialJobRunner(JobRunner):
         import os
         import stat
         import subprocess
-        from Utils import newjobmarker
+        from .Utils import newjobmarker
 
         job.before_run()
 
@@ -89,10 +86,10 @@ class SerialJobRunner(JobRunner):
         rsname = './pyadf_runscript'
         f = open(rsname, 'w')
 
-        f.write("#!%s \n\n" % self._conf.default_shell)
+        f.write(f"#!{self._conf.default_shell} \n\n")
 
         for mod in self._conf.get_env_modules_for_job(job):
-            f.write('module load %s \n' % mod)
+            f.write(f'module load {mod} \n')
         f.write('\n')
 
         f.write(runscript)
@@ -128,17 +125,18 @@ class SerialJobRunner(JobRunner):
 
         job.print_jobinfo()
 
-        print "   Output will be written to : ", \
-            os.path.basename(self._files.outputfilename)
-        print
+        print("   Output will be written to : ",
+              os.path.basename(self._files.outputfilename))
+        print()
 
-        checksum = job.get_checksum()
+        checksum = job.checksum
         fileid = self._files.get_id(checksum)
 
         if fileid is None:
-            print " Running main job ..."
+            print(" Running main job ...")
 
             cwd = os.getcwd()
+
             os.mkdir('jobtempdir')
             os.chdir('jobtempdir')
 
@@ -148,26 +146,27 @@ class SerialJobRunner(JobRunner):
                 for f in job.result_filenames():
                     if os.path.exists(f):
                         shutil.copy(f, cwd)
-            finally:
                 os.chdir(cwd)
 
-            r = job.create_results_instance()
-            self._files.add_results(r)
+                r = job.create_results_instance()
+                self._files.add_results(r)
 
-            os.system('rm -rf jobtempdir')
+            finally:
+                os.chdir(cwd)
+                os.system('rm -rf jobtempdir')
 
         else:
-            print "Job was found in results archive - not running it again"
+            print("Job was found in results archive - not running it again")
 
             r = job.create_results_instance()
             r.fileid = fileid
 
         r._checksum = checksum
 
-        print " Done with " + job.print_jobtype()
-        print
-        print " Results file id is ", r.fileid
-        print
+        print(" Done with " + job.print_jobtype())
+        print()
+        print(" Results file id is ", r.fileid)
+        print()
 
         return r
 

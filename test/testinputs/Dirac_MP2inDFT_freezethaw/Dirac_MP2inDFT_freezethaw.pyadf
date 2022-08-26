@@ -1,43 +1,46 @@
-import shutil
+import os
+from pyadf import *
+if 'pyadfenv' not in globals():
+    from pyadf.Initialization import *
 
-file_h2o_1 = os.path.join (pyadfenv.outdir, 'FDE-H2O-1.xyz')
-file_h2o_2 = os.path.join (pyadfenv.outdir, 'FDE-H2O-2.xyz')
-file_mol   = os.path.join (pyadfenv.outdir, 'FDE-mol.xyz')
+file_h2o_1 = os.path.join(pyadfenv.outdir, 'FDE-H2O-1.xyz')
+file_h2o_2 = os.path.join(pyadfenv.outdir, 'FDE-H2O-2.xyz')
+file_mol = os.path.join(pyadfenv.outdir, 'FDE-mol.xyz')
 
 m_h2o_1 = molecule(file_h2o_1)
 m_h2o_2 = molecule(file_h2o_2)
-m_mol   = molecule(file_mol)
+m_mol = molecule(file_mol)
 
 m_tot = m_mol + m_h2o_1 + m_h2o_2
 
-print m_tot.print_coordinates()
+print(m_tot.print_coordinates())
 
 # Prepare first water molecule
-r_h2o_1 = adfsinglepointjob( m_h2o_1, 'SZ', options=['NOSYMFIT']).run()
+r_h2o_1 = adfsinglepointjob(m_h2o_1, 'SZ', options=['NOSYMFIT']).run()
 
 # Prepare second water molecule
-r_h2o_2 = adfsinglepointjob( m_h2o_2, 'SZ', options=['NOSYMFIT']).run()
+r_h2o_2 = adfsinglepointjob(m_h2o_2, 'SZ', options=['NOSYMFIT']).run()
 
 dft_part_settings = adfsettings()
 # save TAPE10 is needed for exporting the FDE potential
-dft_part_settings.set_save_tapes([21,10])
+dft_part_settings.set_save_tapes([21, 10])
 dft_part_settings.set_functional('BP86')
 dft_part_settings.set_integration(accint=4.0)
 
-frags = [fragment(r_h2o_1, [m_h2o_1], isfrozen=True, fdeoptions={"RELAX":""}),
+frags = [fragment(r_h2o_1, [m_h2o_1], isfrozen=True, fdeoptions={"RELAX": ""}),
          fragment(r_h2o_2, [m_h2o_2], isfrozen=True),
-	 fragment(None,    [m_mol]  ) ]
+         fragment(None, [m_mol])]
 
 wft_settings = diracsettings(method='MP2', hamiltonian='DC',
-                             transform=['all'], properties=['dipole','efg','nqcc'])
+                             transform=['all'], properties=['dipole', 'efg', 'nqcc'])
 
-adfoptions   = { "basis":"DZP",     "settings":dft_part_settings, "options":['NOSYM'], "fde":{'RELAXCYCLES':2}}
-diracoptions = { "basis":"cc-pVDZ", "settings":wft_settings }
+adfoptions = {"basis": "DZP", "settings": dft_part_settings, "options": ['NOSYM'], "fde": {'RELAXCYCLES': 2}}
+diracoptions = {"basis": "cc-pVDZ", "settings": wft_settings}
 
 #
 # will do freeze-thaw cycles between dirac and adf
 #
-wftindft_res = wftindftjob( frags, adfoptions, diracoptions).run()
+wftindft_res = wftindftjob(frags, adfoptions, diracoptions).run()
 
 #
 # now on to extracting results
@@ -45,17 +48,16 @@ wftindft_res = wftindftjob( frags, adfoptions, diracoptions).run()
 # first the hartree-fock dipole moment
 #
 dipole_vect = wftindft_res.get_dipole_vector()
-print "Dipole moment (DHF) for FDE water molecule (Dirac): ", dipole_vect
+print("Dipole moment (DHF) for FDE water molecule (Dirac): ", dipole_vect)
 
-if 'unittesting' in pyadfenv.options :
-    testobj.assertAlmostEqual(dipole_vect, [ 0.00000000, 0.0011902997, 0.87999239], 4)
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(dipole_vect, [0.00000000, 0.0011902997, 0.87999239], 4)
 
 #
 # and now the mp2 dipole moment
 #
 dipole_vect = wftindft_res.get_dipole_vector(level='MP2')
-print "Dipole moment (MP2) for FDE water molecule (Dirac): ", dipole_vect
+print("Dipole moment (MP2) for FDE water molecule (Dirac): ", dipole_vect)
 
-if 'unittesting' in pyadfenv.options :
-    testobj.assertAlmostEqual(dipole_vect, [ 0.00000000, 0.00119886, 0.842910438], 4)
-
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(dipole_vect, [0.00000000, 0.00119886, 0.842910438], 4)

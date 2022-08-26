@@ -1,26 +1,30 @@
+import os
+from pyadf import *
+if 'pyadfenv' not in globals():
+    from pyadf.Initialization import *
 
 mol_ref = molecule(os.path.join(pyadfenv.outdir, 'plus-2.xyz'))
-mol_mv  = molecule(os.path.join(pyadfenv.outdir, 'minus-2.xyz'))
+mol_mv = molecule(os.path.join(pyadfenv.outdir, 'minus-2.xyz'))
 
 # list of atoms in the indole ring
-indole = [20] + range(23, 37)
+indole = [20] + list(range(23, 37))
 
 # rotate and translate mol_mv such that the indole rings are aligned
 rotmat, transvec = mol_mv.align(mol_ref, indole)
 
-print "Rotation matrix: "
-print rotmat
-testobj.assertAlmostEqual(rotmat, [[-0.95663663,  0.19593333, -0.21553766],
-                                   [0.27171306,  0.86690498, -0.41790881],
+print("Rotation matrix: ")
+print(rotmat)
+testobj.assertAlmostEqual(rotmat, [[-0.95663663, 0.19593333, -0.21553766],
+                                   [0.27171306, 0.86690498, -0.41790881],
                                    [0.10496841, -0.45835127, -0.88255070]], 3)
 
-print "Translation vector: "
-print transvec
+print("Translation vector: ")
+print(transvec)
 testobj.assertAlmostEqual(transvec, [0.82692685, 2.2025666, 1.45990422], 3)
 
 # check the rotated and translated molecule
 mol_ref_orig = molecule(os.path.join(pyadfenv.outdir, 'plus-2.xyz'))
-mol_aligned  = molecule(os.path.join(pyadfenv.outdir, 'aligned.xyz'))
+mol_aligned = molecule(os.path.join(pyadfenv.outdir, 'aligned.xyz'))
 
 testobj.assertAlmostEqualMolecules(mol_ref, mol_ref_orig)
 testobj.assertAlmostEqualMolecules(mol_mv, mol_aligned)

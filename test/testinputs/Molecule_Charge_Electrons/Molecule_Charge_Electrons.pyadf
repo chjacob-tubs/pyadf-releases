@@ -1,0 +1,27 @@
+import os
+
+from pyadf import *
+if 'pyadfenv' not in globals():
+    from pyadf.Initialization import *
+
+h2o = molecule(os.path.join(pyadfenv.outdir, 'H2O.xyz'))
+
+testobj.assertEqual(h2o.get_charge(), 0)
+testobj.assertEqual(h2o.get_number_of_electrons(), 10)
+
+h2o_2 = molecule(os.path.join(pyadfenv.outdir, 'H2O_2.xyz'))
+
+testobj.assertEqual(h2o_2.get_charge(), 0)
+testobj.assertEqual(h2o_2.get_number_of_electrons(), 20)
+
+h3o = molecule(os.path.join(pyadfenv.outdir, 'h3o.xyz'))
+h3o.set_charge(+1)
+
+testobj.assertEqual(h3o.get_charge(), +1)
+testobj.assertEqual(h3o.get_number_of_electrons(), 10)
+
+oh_h2o_2 = molecule(os.path.join(pyadfenv.outdir, 'OH_H2O_2.xyz'))
+oh_h2o_2.set_charge(-1)
+
+testobj.assertEqual(oh_h2o_2.get_charge(), -1)
+testobj.assertEqual(oh_h2o_2.get_number_of_electrons(), 30)

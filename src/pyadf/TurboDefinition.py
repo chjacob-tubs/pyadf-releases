@@ -1,12 +1,10 @@
-# -*- coding: utf-8 -*-
-
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2021 by Christoph R. Jacob, Tobias Bergmann,
-# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Thomas Dresselhaus,
-# Andre S. P. Gomes, Andreas Goetz, Michal Handzlik, Karin Kiewisch,
-# Moritz Klammler, Lars Ridder, Jetze Sikkema, Lucas Visscher, and
-# Mario Wolter.
+# Copyright (C) 2006-2022 by Christoph R. Jacob, Tobias Bergmann,
+# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Maria Chekmeneva,
+# Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz, 
+# Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder, 
+# Jetze Sikkema, Lucas Visscher, Johannes Vornweg and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -19,7 +17,7 @@
 #    GNU General Public License for more details.
 #
 #    You should have received a copy of the GNU General Public License
-#    along with PyADF.  If not, see <http://www.gnu.org/licenses/>.
+#    along with PyADF.  If not, see <https://www.gnu.org/licenses/>.
 """
 This is an non-user level module to handle I{Turbomole}'s I{define}.
 
@@ -34,7 +32,6 @@ This is an non-user level module to handle I{Turbomole}'s I{define}.
 @bug: Much redundant code.
 @bug: Long strings are splitted among several lines in an ugly fashion using
       concatenation instead of implicite line joining.
-
 """
 
 import sys
@@ -42,10 +39,10 @@ import os
 import re
 from subprocess import Popen, PIPE
 
-from Errors import PyAdfError
+from .Errors import PyAdfError
 
 
-class TurboObject(object):
+class TurboObject:
     """
     Mother class for historical reason.
 
@@ -102,10 +99,11 @@ class TurboObject(object):
                 self._reportGoodNews(message)
 
         self.logfilename = 'turbo' + os.extsep + 'log'
-        with open(self.logfilename, 'a') as logfile:
+        with open(self.logfilename, 'a', encoding='utf-8') as logfile:
             logfile.write(message + '\n')
 
-    def _reportGoodNews(self, message):
+    @staticmethod
+    def _reportGoodNews(message):
         """
         Prints to I{stdout}.
 
@@ -113,10 +111,10 @@ class TurboObject(object):
         @type  message: L{str}
 
         """
+        print(message)
 
-        print message
-
-    def _reportBadNews(self, message):
+    @staticmethod
+    def _reportBadNews(message):
         """
         Prints to I{stderr}.
 
@@ -124,9 +122,334 @@ class TurboObject(object):
         @type  message: L{str}
 
         """
-
         sys.stderr.write(message + '\n')
-        
+
+
+class TurboCosmoprep(TurboObject):
+    """
+    Actually handles I{cosmoprep} on a sub-user level.
+
+    """
+
+    def __init__(self, settings):
+        """
+        Creates a new instance and sets default values for the C{cosmoprep}
+        session.
+
+        @param settings: Settings for this job.
+        @type  settings: L{TurbomoleSettings}
+        @bug: This method is actually much older than the L{TurbomoleSettings}
+              are. It works together with them but they probably don't love
+              each other.
+
+        """
+
+        super().__init__(verbose_level=settings.verbose_level)
+        self.settings = settings
+
+        self.cosmoprep_stdin = ''
+        self.cosmoprep_stdout = ''
+        self.cosmoprep_stderr = ''
+
+    def runcosmoprep(self):
+        """
+        Runs I{cosmoprep} and sanitizes the output.
+
+        @returns:           0 if successful
+        @rtype:             L{int}
+        @raises PyAdfError: If not successfull
+
+        """
+
+        returncode = self._tmcosmoprep()
+        tmcosmoprep_status = (returncode == 0)
+        if not tmcosmoprep_status:
+            info = "ERROR: `cosmoprep' quit on error. Skipping output check."
+            self._report(info, -2)
+            raise PyAdfError(info)
+
+        # Check the results.
+        sanitize_status = self._cosmosanitize()  # not yet implemented
+
+        # Write our I/O  to / from `cosmoprep' to log  files.  We convert them
+        # to  strings  explicitly  to  account  for  the  possibility  that
+        # `cosmoprep' crashed and they are `None' rather than strings.
+
+        with open('cosmoprep_stdin' + os.extsep + 'log', 'wb') as report:
+            report.write(self.cosmoprep_stdin.encode('utf-8'))
+        with open('cosmoprep_stdout' + os.extsep + 'log', 'wb') as report:
+            report.write(self.cosmoprep_stdout.encode('utf-8'))
+        with open('cosmoprep_stderr' + os.extsep + 'log', 'wb') as report:
+            report.write(self.cosmoprep_stderr.encode('utf-8'))
+
+        if tmcosmoprep_status:
+            self._report("`cosmoprep' successfully quit on exit status "
+                         + str(returncode) + ".", 2)
+            if sanitize_status:
+                self._report("I've checked `cosmoprep's output and it looked fine. "
+                             + "This is certainly no gurantee that it really "
+                             + "did the right thing. If I were able to check "
+                             + "this, I needn't even call it.", 2)
+            else:
+                self._report("ERROR: I've checked the results and they don't "
+                             + "seem quite okay. I'll refuse "
+                             + "accepting this as a success.", -2)
+                self._report('Input for cosmoprep:', 4)
+                self._report(self.cosmoprep_stdin, 4)
+                self._report('Output from cosmoprep:', 4)
+                self._report(self.cosmoprep_stdout, 4)
+                self._report('Error-output from cosmoprep:', 4)
+                self._report(self.cosmoprep_stderr, 4)
+        else:
+            self._report("ERROR: `cosmoprep' quit on exit status `"
+                         + str(returncode) + "'. I didn't even look at "
+                         + "the results.", -2)
+
+        if tmcosmoprep_status:  # and sanitize_status:
+            return returncode
+        else:
+            message = ("ERROR: Some checks of the output of `cosmoprep' were not successful. There is no point "
+                       + "in starting a computation.")
+            if self.verbose_level <= 1:
+                message += ('\n' + "Consider looking at the file `{log}' "
+                            + "or run me with `verbose_level > 1' to "
+                            + "get more output.").format(log=self.logfilename)
+            raise PyAdfError(message)
+
+    def _tmcosmoprep(self):
+        """
+        Runs I{cosmoprep} and returns its exit status but doesn't check the
+        output.
+
+        Communication with I{cosmoprep} will be stored in C{cosmoprep_stdin},
+        C{cosmoprep_stdout} and C{cosmoprep_stderr} respectively.
+        The results should be sanitized afterwards.
+
+        """
+        from .JobRunner import DefaultJobRunner
+        from .Turbomole import TurbomoleJob
+
+        # Generate the input sequence to be passed.
+        self.cosmoprep_stdin = self._assembleCosmoInput()
+
+        env = DefaultJobRunner().get_environ_for_local_command(TurbomoleJob)
+
+        try:
+            # Create the subprocess
+            CosmoProcess = Popen(['cosmoprep'], stdin=PIPE, stdout=PIPE, stderr=PIPE, env=env)
+
+            # Pass it the input and wait for it to finish.
+            self.cosmoprep_stdout, self.cosmoprep_stderr \
+                = CosmoProcess.communicate(input=self.cosmoprep_stdin.encode('utf-8'))
+            self.cosmoprep_stdout = self.cosmoprep_stdout.decode('Latin-1')
+            self.cosmoprep_stderr = self.cosmoprep_stderr.decode('Latin-1')
+            self._report("Successfully started a `cosmoprep' subprocess. ", 2)
+        except OSError:
+            self._report("Couldn't start a `cosmoprep' subprocess. ", -2)
+            return None
+        return CosmoProcess.returncode
+
+    def _assembleCosmoInput(self):
+        """
+        Generates the input string to be passed to I{cosmoprep}.
+
+        @returns: Input sequence
+        @rtype:   L{str}
+
+        """
+
+        sequence = []
+        if self.settings.cosmo_epsilon:
+            sequence.append(str(self.settings.cosmo_epsilon))
+        else:
+            sequence.append('')
+        for i in range(6):
+            sequence.append('')
+        if self.settings.cosmo_rsolv:
+            sequence.append(str(self.settings.cosmo_rsolv))
+        else:
+            sequence.append('')
+        for i in range(3):
+            sequence.append('')
+        if self.settings.cosmo_radii:
+            sequence.append(str(self.settings.cosmo_radii))
+        else:
+            sequence.append('r all o')  # radius definition menu
+
+        sequence.append('*')
+        for i in range(2):
+            sequence.append('')
+
+        inputstring = ''
+        for item in sequence:
+            inputstring += item + '\n'
+
+        return inputstring
+
+    def _cosmosanitize(self):
+        """
+        Runs some tests on the output of I{cosmoprep} and compares it with what
+        would be to be expected from the given setup.
+
+        If expectation and observation match, it returns C{True}. Needless to
+        say that calling this method makes only sense after I{cosmoprep} has been
+        executed and without any properties having been redefined since then.
+
+        @returns: Status of check
+        @rtype:   L{bool}
+
+        """
+
+        # We will always  try to run through the entire test  to supply as much
+        # information as  possible. However, we a single  error issufficient to
+        # let us return `success = False'.
+        success = True
+
+        try:
+            # We print a promt in front of every line for the verbose output.
+            sanitizeprompt = "checking output: "
+
+            # The very  first thing  to do is  to look  at the finaly  words of
+            # `define'.  I have no clue why, but `define' ALWAYS writes them to
+            # `stderr'.
+
+            if re.search("cosmoprep ended normally", self.cosmoprep_stderr):
+                self._report(sanitizeprompt + "`cosmoprep' claims to have ended "
+                             + "normally.", 3)
+            else:
+                success = False
+                self._report(sanitizeprompt + "ERROR: `cosmoprep' says he ended "
+                             + "abnormally.", -3)
+
+            # Next we check if the cosmo part is found in the `control` file.
+
+            cosmo_keywords = ['cosmo', 'cosmo_atoms', 'cosmo_out']
+            if self.settings.cosmo_epsilon:
+                cosmo_keywords.append(str(self.settings.cosmo_epsilon))
+            if self.settings.cosmo_rsolv:
+                cosmo_keywords.append(str(self.settings.cosmo_rsolv))
+            controlfile = 'control'
+
+            if os.path.isfile(controlfile):
+                self._report(sanitizeprompt + "File `" + controlfile
+                             + "' still exists.", 3)
+                with open(controlfile) as checkfile:
+                    contents = checkfile.read()
+                    for keyword in cosmo_keywords:
+                        if keyword in contents:
+                            pass
+                        else:
+                            success = False
+                            self._report(sanitizeprompt + "ERROR: File `"
+                                         + controlfile
+                                         + "' doesn't look as I "
+                                         + "expected it to.", -3)
+                    self._report(sanitizeprompt + "File `" + controlfile
+                                 + "' looks fine at a first glance. (I've "
+                                 + "been checking for these variables: "
+                                 + str(cosmo_keywords) + ".)", 3)
+            else:
+                success = False
+                self._report(sanitizeprompt + "ERROR: File `" + controlfile +
+                             "' doesn't " + "exist anymore.", -3)
+
+            self.temp = TurboDefinition._compact(self.cosmoprep_stdout)
+
+            # Check if the `Set COSMO parameters` menu still exists:
+            if self._checkfor("Set COSMO parameters"):
+                self._report(sanitizeprompt + "`cosmoprep' `set COSMO parameters' menu exists.", 3)
+            else:
+                success = False
+                self._report(sanitizeprompt + "ERROR: `cosmoprep' did not find `set COSMO parameters menu'.", -3)
+
+            # Check if the `Set COSMO parameters` menu asks for epsilon:
+            if self._checkfor("epsilon"):
+                self._report(sanitizeprompt + "`cosmoprep' still asks for the epsilon value. "
+                                              "(Uses default value if not specified by user.)", 3)
+            else:
+                success = False
+                self._report(sanitizeprompt + "ERROR: `cosmoprep' did not ask for the epsilon value.", -3)
+
+            # Check if the `Set COSMO parameters` menu asks for rsolv:
+            if self._checkfor("rsolv"):
+                self._report(sanitizeprompt + "`cosmoprep' still asks for the rsolv value. "
+                                              "(Uses default value if not specified by user.)", 3)
+            else:
+                success = False
+                self._report(sanitizeprompt + "ERROR: `cosmoprep' did not ask for the rsolv value.", -3)
+
+            # Check if the `radius definition menu` menu still exists:
+            if self._checkfor("radius definition menu"):
+                self._report(sanitizeprompt + "`cosmoprep' `radius definition menu' exists.", 3)
+            else:
+                success = False
+                self._report(sanitizeprompt + "ERROR: `cosmoprep' did not find `radius definition menu'.", -3)
+
+            # Check if the `radius definition menu` menu worked:
+            if self._checkfor("Group   atom   mtype   radius"):
+                self._report(sanitizeprompt + "`cosmoprep' found radii for the atoms.", 3)
+            else:
+                success = False
+                self._report(sanitizeprompt + "ERROR: `cosmoprep' did not find radii for the atoms", -3)
+
+            # Check if the `Cosmo output definition` menu still exists:
+            if self._checkfor("Cosmo output definition"):
+                self._report(sanitizeprompt + "`cosmoprep' `Cosmo output definition' exists.", 3)
+            else:
+                success = False
+                self._report(sanitizeprompt + "ERROR: `cosmoprep' did not find `Cosmo output definition'.", -3)
+
+            # Look for  the final statement. The number  of asterisks shouldn't
+            # bother us.
+            if self._checkfor(r"\*+  cosmoprep : all done  \*+"):
+                self._report(sanitizeprompt + "I found the familiar "
+                             + "`**** cosmoprep : all done ****' statement.", 3)
+            else:
+                success = False
+                self._report(sanitizeprompt + "ERROR: I'm missing the familiar "
+                             + "`**** cosmoprep : all done ****' statement.", -3)
+
+        except Exception as e:
+            # Make any exception during the process of sanitization a reason to
+            #  return `False'.
+            self._report("ERROR: There was an unexpected exception caught "
+                         + "while checking `cosmoprep's output. It says: "
+                         + str(e), -2)
+            raise
+
+        finally:
+            # Get rid of the temporary variable before returning.
+            del self.temp
+
+        return success
+
+    def _checkfor(self, pattern):
+        """
+        Copied function!!
+        TO DO: make one static function?
+
+        Sees if C{pattern} occurs in C{cosmoprep_stdout}.
+
+        Both strings are "compacted" (using L{_compact}) first. This method will
+        always return C{False} if C{self.temp} has not been defined to be the
+        compacted version of C{self.cosmoprep_stdout}.
+
+        @returns: C{True} if the pattern occurs, otherwise C{False}.
+        @rtype:   L{bool}
+
+        """
+
+        pattern = TurboDefinition._compact(pattern)
+        pattern = re.compile(pattern)
+        try:
+            if re.search(pattern, self.temp):
+                return True
+            else:
+                return False
+        except NameError:
+            # <self.temp> not defined!
+            return False
+
 
 class TurboDefinition(TurboObject):
     """
@@ -147,7 +470,7 @@ class TurboDefinition(TurboObject):
 
         """
 
-        super(TurboDefinition, self).__init__(verbose_level=settings.verbose_level)
+        super().__init__(verbose_level=settings.verbose_level)
         self.settings = settings
 
         self.define_stdin = ''
@@ -156,7 +479,7 @@ class TurboDefinition(TurboObject):
 
         try:
             self.setCoordFile(self.settings.coordfilename)
-        except IOError:
+        except OSError:
             self._report("Error setting `" + str(self.settings.coordfilename) + "' as input file.", -3)
             self.coordfilename = None
             self.atom_checksum = float('NaN')
@@ -188,67 +511,69 @@ class TurboDefinition(TurboObject):
 
         """
 
-        returncode = None
-        tmdefine_status = None
-        sanitize_status = None
+        returncode = self._tmdefine()
+        tmdefine_status = (returncode == 0)
+        if not tmdefine_status:
+            info = "ERROR: `define' quit on error. Skipping output check."
+            self._report(info, -2)
+            raise PyAdfError(info)
 
-        try:
-            # Fire off the process.
-            returncode = self._tmdefine()
-            tmdefine_status = (returncode == 0)
-            if not tmdefine_status:
-                info = "ERROR: `define' quit on error. Skipping output check."
-                self._report(info, -2)
-                raise PyAdfError(info)
+        # Postprocess the `control file.
+        self._postprocess()
 
-            # Postprocess the `control file.
-            self._postprocess()
+        # Check the results.
+        sanitize_status = self._sanitize()
 
-            # Check the results.
-            sanitize_status = self._sanitize()
+        # Start a cosmoprep job, if specified to use cosmo
+        if self.settings.cosmo:
+            self._report("***** Starting `cosmoprep` menu", 2)
+            TurboCosmoprep(self.settings).runcosmoprep()
+            self._report("***** Finishing `cosmoprep` menu", 2)
 
-        except Exception as e:
-            self._report(str(e), -2)
+        # Write our I/O  to / from `define' to log  files.  We convert them
+        # to  strings  explicitly  to  account  for  the  possibility  that
+        # `define' crashed and thy are `None' rather than strings.
 
-        finally:
-            # Write our I/O  to / from `define' to log  files.  We convert them
-            # to  strings  explicitly  to  account  for  the  possibility  that
-            # `define' crashed and thy are `None' rather than strings.
+        with open('define_stdin' + os.extsep + 'log', 'wb') as report:
+            report.write(self.define_stdin.encode('utf-8'))
+        with open('define_stdout' + os.extsep + 'log', 'wb') as report:
+            report.write(self.define_stdout.encode('utf-8'))
+        with open('define_stderr' + os.extsep + 'log', 'wb') as report:
+            report.write(self.define_stderr.encode('utf-8'))
 
-            with open('define_stdin' + os.extsep + 'log', 'w') as report:
-                report.write(str(self.define_stdin))
-            with open('define_stdout' + os.extsep + 'log', 'w') as report:
-                report.write(str(self.define_stdout))
-            with open('define_stderr' + os.extsep + 'log', 'w') as report:
-                report.write(str(self.define_stderr))
-
-            if tmdefine_status:
-                self._report("`define' successfully quit on exit status "
-                             + str(returncode) + ".", 2)
-                if sanitize_status:
-                    self._report("I've checked `define's output and it looked fine. "
-                                 + "This is certainly no gurantee that it really "
-                                 + "did the right thing. If I were able to check "
-                                 + "this, I needn't even call it.", 2)
-                else:
-                    self._report("ERROR: I've checked the results and they don't "
-                                 + "seem quite okay. I'll refuse "
-                                 + "accepting this as a success.", -2)
+        if tmdefine_status:
+            self._report("`define' successfully quit on exit status "
+                         + str(returncode) + ".", 2)
+            if sanitize_status:
+                self._report("I've checked `define's output and it looked fine. "
+                             + "This is certainly no gurantee that it really "
+                             + "did the right thing. If I were able to check "
+                             + "this, I needn't even call it.", 2)
             else:
-                self._report("ERROR: `define' quit on exit status `"
-                             + str(returncode) + "'. I didn't even look at "
-                             + "the results.", -2)
+                self._report("ERROR: I've checked the results and they don't "
+                             + "seem quite okay. I'll refuse "
+                             + "accepting this as a success.", -2)
+                self._report('Input for define:', 2)
+                self._report(self.define_stdin, 2)
+                self._report('Output from define:', 2)
+                self._report(self.define_stdout, 2)
+                self._report('Error-output from define:', 2)
+                self._report(self.define_stderr, 2)
+        else:
+            self._report("ERROR: `define' quit on exit status `"
+                         + str(returncode) + "'. I didn't even look at "
+                         + "the results.", -2)
 
-            if tmdefine_status and sanitize_status:
-                return returncode
-            else:
-                message = ("ERROR: Some checks of the output of `define' were not successful. There is no point "
-                           + "in starting a computation.")
-                if self.verbose_level <= 1:
-                    message += ('\n' + "Consider looking at the file `{log}' "
-                                + "or run me with `verbose_level > 1' to "
-                                + "get more output.").format(log=self.logfilename)
-                raise PyAdfError(message)
+        if tmdefine_status and sanitize_status:
+            return returncode
+        else:
+            message = ("ERROR: Some checks of the output of `define' were not successful. There is no point "
+                       + "in starting a computation.")
+            if self.verbose_level <= 1:
+                message += ('\n' + "Consider looking at the file `{log}' "
+                            + "or run me with `verbose_level > 1' to "
+                            + "get more output.").format(log=self.logfilename)
+            raise PyAdfError(message)
 
     def _tmdefine(self):
         """
@@ -263,8 +588,8 @@ class TurboDefinition(TurboObject):
         afterwards.
 
         """
-        from JobRunner import DefaultJobRunner
-        from Turbomole import TurbomoleJob
+        from .JobRunner import DefaultJobRunner
+        from .Turbomole import TurbomoleJob
 
         # Generate the input sequence to be passed.
         self.define_stdin = self._assembleInput()
@@ -276,7 +601,9 @@ class TurboDefinition(TurboObject):
             D = Popen(['define'], stdin=PIPE, stdout=PIPE, stderr=PIPE, env=env)
 
             # Pass it the input and wait for it to finish.
-            self.define_stdout, self.define_stderr = D.communicate(input=self.define_stdin)
+            self.define_stdout, self.define_stderr = D.communicate(input=self.define_stdin.encode('utf-8'))
+            self.define_stdout = self.define_stdout.decode('Latin-1')
+            self.define_stderr = self.define_stderr.decode('Latin-1')
             self._report("Successfully started  a `define' subprocess. ", 2)
         except OSError:
             self._report("Couldn't start a `define' subprocess. "
@@ -306,29 +633,30 @@ class TurboDefinition(TurboObject):
         else:
             raise PyAdfError("Unknown value `" + str(self.settings.disp) + "' for dispersion correction.")
 
-        if self.settings.scfconv is None:
-            pass
-        else:
+        if self.settings.scfconv is not None:
             toadd += '$scfconv ' + str(self.settings.scfconv) + '\n'
 
-        if self.settings.scfiterlimit is None:
-            pass
-        else:
+        if self.settings.scfiterlimit is not None:
             toadd += '$scfiterlimit ' + str(self.settings.scfiterlimit) + '\n'
 
-        tf = tempfile.NamedTemporaryFile(mode='a', delete=False)
-        with open('control', 'r') as infile:
-            for line in infile:
-                line = line.replace('$end', toadd + '$end')
-                tf.write(line + '\n')
-        tf.file.close()
-        open('control', 'w').close()
-        with open(tf.name, 'r') as infile:
-            with open('control', 'a') as outfile:
-                for line in infile:
-                    outfile.write(line + '\n')
-        os.remove(tf.name)
+        if self.settings.pointcharges is not None:
+            self._report("Adding " + str(self.settings.num_pointcharges) + " point charges to control file.", 2)
+            toadd += '$point_charges list \n'
+            for i in range(self.settings.num_pointcharges):
+                toadd += ' '.join(map(str, self.settings.pointcharges[i, :])) + '\n'
 
+        with tempfile.NamedTemporaryFile(mode='a', delete=False) as tf:
+            with open('control') as infile:
+                for line in infile:
+                    line = line.replace('$end', toadd + '$end')
+                    tf.write(line + '\n')
+            tf.file.close()
+            open('control', 'w').close()
+            with open(tf.name) as infile:
+                with open('control', 'a') as outfile:
+                    for line in infile:
+                        outfile.write(line + '\n')
+            os.remove(tf.name)
 
     def _sanitize(self):
         """
@@ -358,7 +686,7 @@ class TurboDefinition(TurboObject):
             # `stderr'.
 
             if re.search("define ended normally", self.define_stderr):
-                self._report(sanitizeprompt + "`define' claimes to have ended "
+                self._report(sanitizeprompt + "`define' claims to have ended "
                              + "normally.", 3)
             else:
                 success = False
@@ -381,16 +709,24 @@ class TurboDefinition(TurboObject):
             basis_keywords = ['basis', 'end']
             auxbasis_keywords = ['jbas', 'end']
             mos_keywords = ['scfmo', 'end']
+            alpha_keywords = ['uhfmo_alpha', 'end']
+            beta_keywords = ['uhfmo_beta', 'end']
 
             keywords = {'control': control_keywords,
                         'coord': coord_keywords,
                         'basis': basis_keywords,
                         'auxbasis': auxbasis_keywords,
-                        'mos': mos_keywords}
+                        'mos': mos_keywords,
+                        'alpha': alpha_keywords,
+                        'beta': beta_keywords}
 
             checkfilenames = ['control', 'coord', 'basis']
             if self.settings.guess_initial_occupation_by is not None:
-                checkfilenames.append('mos')
+                if not self.settings.unrestricted:
+                    checkfilenames.append('mos')
+                else:
+                    checkfilenames.append('alpha')
+                    checkfilenames.append('beta')
             if self.settings.ri:
                 checkfilenames.append('auxbasis')
 
@@ -398,7 +734,7 @@ class TurboDefinition(TurboObject):
                 if os.path.isfile(checkfilename):
                     self._report(sanitizeprompt + "File `" + checkfilename
                                  + "' exists.", 3)
-                    with open(checkfilename, 'r') as checkfile:
+                    with open(checkfilename) as checkfile:
                         contents = checkfile.read()
                         for keyword in keywords[checkfilename]:
                             if '$' + keyword in contents:
@@ -447,12 +783,12 @@ class TurboDefinition(TurboObject):
             # See if  we were using `turbomole  6.3.x'.  We have  to escape the
             # `.' in  the regexp! We hope that  a "wrong" version is  not a big
             # problem.
-            if self._checkfor(r"TURBOMOLE V6\.3"):
-                self._report(sanitizeprompt + "Found `turbomole 6.3' as "
+            if self._checkfor(r"TURBOMOLE rev. V7\.5"):
+                self._report(sanitizeprompt + "Found `turbomole 7.5' as "
                              + "expected.", 3)
             else:
                 self._report(sanitizeprompt + "Found different " + "`turbomole' "
-                             + "version (expecting 6.3.x). Check output if "
+                             + "version (expecting 7.5.x). Check output if "
                              + "everything still works.", -3)
 
             # See if `define' states to have added the correct number of atoms:
@@ -568,41 +904,58 @@ class TurboDefinition(TurboObject):
                                  + "`eht' but I have used it.", -3)
 
                 # Note that we have to escape the parenthesis.
-                if self._checkfor(r"ENTER THE MOLECULAR CHARGE \(DEFAULT=0\)"):
-                    self._report(sanitizeprompt + "`define' asked for the charge "
-                                 + "as I expected.", 3)
+                if self._checkfor(r"ENTER THE MOLECULAR CHARGE \(DEFAULT=0\)") or \
+                        self._checkfor(r"ENTER THE ATOMIC CHARGE \(DEFAULT=0\)"):
+                    self._report(sanitizeprompt + "`define' asked for the charge as I expected.", 3)
                 else:
                     success = False
                     self._report(sanitizeprompt + "ERROR: `define's menu might have "
-                                 + "changed. I wasn't asked for the molecules "
-                                 + "charge.", -3)
-
-                if self._checkfor("AUTOMATIC OCCUPATION NUMBER ASSIGNMENT "
-                                  + "ESTABLISHED"):
-                    self._report(sanitizeprompt + "`define' says, he found an "
-                                 + "initial guess for the occupation.", 3)
+                                 + "changed. I wasn't asked for the molecules charge.", -3)
+                # Trivial occupation check for closed-shell atoms
+                if not self.settings.unrestricted and self._countAtoms(self.coordfilename) == 1:
+                    if self._checkfor("OCCUPATION NUMBER SELECTION IS TRIVIAL") and \
+                       self._checkfor("SINCE ALL MOLECULAR ORBITALS ARE DOUBLY") and \
+                       self._checkfor("OCCUPIED IN THE MINIMAL EHT BASIS SET"):
+                        self._report(sanitizeprompt + "`define' says, he found a "
+                                     + "trivial atomic occupation.", 3)
+                    else:
+                        success = False
+                        self._report(sanitizeprompt + "ERROR: `define' doesn't say anything "
+                                     + "about trivial occupation for closed-shell atoms.", -3)
+                # Standard occupation check for molecules and open-shell atoms
                 else:
-                    success = False
-                    self._report(sanitizeprompt + "ERROR: `define' doesn't say anything "
-                                 + "about successfully determined occupation.", -3)
+                    if self._checkfor("AUTOMATIC OCCUPATION NUMBER ASSIGNMENT ESTABLISHED"):
+                        self._report(sanitizeprompt + "`define' says, he found an "
+                                     + "initial guess for the occupation.", 3)
+                    else:
+                        success = False
+                        self._report(sanitizeprompt + "ERROR: `define' doesn't say anything "
+                                     + "about successfully determined occupation.", -3)
 
-                # The default value is not arethesized here (as commonly done).
-                # We will accept both.  (Note the `?'  is escaped once!)
-                if self._checkfor(r"DO YOU ACCEPT THIS OCCUPATION\? "
-                                  + r"\(?DEFAULT=y\)?"):
-                    self._report(sanitizeprompt + "`define' was asking me to "
-                                 + "accept the occupation just as expected.", 3)
-                else:
-                    success = False
-                    self._report(sanitizeprompt + "ERROR: `define' didn't ask me to "
-                                 + "accept the occupation but I said blindly "
-                                 + "`yes'!", -3)
+                    # The default value is not arethesized here (as commonly done).
+                    # We will accept both.  (Note the `?'  is escaped once!)
+                    if self._checkfor(r"DO YOU ACCEPT THIS OCCUPATION\? \(?DEFAULT=y\)?"):
+                        self._report(sanitizeprompt + "`define' was asking me to "
+                                     + "accept the occupation just as expected.", 3)
+                    else:
+                        success = False
+                        self._report(sanitizeprompt + "ERROR: `define' didn't ask me to "
+                                     + "accept the occupation but I said blindly `yes'!", -3)
+                # Natural occupation
+                if self.settings.unrestricted:
+                    if self._checkfor(r"DO YOU REALLY WANT TO WRITE OUT NATURAL ORBITALS\? "
+                                      + r"\(?DEFAULT=n\)?"):
+                        self._report(sanitizeprompt + "`define' was asking me to "
+                                     + "decline natural occupation just as expected.", 3)
+
+                    else:
+                        success = False
+                        self._report(sanitizeprompt + "ERROR: `define' didn't ask me to "
+                                     + "accept the natural occupation but I said blindly `no'!", -3)
 
             # Look for the truth.
-            if self._checkfor("God is great, beer is good and people "
-                              + "are crazy"):
-                self._report(sanitizeprompt + "`define' is making true "
-                             + "statements about beer and people.", 3)
+            if self._checkfor("God is great, beer is good and people are crazy"):
+                self._report(sanitizeprompt + "`define' is making true statements about beer and people.", 3)
 
             # The following checks only apply if we are using DFT.
             if self.settings.dft:
@@ -728,8 +1081,8 @@ class TurboDefinition(TurboObject):
                                  + "changed. I couldn't enter the `cbas' "
                                  + "menu.", -3)
                 # Note the escape of `(' and `)'.
-                if (self._checkfor("memory : SET MAXIMUM CORE MEMORY") and
-                        self._checkfor(r"memory which should be used \(in MB\)")):
+                if (self._checkfor(r"memory : SET MAXIMUM CORE MEMORY") and
+                        self._checkfor(r"memory which should be used")):
                     self._report(sanitizeprompt + "`define' still seems to "
                                  + "accept `memory' as keyword to enter the "
                                  + "menu to specify the memory for MP2.", 3)
@@ -766,10 +1119,12 @@ class TurboDefinition(TurboObject):
             self._report("ERROR: There was an unexpected exception caught "
                          + "while checking `define's output. It says: "
                          + str(e), -2)
-            success = False
+            raise
 
-        # Get rid of the temporary variable before returning.
-        del self.temp
+        finally:
+            # Get rid of the temporary variable before returning.
+            del self.temp
+
         return success
 
     def _checkfor(self, pattern):
@@ -796,7 +1151,8 @@ class TurboDefinition(TurboObject):
             # <self.temp> not defined!
             return False
 
-    def _compact(self, text):
+    @staticmethod
+    def _compact(text):
         """
         Converts C{text} to all lowercase and removes any sequence of
         whitespce (including line breaks).
@@ -807,9 +1163,7 @@ class TurboDefinition(TurboObject):
         @type  text: L{str}
         @returns:    Compacted text
         @rtype:      L{str}
-
         """
-
         whitespace_pattern = re.compile(r'\s+')  # includes `\n'
         text = re.sub(whitespace_pattern, '', text)
         text = text.lower()
@@ -820,7 +1174,7 @@ class TurboDefinition(TurboObject):
         Generates the input string to be passed to I{define}.
 
         @returns: Input sequence
-        @rtype:   L{list} of strings
+        @rtype:   L{str}
 
         """
 
@@ -836,29 +1190,27 @@ class TurboDefinition(TurboObject):
             inputstring += word + '\n'
         return inputstring
 
-    def _assembleDontReadExistingControlFileInputSequence(self):
+    @staticmethod
+    def _assembleDontReadExistingControlFileInputSequence():
         """
         Generates an input sequence to be passed to I{define} making it not use
         an existing C{control} file.
 
         @returns: Input sequence
-        @rtype:   L{str}
-
+        @rtype:   L{list}
         """
-
         sequence = ['']
         return sequence
 
-    def _assembleSetTitleInputSequence(self):
+    @staticmethod
+    def _assembleSetTitleInputSequence():
         """
         Generates an input sequence to be passed to I{define} making it
         forget the idea about a title whatsoever.
 
         @returns: Input sequence
-        @rtype:   L{str}
-
+        @rtype:   L{list}
         """
-
         sequence = ['']
         return sequence
 
@@ -868,11 +1220,20 @@ class TurboDefinition(TurboObject):
         OF MOLECULAR GEOMETRY" menu.
 
         @returns: Input sequence
-        @rtype:   L{str}
-
+        @rtype:   L{list}
         """
 
         sequence = ['a ' + self.coordfilename]
+
+        if self.settings.idef:
+            sequence.append('idef')
+            for icoord in self.settings.idef_list:
+                sequence.append(icoord)
+            sequence.append('')
+            sequence.append('')
+            sequence.append('')
+            self.settings.ired = True
+
         if self.settings.ired:
             sequence.append('ired')
             sequence.append('*')
@@ -887,7 +1248,7 @@ class TurboDefinition(TurboObject):
         ATTRIBUTE DEFINITION MENU".
 
         @returns: Input sequence
-        @rtype:   L{str}
+        @rtype:   L{list}
 
         """
 
@@ -905,7 +1266,7 @@ class TurboDefinition(TurboObject):
         NUMBER & MOLECULAR ORBITAL DEFINITION MENU" menu.
 
         @returns: Input sequence
-        @rtype:   L{str}
+        @rtype:   L{list}
 
         """
 
@@ -915,9 +1276,27 @@ class TurboDefinition(TurboObject):
         sequence = []
         if str(self.settings.guess_initial_occupation_by) == 'eht':
             sequence.append('eht')
-            sequence.append('y')  # use default
+            sequence.append('y') # sometimes there is more than one SUITED DEFINITION
+            sequence.append('y')  # use default (typing y once instead of charge does no harm)
             sequence.append(str(self.settings.charge))
-            sequence.append('y')  # blindly accept
+            # Closed-shell
+            if not self.settings.unrestricted:
+                # Accept default occupation
+                if self._countAtoms(self.coordfilename) > 1:
+                    sequence.append('y')
+                # Decline automatic atomic occupation
+                else:
+                    sequence.append('n')
+            # Unrestricted
+            else:
+                # Decline automatic atomic occupation
+                if self._countAtoms(self.coordfilename) == 1:
+                    sequence.append('n')
+                # Setting spin manually
+                sequence.append('n')
+                sequence.append('u %i' % self.settings.spin)
+                sequence.append('*')
+                sequence.append('n')  # additional question about natural orbitals for unrestricted calculations
         else:
             raise PyAdfError(("I'm not programmed to handle the case "
                               + "`initial occupation guessed by: {0}'. "
@@ -930,7 +1309,7 @@ class TurboDefinition(TurboObject):
         MENU".
 
         @returns: Input sequence
-        @rtype:   L{str}
+        @rtype:   L{list}
 
         """
 
@@ -961,12 +1340,13 @@ class TurboDefinition(TurboObject):
         sequence.append('*')
         return sequence
 
-    def _countAtoms(self, coordfilename):
+    @staticmethod
+    def _countAtoms(coordfilename):
         """
         Counts and returns the number of atoms in the C{coord} file.
 
         File I/O
-        exceptions re reraised.
+        exceptions are reraised.
 
         @param coordfilename: File name to count through
         @type  coordfilename: L{str}
@@ -976,16 +1356,14 @@ class TurboDefinition(TurboObject):
                               definition.
         @deprecated:          Should use the L{molecule} class' functionality
                               instead.
-
         """
 
         i = float('NaN')  # number of atoms
-        with open(coordfilename, 'r') as coordfile:
+        with open(coordfilename) as coordfile:
             for line in coordfile:
                 if re.match(r'\$coord.*', line):
                     i = -1  # this line doesn't count
                 if i > 0 and re.match(r'\$.*', line):
                     return i
                 i += 1
-            raise PyAdfError("The file `" + coordfilename
-                             + "' is corrupted.")
+            raise PyAdfError("The file `" + coordfilename + "' is corrupted.")

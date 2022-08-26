@@ -1,10 +1,10 @@
-# -*- coding: utf-8 -*-
-
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2014 by Christoph R. Jacob, S. Maya Beyhan,
-# Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Michal Handzlik,
-# Karin Kiewisch, Moritz Klammler, Jetze Sikkema, and Lucas Visscher
+# Copyright (C) 2006-2022 by Christoph R. Jacob, Tobias Bergmann,
+# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Maria Chekmeneva,
+# Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz, 
+# Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder, 
+# Jetze Sikkema, Lucas Visscher, Johannes Vornweg and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -17,7 +17,7 @@
 #    GNU General Public License for more details.
 #
 #    You should have received a copy of the GNU General Public License
-#    along with PyADF.  If not, see <http://www.gnu.org/licenses/>.
+#    along with PyADF.  If not, see <https://www.gnu.org/licenses/>.
 """
  Post-processing of Quantum Espresso calculations
 
@@ -33,8 +33,8 @@
 """
 from abc import abstractmethod
 
-from QuantumEspresso import QEJob, QEResults
-from Errors import PyAdfError
+from .QuantumEspresso import QEJob, QEResults
+from .Errors import PyAdfError
 
 
 class QEPostProcResults(QEResults):
@@ -46,7 +46,7 @@ class QEPostProcResults(QEResults):
         """
         Constructor for qesinglepointresults.
         """
-        QEResults.__init__(self, j)
+        super().__init__(j)
 
     def get_cube_filename(self):
         """
@@ -55,7 +55,7 @@ class QEPostProcResults(QEResults):
         return self.files.get_results_filename(self.fileid, 10)
 
 
-class QEPostProcSettings(object):
+class QEPostProcSettings:
     """
     Settings for a Quantum Espresso post-processing calculation.
     """
@@ -128,12 +128,12 @@ class QEPostProcSettings(object):
 
     @staticmethod
     def iter_not_none(d):
-        return ((k, v) for k, v in d.items() if v is not None)
+        return ((k, v) for k, v in list(d.items()) if v is not None)
 
     def get_inputpp_block(self):
         block = " &inputpp\n"
         for opt, val in self.iter_not_none(self.inputpp):
-            block += "    %s=%s\n" % (opt, val)
+            block += f"    {opt}={val}\n"
         block += " /\n"
         return block
 
@@ -155,7 +155,7 @@ class QEPostProcSettings(object):
                     block += str(e) + separator
                 block += "\n"
             else:
-                block += "    %s=%s\n" % (opt, val)
+                block += f"    {opt}={val}\n"
         block += " /\n"
         return block
 
@@ -175,7 +175,7 @@ class QEPostProcJob(QEJob):
     """
 
     def __init__(self, qeres, settings=None, options=None):
-        QEJob.__init__(self)
+        super().__init__()
 
         self._qeresults = qeres
 
@@ -225,22 +225,22 @@ class QEPostProcJob(QEJob):
         tar.extractall()
         tar.close()
 
-        QEJob.before_run(self)
+        super().before_run()
 
     def print_settings(self):
 
-        print "   Settings"
-        print "   ========"
-        print
-        print self.settings
-        print
+        print("   Settings")
+        print("   ========")
+        print()
+        print(self.settings)
+        print()
 
     def print_extras(self):
         pass
 
     def print_jobinfo(self):
-        print " " + 50 * "-"
-        print " Running " + self.print_jobtype()
-        print
-        print "   SCF taken from Quantum Espresso job ", self._qeresults.fileid, " (results id)"
-        print
+        print(" " + 50 * "-")
+        print(" Running " + self.print_jobtype())
+        print()
+        print("   SCF taken from Quantum Espresso job ", self._qeresults.fileid, " (results id)")
+        print()

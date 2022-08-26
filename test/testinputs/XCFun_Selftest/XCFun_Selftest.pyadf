@@ -1,19 +1,24 @@
 import os
+
+if 'pyadfenv' not in globals():
+    from pyadf.Initialization import *
+
 import xcfun
 
-print xcfun.xcfun_splash()
+print(xcfun.xcfun_splash())
 
-try :
-    devnull = os.open(os.devnull, os.O_RDWR) 
+try:
+    devnull = os.open(os.devnull, os.O_RDWR)
     stderr_save = os.dup(2)
     os.dup2(devnull, 2)
 
     failed = xcfun.xcfun_test()
 
 finally:
+    # noinspection PyUnboundLocalVariable
     os.dup2(stderr_save, 2)
+    # noinspection PyUnboundLocalVariable
     os.close(devnull)
 
-if 'unittesting' in pyadfenv.options :
+if 'unittesting' in pyadfenv.options:
     testobj.assert_(failed == 0)
-

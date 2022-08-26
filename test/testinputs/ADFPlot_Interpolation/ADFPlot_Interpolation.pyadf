@@ -1,3 +1,8 @@
+import os
+from pyadf import *
+if 'pyadfenv' not in globals():
+    from pyadf.Initialization import *
+
 ###################################################################
 #
 # PyADF test ADFPlot_Interpolation
@@ -13,12 +18,13 @@
 #
 ###################################################################
 
-h2o = molecule (os.path.join(pyadfenv.outdir, 'H2O.xyz'))
+
+h2o = molecule(os.path.join(pyadfenv.outdir, 'H2O.xyz'))
 
 settings = adfsettings()
-settings.set_save_tapes([21,10])
+settings.set_save_tapes([21, 10])
 
-results = adfsinglepointjob( h2o, 'SZ', settings=settings).run()
+results = adfsinglepointjob(h2o, 'SZ', settings=settings).run()
 
 cgrid = cubegrid(results.get_molecule(), spacing=0.2)
 agrid = adfgrid(results)
@@ -42,11 +48,10 @@ pot_diff = pot_tot_cub - pot_cub_interpolated
 #       the density is larger. Here, 8 points should be ignore
 #       (otherwise the error is these 8 points would dominate the
 #       total error
-int_diff = pot_diff.integral(func=lambda x: abs(x), 
+int_diff = pot_diff.integral(func=lambda x: abs(x),
                              ignore=(abs(pot_tot_cub.get_values()) > 10.0))
 
-print "Integral of difference in potentials: ", int_diff
+print("Integral of difference in potentials: ", int_diff)
 
-if 'unittesting' in pyadfenv.options :
+if 'unittesting' in pyadfenv.options:
     testobj.assert_(int_diff < 0.25, msg=str(int_diff))
-

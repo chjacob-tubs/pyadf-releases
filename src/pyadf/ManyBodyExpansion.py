@@ -1,12 +1,10 @@
-# -*- coding: utf-8 -*-
-
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2021 by Christoph R. Jacob, Tobias Bergmann,
-# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Thomas Dresselhaus,
-# Andre S. P. Gomes, Andreas Goetz, Michal Handzlik, Karin Kiewisch,
-# Moritz Klammler, Lars Ridder, Jetze Sikkema, Lucas Visscher, and
-# Mario Wolter.
+# Copyright (C) 2006-2022 by Christoph R. Jacob, Tobias Bergmann,
+# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Maria Chekmeneva,
+# Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz, 
+# Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder, 
+# Jetze Sikkema, Lucas Visscher, Johannes Vornweg and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -19,7 +17,7 @@
 #    GNU General Public License for more details.
 #
 #    You should have received a copy of the GNU General Public License
-#    along with PyADF.  If not, see <http://www.gnu.org/licenses/>.
+#    along with PyADF.  If not, see <https://www.gnu.org/licenses/>.
 """
 Implementation of many-body expansions, both energy-based and density-based.
 
@@ -27,9 +25,10 @@ Implementation of many-body expansions, both energy-based and density-based.
  @organization: TU Braunschweig
 """
 
+
 import itertools
-from Errors import PyAdfError
-from BaseJob import metajob, results
+from .Errors import PyAdfError
+from .BaseJob import metajob, results
 
 import numpy as np
 import xcfun
@@ -45,24 +44,26 @@ class MBEResults(results):
     """
 
     def __init__(self, job):
-        results.__init__(self, job)
+        super().__init__(job)
         self.order = self.job.order
         self.res_by_comb = {}
         self.n_mol = self.job.nfrag
 
         self._toten_by_order_ = None
 
-    def is_fde_job(self):
-        return hasattr(self.res_by_comb[(0,)], 'get_nonfrozen_density')
-
-    def mbe_interactions(self, res_to_en):
+    def mbe_interactions(self, res_to_en, subsystem=None):
         int_energies_by_order = []
         int_energies_by_comb = {}
+
+        if subsystem is None:
+            molnums_to_include = list(range(self.n_mol))
+        else:
+            molnums_to_include = subsystem
 
         for order in range(1, self.order+1):
             int_energies_by_order.append(0.0)
 
-            for c in itertools.combinations(range(self.n_mol), order):
+            for c in itertools.combinations(molnums_to_include, order):
                 int_energy = res_to_en(self.res_by_comb[c])
                 for oo in range(1, order):
                     for cc in itertools.combinations(c, oo):
@@ -72,12 +73,17 @@ class MBEResults(results):
 
         return int_energies_by_order
 
-    def mbe_interactions_lowmem(self, res_to_en):
+    def mbe_interactions_lowmem(self, res_to_en, subsystem=None):
         int_energies_by_order = []
 
         energies_order_1 = []
         for i in range(self.n_mol):
             energies_order_1.append(res_to_en(self.res_by_comb[(i,)]))
+
+        if subsystem is None:
+            molnums_to_include = list(range(self.n_mol))
+        else:
+            molnums_to_include = subsystem
 
         def int_energies_by_comb(c):
             if len(c) == 1:
@@ -91,7 +97,7 @@ class MBEResults(results):
 
         for order in range(1, self.order+1):
             int_energies_by_order.append(0.0)
-            for comb in itertools.combinations(range(self.n_mol), order):
+            for comb in itertools.combinations(molnums_to_include, order):
                 int_energies_by_order[-1] += int_energies_by_comb(comb)
 
         return int_energies_by_order
@@ -119,26 +125,17 @@ class MBEResults(results):
     def get_interaction_energies_by_order(self):
         return [self.get_interaction_energy(order=i+1) for i in range(self.order)]
 
-    def get_diffdens_by_order(self, grid, deriv=1):
-        if self.is_fde_job():
-            res_to_en = lambda res: res.get_nonfrozen_density(grid, order=deriv)
-        else:
-            res_to_en = lambda res: res.get_density(grid, order=deriv)
-        return self.mbe_interactions_lowmem(res_to_en)
+    def get_diffdens_by_order(self, grid, deriv=1, subsystem=None):
+        res_to_en = lambda res: res.get_nonfrozen_density(grid, order=deriv)
+        return self.mbe_interactions_lowmem(res_to_en, subsystem=subsystem)
 
-    def get_fitcorr_by_order(self, grid):
-        if self.is_fde_job():
-            res_to_en = lambda res: res.get_nonfrozen_density(grid) - res.get_nonfrozen_density(grid, fit=True)
-        else:
-            res_to_en = lambda res: res.get_density(grid) - res.get_density(grid, fit=True)
-        return self.mbe_interactions_lowmem(res_to_en)
+    def get_fitcorr_by_order(self, grid, subsystem=None):
+        res_to_en = lambda res: res.get_nonfrozen_density(grid) - res.get_nonfrozen_density(grid, fit=True)
+        return self.mbe_interactions_lowmem(res_to_en, subsystem=subsystem)
 
-    def get_coulpot_by_order(self, grid):
-        if self.is_fde_job():
-            res_to_en = lambda res: res.get_nonfrozen_potential(grid, pot='coul')
-        else:
-            res_to_en = lambda res: res.get_potential(grid, pot='coul')
-        return self.mbe_interactions_lowmem(res_to_en)
+    def get_coulpot_by_order(self, grid, subsystem=None):
+        res_to_en = lambda res: res.get_nonfrozen_potential(grid, pot='coul')
+        return self.mbe_interactions_lowmem(res_to_en, subsystem=subsystem)
 
 
 class MBEJob(metajob):
@@ -151,7 +148,7 @@ class MBEJob(metajob):
     properties.
     """
 
-    def __init__(self, mol_list, jobfunc, jobfunc_kwargs=None, order=2):
+    def __init__(self, mol_list, jobfunc, jobfunc_kwargs=None, order=2, divisor=1, batch=1):
         """
         Constructor for MBEJob.
 
@@ -166,8 +163,14 @@ class MBEJob(metajob):
 
         @param order: many-body expansion order
         @type order: int
+
+        @param divisor: divide the calculation into a number of batches equal to this
+        @type divisor: int
+
+        @param batch: number of current batch being calculated
+        @type batch: int
         """
-        metajob.__init__(self)
+        super().__init__()
 
         self.mol_list = mol_list
         self.jobfunc = jobfunc
@@ -176,7 +179,13 @@ class MBEJob(metajob):
         else:
             self._jobfunc_kwargs = jobfunc_kwargs
 
-        self.order = order
+        self.order = int(order)
+        if batch > divisor:
+            raise ValueError('the batch must be inside the range of the given divisor')
+        if batch < 1 or divisor < 1:
+            raise ValueError('batch and divisor must fit their purpose')
+        self.divisor = int(divisor)
+        self.batch = int(batch-1)  # fits with python-internal counting scheme
 
     @property
     def nfrag(self):
@@ -207,13 +216,18 @@ class MBEJob(metajob):
     def metarun(self):
         mbe_results = self.create_results_instance()
 
-        for order in range(1, self.order + 1):
-            for c in itertools.combinations(range(self.nfrag), order):
-                active_mol = self._assemble_active_mol(c)
-                frozen_mols = self._assemble_frozen_mols(c)
+        calculation = 1  # does not represent the number of calculations actually done
 
-                res = self.jobfunc(active_mol, frozen_mols, **self._jobfunc_kwargs)
-                mbe_results.res_by_comb[c] = res
+        for order in range(1, self.order + 1):
+            for c in itertools.combinations(list(range(self.nfrag)), order):
+                if calculation % self.divisor == self.batch:
+                    # actual calculation here
+                    active_mol = self._assemble_active_mol(c)
+                    frozen_mols = self._assemble_frozen_mols(c)
+
+                    res = self.jobfunc(active_mol, frozen_mols, **self._jobfunc_kwargs)
+                    mbe_results.res_by_comb[c] = res
+                calculation += 1
 
         return mbe_results
 
@@ -227,7 +241,7 @@ class DensityBasedMBEResults(results):
     """
 
     def __init__(self, job):
-        results.__init__(self, job)
+        super().__init__(job)
         self.order = self.job.order
 
         self.ebmbe_res = job.ebmbe_res
@@ -246,15 +260,12 @@ class DensityBasedMBEResults(results):
 
     def _calc_fun_by_order(self, func):
 
-        def res_to_en(res, fun, isfde):
-            if isfde:
-                dens = res.get_nonfrozen_density(self.job.grid, order=1)
-            else:
-                dens = res.get_density(self.job.grid, order=1)
+        def res_to_en(res, fun):
+            dens = res.get_nonfrozen_density(self.job.grid, order=1)
             endens = fun.eval_energy_n(density=dens[0].values, densgrad=dens[1].values)
-            return np.dot(self.job.grid.get_weights(), endens)
+            return np.dot(self.job.grid.weights, endens)
 
-        return self.ebmbe_res.mbe_interactions(lambda res: res_to_en(res, func, self.ebmbe_res.is_fde_job()))
+        return self.ebmbe_res.mbe_interactions(lambda res: res_to_en(res, func))
 
     @property
     def _xc_by_order(self):
@@ -279,22 +290,14 @@ class DensityBasedMBEResults(results):
         eetot = 0.0
         for i in range(self.job.nfrag):
             resi = self.ebmbe_res.res_by_comb[(i,)]
-            if self.ebmbe_res.is_fde_job():
-                nucpot = resi.get_nonfrozen_potential(self.job.grid, pot='nuc')
-                elpot = resi.get_nonfrozen_potential(self.job.grid, pot='coul')
-            else:
-                nucpot = resi.get_potential(self.job.grid, pot='nuc')
-                elpot = resi.get_potential(self.job.grid, pot='coul')
+            nucpot = resi.get_nonfrozen_potential(self.job.grid, pot='nuc')
+            elpot = resi.get_nonfrozen_potential(self.job.grid, pot='coul')
 
             for j in range(self.job.nfrag):
                 if not (i == j):
                     resj = self.ebmbe_res.res_by_comb[(j,)]
-                    if self.ebmbe_res.is_fde_job():
-                        dens = resj.get_nonfrozen_density(self.job.grid)
-                        fitdens = resj.get_nonfrozen_density(self.job.grid, fit=True)
-                    else:
-                        dens = resj.get_density(self.job.grid)
-                        fitdens = resj.get_density(self.job.grid, fit=True)
+                    dens = resj.get_nonfrozen_density(self.job.grid)
+                    fitdens = resj.get_nonfrozen_density(self.job.grid, fit=True)
 
                     nnint = self.job.mol_list[i].get_nuclear_interaction_energy(self.job.mol_list[j])
                     enint = (nucpot * dens).integral()
@@ -310,10 +313,7 @@ class DensityBasedMBEResults(results):
         nucpot_tot = 0.0
         for i in range(self.job.nfrag):
             resi = self.ebmbe_res.res_by_comb[(i,)]
-            if self.ebmbe_res.is_fde_job():
-                nucpot_tot += resi.get_nonfrozen_potential(self.job.grid, pot='nuc')
-            else:
-                nucpot_tot += resi.get_potential(self.job.grid, pot='nuc')
+            nucpot_tot += resi.get_nonfrozen_potential(self.job.grid, pot='nuc')
 
         entot = (nucpot_tot * self._diffdens_by_order[order-1][0]).integral()
         entot += 0.5 * (sum(self._coulpot_by_order[:order-1]) * self._diffdens_by_order[order-1][0]).integral()
@@ -332,7 +332,7 @@ class DensityBasedMBEResults(results):
 
         xc_endens = self.job.nadxc.eval_energy_n(density=totdens[0].values,
                                                  densgrad=totdens[1].values)
-        xctot = np.dot(self.job.grid.get_weights(), xc_endens)
+        xctot = np.dot(self.job.grid.weights, xc_endens)
 
         return xctot - sum(self._xc_by_order[:order])
 
@@ -341,7 +341,7 @@ class DensityBasedMBEResults(results):
 
         kin_endens = self.job.nadkin.eval_energy_n(density=totdens[0].values,
                                                    densgrad=totdens[1].values)
-        kintot = np.dot(self.job.grid.get_weights(), kin_endens)
+        kintot = np.dot(self.job.grid.weights, kin_endens)
 
         return kintot - sum(self._kin_by_order[:order])
 
@@ -405,7 +405,7 @@ class DensityBasedMBEJob(metajob):
                       (default: XC functional from eb-MBE single points, if available)
         @type nadxc: str or XCFun Functional object
         """
-        metajob.__init__(self)
+        super().__init__()
 
         self.ebmbe_res = ebmbe_res
         if order is None:
@@ -434,11 +434,13 @@ class DensityBasedMBEJob(metajob):
                 self._nadxc = self.ebmbe_res.res_by_comb[(0, )].job.settings.functional
             else:
                 raise PyAdfError('No nonadditive xc functional specified in db-MBE job')
+            if self._nadxc is None:
+                raise PyAdfError('No nonadditive xc functional specified in db-MBE job')
             if self._nadxc.startswith('GGA '):
                 self._nadxc = self._nadxc[4:]
         elif isinstance(nadxc, xcfun.Functional):
             self._nadxc = nadxc
-        elif isinstance(nadxc, str) and nadxc.upper() in ['LDA', 'BP', 'BP86', 'BLYP']:
+        elif isinstance(nadxc, str) and nadxc.upper() in ['LDA', 'BP', 'BP86', 'BLYP', 'PBE']:
             self._nadxc = nadxc
         else:
             raise PyAdfError('Invalid nonadditive xc functional in db-MBE job')
@@ -473,6 +475,8 @@ class DensityBasedMBEJob(metajob):
             return xcfun.Functional({'BeckeX': 1.0, 'P86C': 1.0})
         elif self._nadxc.upper() in ['BLYP']:
             return xcfun.Functional({'BeckeX': 1.0, 'LYP': 1.0})
+        elif self._nadxc.upper() in ['PBE']:
+            return xcfun.Functional({'pbex': 1.0, 'pbec': 1.0})
         else:
             raise PyAdfError('Unknown nonadditive xc functional '
                              + str(self._nadxc) + ' in db-MBE job')

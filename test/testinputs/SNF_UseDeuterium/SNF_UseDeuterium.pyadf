@@ -1,13 +1,18 @@
-import numpy
 import os
+from pyadf import *
+if 'pyadfenv' not in globals():
+    from pyadf.Initialization import *
+
+import numpy
 
 
 def test_use_deuterium(molname, ref_wavenumbers, ref_intensities):
-    mol = molecule(os.path.join(pyadfenv.outdir, molname+'_opt.mol2'), inputformat='mol2')
+    mol = molecule(os.path.join(pyadfenv.outdir, molname + '_opt.mol2'), inputformat='mol2')
     settings = TurbomoleSinglePointSettings(verbose_level=2)
 
     # default settings: RI-DFT/BP
     settings.set_basis_set('def2-SVP')
+    settings.set_scfconv(8)
     settings.set_dft_grid('m4')
 
     tm_res = TurbomoleSinglePointJob(mol, method='dft', settings=settings).run()
@@ -19,25 +24,26 @@ def test_use_deuterium(molname, ref_wavenumbers, ref_intensities):
     # In order to determine the hydrogens that are bound to hetero atoms (not carbon),
     # get_hetero_hydrogen_list() is  used.
     het_h_list = mol.get_hetero_hydrogen_list()
-    print('Hetero hydrogen list: ', het_h_list)
+    print(('Hetero hydrogen list: ', het_h_list))
 
     snf_results = SNFJob(tm_res, deuterium=het_h_list).run()
 
     wavenumbers = snf_results.get_wave_numbers()
-    print('SNF wavenumbers: ', wavenumbers)
+    print(('SNF wavenumbers: ', wavenumbers))
     intensities = snf_results.get_ir_ints()
-    print('    intensities: ', intensities)
+    print(('    intensities: ', intensities))
 
-    numpy.savetxt(os.path.join(pyadfenv.outdir, testmol+'_new.txt'), [wavenumbers, intensities])
+    # noinspection PyTypeChecker
+    numpy.savetxt(os.path.join(pyadfenv.outdir, testmol + '_new.txt'), [wavenumbers, intensities])
 
     if 'unittesting' in pyadfenv.options:
-        testobj.assertAlmostEqual(wavenumbers, ref_wavenumbers, 5)
-        testobj.assertAlmostEqual(intensities, ref_intensities, 5)
-    
+        testobj.assertAlmostEqual(wavenumbers, ref_wavenumbers, 2)
+        testobj.assertAlmostEqual(intensities, ref_intensities, 2)
+
 
 testmols = ['water', 'methane']
 
 for testmol in testmols:
-    ref_data = numpy.loadtxt(os.path.join(pyadfenv.outdir, testmol+'_ref.txt'))
-    
+    ref_data = numpy.loadtxt(os.path.join(pyadfenv.outdir, testmol + '_ref.txt'))
+
     test_use_deuterium(testmol, ref_data[0], ref_data[1])

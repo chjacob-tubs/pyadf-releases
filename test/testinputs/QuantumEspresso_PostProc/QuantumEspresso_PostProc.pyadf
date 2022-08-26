@@ -1,6 +1,9 @@
 import os
+from pyadf import *
+if 'pyadfenv' not in globals():
+    from pyadf.Initialization import *
 
-file_mol = os.path.join (pyadfenv.outdir, 'water.xyz')
+file_mol = os.path.join(pyadfenv.outdir, 'water.xyz')
 m_mol = molecule(file_mol)
 
 pw_system = {'ibrav': 1, 'cell_dim': [12.0], 'ecutwfc': 80}

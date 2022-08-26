@@ -1,12 +1,10 @@
-# -*- coding: utf-8 -*-
-
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2021 by Christoph R. Jacob, Tobias Bergmann,
-# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Thomas Dresselhaus,
-# Andre S. P. Gomes, Andreas Goetz, Michal Handzlik, Karin Kiewisch,
-# Moritz Klammler, Lars Ridder, Jetze Sikkema, Lucas Visscher, and
-# Mario Wolter.
+# Copyright (C) 2006-2022 by Christoph R. Jacob, Tobias Bergmann,
+# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Maria Chekmeneva,
+# Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz, 
+# Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder, 
+# Jetze Sikkema, Lucas Visscher, Johannes Vornweg and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -19,7 +17,7 @@
 #    GNU General Public License for more details.
 #
 #    You should have received a copy of the GNU General Public License
-#    along with PyADF.  If not, see <http://www.gnu.org/licenses/>.
+#    along with PyADF.  If not, see <https://www.gnu.org/licenses/>.
 """
  PyADF Overview
  ==============
@@ -27,7 +25,7 @@
  PyADF is a scripting framework for quantum chemistry, with a special
  focus on multiscale simulations. For an in-depth introduction, see
  the overview article in U{J. Comput. Chem. B{32} (2011),
- 2328-2338<http://dx.doi.org/10.1002/jcc.21810>}.
+ 2328-2338<https://dx.doi.org/10.1002/jcc.21810>}.
 
  PyADF input files are Python scripts, in which the classes defined by
  the PyADF scripting framework are available by default.
@@ -202,73 +200,77 @@
 
 """
 
+__version__ = '1.1'
+from .Utils import VersionInfo
+
+# noinspection PyUnresolvedReferences
 import kf
 
-from Utils import pse, Bohr_in_Angstrom, au_in_eV, au_in_Debye, conversion
+from .Utils import pse, Bohr_in_Angstrom, au_in_eV, au_in_Debye, conversion
+from .Errors import PyAdfError
+from .Molecule import molecule, MoleculeFactory
 
-from Molecule import molecule, MoleculeFactory
+from .Files import adf_filemanager
+from .JobRunnerConfiguration import JobRunnerConfiguration
+from .JobRunner import DefaultJobRunner, SerialJobRunner
+from .BaseJob import job, results
+from .ADFBase import scmjob, amsjob, adfjob, adfresults
 
-from Files import adf_filemanager
-from JobRunnerConfiguration import JobRunnerConfiguration
-from JobRunner import DefaultJobRunner, SerialJobRunner
-from BaseJob import job, results
-from ADFBase import adfjob, adfresults
-
-from ADFSinglePoint import adfsettings, adfscfsettings, adfsinglepointjob, \
+from .ADFSinglePoint import adfsettings, adfscfsettings, adfsinglepointjob, \
     adfsinglepointresults, adfspjobdecorator
-from ADFFragments import fragment, fragmentlist, adffragmentsjob
-from ADFGeometry import adfgeometrysettings, adfgeometryjob, adfgradientsjob, adfgradientsresults
-from ADFFrequencies import adffreqjob
-from ADF_NMR import adfnmrjob, adfnmrresults
-from ADF_CPL import cplsettings, adfcpljob, adfcplresults
-from ADF_DFTB import dftbsettings, dftbsinglepointjob, dftbgeometryjob, dftbfreqjob
-from ADFNumDiff import numgradsettings, adfnumgradjob, adfnumgradsjob
+from .ADFFragments import fragment, FrozenDensFragment, fragmentlist, adffragmentsjob
+from .ADFGeometry import adfgeometrysettings, adfgeometryjob, adfgradientsjob, adfgradientsresults
+from .ADFFrequencies import adffreqjob, adfsinglepointfreqjob
+from .ADF_NMR import adfnmrjob, adfnmrresults
+from .ADF_CPL import cplsettings, adfcpljob, adfcplresults
+from .ADF_DFTB import dftbsettings, dftbsinglepointjob, dftbgeometryjob, dftbfreqjob
+from .ADFNumDiff import numgradsettings, adfnumgradjob, adfnumgradsjob
 
-from DaltonSinglePoint import daltonsettings, daltonjob, daltonsinglepointjob
-from DaltonCC2 import daltonCC2settings, daltonCC2job
+from .DaltonSinglePoint import daltonsettings, daltonjob, daltonsinglepointjob
+from .DaltonCC2 import daltonCC2settings, daltonCC2job
 
-from Orca import OrcaSettings, OrcaJob, OrcaSinglePointJob, OrcaGeometryOptimizationJob, OrcaResults
+from .Orca import OrcaSettings, OrcaJob, OrcaSinglePointJob, OrcaGeometryOptimizationJob, OrcaFrequenciesJob, OrcaOptFrequenciesJob, OrcaResults
 
-from Dirac import diracsettings, diracjob, diracsinglepointjob
-from QuantumEspresso import QEJob, QESinglePointJob, QEResults, QESettings
-from QuantumEspresso_PostProc import QEPostProcJob, QEPostProcResults, QEPostProcSettings
+from .Dirac import diracsettings, diracjob, diracsinglepointjob
+from .QuantumEspresso import QEJob, QESinglePointJob, QEResults, QESettings
+from .QuantumEspresso_PostProc import QEPostProcJob, QEPostProcResults, QEPostProcSettings
 
 
-from Molcas import MolcasJob, MolcasSinglePointJob, MolcasResults, MolcasSettings
+from .Molcas import MolcasJob, MolcasSinglePointJob, MolcasResults, MolcasSettings
 
-from NWChem import nwchemsettings, nwchemjob, nwchemsinglepointjob
-from NWChemCC2 import nwchemCC2job
+from .NWChem import nwchemsettings, nwchemjob, nwchemsinglepointjob
+from .NWChemCC2 import nwchemCC2job
 
-from Turbomole import TurbomoleSinglePointSettings, TurbomoleGeometryOptimizationSettings, \
+from .Turbomole import TurbomoleSinglePointSettings, TurbomoleGeometryOptimizationSettings, \
     TurbomoleGradientSettings, TurbomoleForceFieldSettings, \
     TurbomoleJob, TurbomoleSinglePointJob, \
     TurbomoleGeometryOptimizationJob, TurbomoleGradientJob, \
     TurbomoleForceFieldJob
 
-from SNF import SNFJob, SNFResults
+from .SNF import SNFJob, SNFResults
 
-from ADF_FDE import adffdejob, adffderesults, adffdesettings
+from .ADF_FDE import adffdejob, adffderesults, adffdesettings
 
 try:
-    from ADF_3FDE import cappedfragment, cappedfragmentlist, capmolecule, \
-        adfmfccjob, mfccresults, adf3fdejob
+    from .ADF_3FDE import cappedfragment, cappedfragmentlist, capmolecule, \
+        adfmfccjob, mfccresults, adf3fdejob, mfccmberesults, adfmfccmbejob
 except ImportError:
     pass
 
-from ADF_FDE_AccurateEmbedding import adfaccurateembeddingjob
+from .ADF_FDE_AccurateEmbedding import adfaccurateembeddingjob
 
-from ADF_Densf import densfjob
-from Plot.Grids import cubegrid, adfgrid, customgrid
+from .ADF_Densf import densfjob
+from .Plot.Grids import cubegrid, adfgrid, customgrid
 
-from WFTinDFT import diracfragment, wftindftjob
+from .WFTinDFT import diracfragment, wftindftjob
 
-from ADF_FDE_Analysis import adffdeanalysisjob, adffdeanalysissettings, datasetjob
+from .ADF_FDE_Analysis import adffdeanalysisjob, adffdeanalysissettings, datasetjob
 
-from ADFPotential import adfimportgridjob, adfpotentialjob, adfimportembpotjob
+from .ADFPotential import adfimportgridjob, adfpotentialjob, adfimportembpotjob
 
 try:
     import xcfun
-    from PyEmbed import *
-    from ManyBodyExpansion import MBEJob, MBEResults, DensityBasedMBEJob, DensityBasedMBEResults
+    from .PyEmbed import *
+    from .ManyBodyExpansion import MBEJob, MBEResults, DensityBasedMBEJob, DensityBasedMBEResults
 except ImportError:
     pass

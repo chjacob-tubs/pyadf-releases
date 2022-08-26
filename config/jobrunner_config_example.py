@@ -17,7 +17,7 @@ default_shell = '/bin/zsh'
 # this is a local variable to simplify the definition of env_modules_load below
 _intel_mods = ['ifort/19.1.053', 'icc/19.1.053', 'openmpi-intel19/3.1.6']
 
-env_modules_load = {'adfjob': _intel_mods + ['adf-openmpi/trunk-20200115'],
+env_modules_load = {'scmjob': _intel_mods + ['adf-openmpi/trunk-20210225'],
                     'diracjob': _intel_mods + ['dirac/dirac-master'],
                     'daltonjob': _intel_mods + ['dalton/master-public'],
                     'TurbomoleJob': 'turbomole/7.1mpi',

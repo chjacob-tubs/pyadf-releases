@@ -1,0 +1,290 @@
+variables:
+  SCHEDULER_PARAMETERS: "-n 4 -p nitrogen"
+  USER: legit
+  PYADFHOME: $CI_BUILDS_DIR/$CI_PROJECT_PATH
+  PYADF_NPROC: 4
+  OB_MODULE_LOAD: openbabel/3.1.1-py36
+  RD_MODULE_LOAD: rdkit/2021_03_4
+
+workflow:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_PIPELINE_SOURCE == "web"' 
+
+stages:
+    - general
+    - openbabel
+    - rdkit
+    - obfree
+
+before_script:
+        - hostname
+        - . /usr/share/modules/init/zsh
+        - . /usr/share/modules/init/setup
+        - module load xcfun/master-20220601
+        - module load locvib/python-2to3-20210823
+        - module load pyscf/github-master-20210409
+        - export PYADF_NPROC
+        - export PYTHONPATH=$PYTHONPATH:$PYADFHOME/src
+        - export PATH=$PATH:$PYADFHOME/src/scripts
+        - export PYTHONUNBUFFERED=1
+        - export PYADF_TEST_LINEBREAKS=1
+
+doctests-openbabel:
+    tags:
+        - nodes
+    stage: general
+    script:
+        - module load $OB_MODULE_LOAD
+        - test/test_pyadf --jobrunnerconf test/test_pyadf.conf --molclass=openbabel --tests=doctests
+
+doctests-rdkit:
+    tags:
+        - nodes
+    stage: general
+    script:
+        - module load $RD_MODULE_LOAD
+        - test/test_pyadf --jobrunnerconf test/test_pyadf.conf --molclass=rdkit --tests=doctests
+
+unittests:
+    tags:
+        - nodes
+    stage: general
+    script:
+        - test/test_pyadf --jobrunnerconf test/test_pyadf.conf --molclass=openbabel --tests=unittests
+
+misc:
+    tags:
+        - nodes
+    stage: openbabel
+    needs: ["unittests"]
+    script:
+        - module load $OB_MODULE_LOAD
+        - test/test_pyadf --keep --timings --jobrunnerconf test/test_pyadf.conf --molclass=openbabel --noturbomole --noorca --nodirac --nodalton --noadf --nonwchem --noespresso --nomolcas --nodoctests --nounittests
+
+turbomole:
+    tags:
+        - nodes
+    stage: openbabel
+    needs: ["unittests"]
+    script:
+        - module load $OB_MODULE_LOAD
+        - test/test_pyadf --keep --timings --jobrunnerconf test/test_pyadf.conf --molclass=openbabel --tests=turbomole --nodoctests --nounittests
+
+orca:
+    tags:
+        - nodes
+    stage: openbabel
+    needs: ["unittests"]
+    script:
+        - module load $OB_MODULE_LOAD
+        - test/test_pyadf --keep --timings --jobrunnerconf test/test_pyadf.conf --molclass=openbabel --test=orca --nodoctests --nounittests
+
+dirac:
+    tags:
+        - nodes
+    stage: openbabel
+    needs: ["unittests"]
+    script:
+        - module load $OB_MODULE_LOAD
+        - test/test_pyadf --keep --timings --jobrunnerconf test/test_pyadf.conf --molclass=openbabel --tests=dirac --nodoctests --nounittests
+
+dalton:
+    tags:
+        - nodes
+    stage: openbabel
+    needs: ["unittests"]
+    script:
+        - module load $OB_MODULE_LOAD
+        - test/test_pyadf --keep --timings --jobrunnerconf test/test_pyadf.conf --molclass=openbabel --tests=dalton --nodoctests --nounittests
+
+adf:
+    tags:
+        - nodes
+    stage: openbabel
+    needs: ["unittests"]
+    script:
+        - module load $OB_MODULE_LOAD
+        - test/test_pyadf --keep --timings --jobrunnerconf test/test_pyadf.conf --molclass=openbabel --tests=adf --nodoctests --nounittests
+
+nwchem:
+    tags:
+        - nodes
+    stage: openbabel
+    needs: ["unittests"]
+    script:
+        - module load $OB_MODULE_LOAD
+        - test/test_pyadf --keep --timings --jobrunnerconf test/test_pyadf.conf --molclass=openbabel --tests=nwchem --nodoctests --nounittests
+
+espresso:
+    tags:
+        - nodes
+    stage: openbabel
+    needs: ["unittests"]
+    script:
+        - module load $OB_MODULE_LOAD
+        - test/test_pyadf --keep --timings --jobrunnerconf test/test_pyadf.conf --molclass=openbabel --tests=espresso --nodoctests --nounittests
+
+molcas:
+    tags:
+        - nodes
+    stage: openbabel
+    needs: ["unittests"]
+    script:
+        - module load $OB_MODULE_LOAD
+        - test/test_pyadf --keep --timings --jobrunnerconf test/test_pyadf.conf --molclass=openbabel --tests=molcas --nodoctests --nounittests
+
+misc_rd:
+    tags:
+        - nodes
+    stage: rdkit  
+    needs: ["unittests"]
+    script:
+        - module load $RD_MODULE_LOAD
+        - test/test_pyadf --keep --timings --jobrunnerconf test/test_pyadf.conf --molclass=rdkit --noturbomole --noorca --nodirac --nodalton --noadf --nonwchem --noespresso --nomolcas --nodoctests --nounittests
+
+turbomole_rd:
+    tags:
+        - nodes
+    stage: rdkit
+    needs: ["unittests"]
+    script:
+        - module load $RD_MODULE_LOAD
+        - module load $OB_MODULE_LOAD
+        - test/test_pyadf --keep --timings --jobrunnerconf test/test_pyadf.conf --molclass=rdkit --tests=turbomole --nodoctests --nounittests
+
+orca_rd:
+    tags:
+        - nodes
+    stage: rdkit
+    needs: ["unittests"]
+    script:
+        - module load $RD_MODULE_LOAD
+        - test/test_pyadf --keep --timings --jobrunnerconf test/test_pyadf.conf --molclass=rdkit --test=orca --nodoctests --nounittests
+
+dirac_rd:
+    tags:
+        - nodes
+    stage: rdkit
+    needs: ["unittests"]
+    script:
+        - module load $RD_MODULE_LOAD
+        - test/test_pyadf --keep --timings --jobrunnerconf test/test_pyadf.conf --molclass=rdkit --tests=dirac --nodoctests --nounittests
+
+dalton_rd:
+    tags:
+        - nodes
+    stage: rdkit
+    needs: ["unittests"]
+    script:
+        - module load $RD_MODULE_LOAD
+        - test/test_pyadf --keep --timings --jobrunnerconf test/test_pyadf.conf --molclass=rdkit --tests=dalton --nodoctests --nounittests
+
+adf_rd:
+    tags:
+        - nodes
+    stage: rdkit
+    needs: ["unittests"]
+    script:
+        - module load $RD_MODULE_LOAD
+        - test/test_pyadf --keep --timings --jobrunnerconf test/test_pyadf.conf --molclass=rdkit --tests=adf --nodoctests --nounittests
+
+nwchem_rd:
+    tags:
+        - nodes
+    stage: rdkit  
+    needs: ["unittests"]
+    script:
+        - module load $RD_MODULE_LOAD
+        - test/test_pyadf --keep --timings --jobrunnerconf test/test_pyadf.conf --molclass=rdkit --tests=nwchem --nodoctests --nounittests
+
+espresso_rd:
+    tags:
+        - nodes
+    stage: rdkit
+    needs: ["unittests"]
+    script:
+        - module load $RD_MODULE_LOAD
+        - test/test_pyadf --keep --timings --jobrunnerconf test/test_pyadf.conf --molclass=rdkit --tests=espresso --nodoctests --nounittests
+
+molcas_rd:
+    tags:
+        - nodes
+    stage: rdkit
+    needs: ["unittests"]
+    script:
+        - module load $RD_MODULE_LOAD
+        - test/test_pyadf --keep --timings --jobrunnerconf test/test_pyadf.conf --molclass=rdkit --tests=molcas --nodoctests --nounittests
+
+misc_obfree:
+    tags:
+        - nodes
+    stage: obfree  
+    needs: ["unittests"]
+    script:
+        - test/test_pyadf --keep --timings --noopenbabel --jobrunnerconf test/test_pyadf.conf --molclass=obfree --noturbomole --noorca --noadf --nodirac --nodalton --nonwchem --noespresso --nomolcas --nodoctests --nounittests
+
+turbomole_obfree:
+    tags:
+        - nodes
+    stage: obfree
+    needs: ["unittests"]
+    script:
+        - module load $OB_MODULE_LOAD
+        - test/test_pyadf --keep --timings --noopenbabel --jobrunnerconf test/test_pyadf.conf --molclass=obfree --tests=turbomole --nodoctests --nounittests
+
+orca_obfree:
+    tags:
+        - nodes
+    stage: obfree
+    needs: ["unittests"]
+    script:
+        - test/test_pyadf --keep --timings --noopenbabel --jobrunnerconf test/test_pyadf.conf --molclass=obfree --test=orca --nodoctests --nounittests
+
+dirac_obfree:
+    tags:
+        - nodes
+    stage: obfree
+    needs: ["unittests"]
+    script:
+        - test/test_pyadf --keep --timings --noopenbabel --jobrunnerconf test/test_pyadf.conf --molclass=obfree --tests=dirac --nodoctests --nounittests
+
+dalton_obfree:
+    tags:
+        - nodes
+    stage: obfree
+    needs: ["unittests"]
+    script:
+        - test/test_pyadf --keep --timings --noopenbabel --jobrunnerconf test/test_pyadf.conf --molclass=obfree --tests=dalton --nodoctests --nounittests
+
+adf_obfree:
+    tags:
+        - nodes
+    stage: obfree
+    needs: ["unittests"]
+    script:
+        - test/test_pyadf --keep --timings --noopenbabel --jobrunnerconf test/test_pyadf.conf --molclass=obfree --tests=adf --nodoctests --nounittests
+
+nwchem_obfree:
+    tags:
+        - nodes
+    stage: obfree  
+    needs: ["unittests"]
+    script:
+        - test/test_pyadf --keep --timings --noopenbabel --jobrunnerconf test/test_pyadf.conf --molclass=obfree --tests=nwchem --nodoctests --nounittests
+
+espresso_obfree:
+    tags:
+        - nodes
+    stage: obfree
+    needs: ["unittests"]
+    script:
+        - test/test_pyadf --keep --timings --noopenbabel --jobrunnerconf test/test_pyadf.conf --molclass=obfree --tests=espresso --nodoctests --nounittests
+
+molcas_obfree:
+    tags:
+        - nodes
+    stage: obfree
+    needs: ["unittests"]
+    script:
+        - test/test_pyadf --keep --timings --noopenbabel --jobrunnerconf test/test_pyadf.conf --molclass=obfree --tests=molcas --nodoctests --nounittests

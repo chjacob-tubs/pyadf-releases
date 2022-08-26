@@ -1,0 +1,33 @@
+import os
+from pyadf import *
+if 'pyadfenv' not in globals():
+    from pyadf.Initialization import *
+
+# Neon atom
+ne = molecule(os.path.join(pyadfenv.outdir, 'Ne.xyz'))
+
+# Neon cation
+nep = molecule(os.path.join(pyadfenv.outdir, 'Ne.xyz'))
+nep.set_charge(1)
+nep.set_spin(1)
+
+# BP86 single point calculation settings
+settings = TurbomoleSinglePointSettings(verbose_level=5)
+settings.set_basis_set('cc-pVDZ')
+settings.set_dft_functional('b-p')
+settings.set_ri(True)
+settings.set_dft_grid('m4')
+settings.set_dispersion_correction('dft-d3')
+settings.set_scfiterlimit(500)
+
+# Single-point calculation atom
+results = TurbomoleSinglePointJob(ne, method='dft', settings=settings).run()
+energy_a = results.get_energy()
+
+testobj.assertAlmostEqual(energy_a, -128.9093454682, 6)
+
+# Single-point calculation atom
+results = TurbomoleSinglePointJob(nep, method='dft', settings=settings).run()
+energy_c = results.get_energy()
+
+testobj.assertAlmostEqual(energy_c, -128.1252328737, 6)

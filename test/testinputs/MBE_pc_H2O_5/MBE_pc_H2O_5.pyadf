@@ -1,3 +1,8 @@
+import os
+from pyadf import *
+if 'pyadfenv' not in globals():
+    from pyadf.Initialization import *
+
 max_order = 2
 
 # read coordinates of (H2O)5 cluster
@@ -16,27 +21,15 @@ def calculate_mol(mol, frozen_mols):
     """
     mol.set_symmetry('NOSYM')
 
-    pc = []
-    for frmol in frozen_mols:
-        cc = frmol.get_coordinates()
-        sym = frmol.get_atom_symbols()
-        for s, c in zip(sym, cc):
-            if s == 'H':
-                charge = 0.417
-            elif s == 'O':
-                charge = -0.834
-            else:
-                raise PyAdfError("Wrong atomic Symbol for TIP3P charges")
-            pc.append(c + [charge])
+    frmol = sum(frozen_mols)
+    pc = frmol.get_tip3p_pointcharges()
 
-    settings = adfsettings(zlmfit=True)
-    settings.set_functional('BP86')
-    settings.set_integration(4.0, becke='Basic')
+    sett = adfsettings(zlmfit=True)
+    sett.set_functional('BP86')
+    sett.set_integration(4.0, becke='Basic')
 
-    job = adfsinglepointjob(mol, basis='SZ', core='Medium', settings=settings,
-                            pointcharges=pc, options=['TOTALENERGY', 'TOL 1e-6'])
-
-    res = job.run()
+    res = adfsinglepointjob(mol, basis='SZ', core='Medium', settings=sett,
+                            pointcharges=pc, options=['TOTALENERGY', 'TOL 1e-6']).run()
     return res
 
 
@@ -62,9 +55,9 @@ tot_energy_eb = mberes.get_total_energy()
 #            calculation for the isolated monomers is required.
 int_energy_eb = mberes.get_interaction_energy()
 
-print "Total energy eb-MBE-2 (Hartree)       : ", tot_energy_eb
-print "Interaction energy eb-MBE-2 (Hartree) : ", int_energy_eb
-print
+print("Total energy eb-MBE-2 (Hartree)       : ", tot_energy_eb)
+print("Interaction energy eb-MBE-2 (Hartree) : ", int_energy_eb)
+print()
 
 if 'unittesting' in pyadfenv.options:
     testobj.assertAlmostEqual(tot_energy_eb, -380.1373311994839, 6)
@@ -75,8 +68,8 @@ toten_eb_by_order = mberes.get_total_energies_by_order()
 error_eb_1 = (toten_eb_by_order[0] - toten_supermol) * kJmol
 error_eb_2 = (toten_eb_by_order[1] - toten_supermol) * kJmol
 
-print "Error compared to supermol, eb-MBE-1 (kJ/mol): ", error_eb_1
-print "Error compared to supermol, eb-MBE-2 (kJ/mol): ", error_eb_2
+print("Error compared to supermol, eb-MBE-1 (kJ/mol): ", error_eb_1)
+print("Error compared to supermol, eb-MBE-2 (kJ/mol): ", error_eb_2)
 
 if 'unittesting' in pyadfenv.options:
     testobj.assertAlmostEqual(error_eb_1, 179.0885494112857, 4)
@@ -103,9 +96,9 @@ dbmbe_res = dbmbe_job.run()
 tot_energy_db = dbmbe_res.get_total_energy()
 int_energy_db = dbmbe_res.get_interaction_energy()
 
-print "Total energy db-MBE-2 (Hartree)       : ", tot_energy_db
-print "Interaction energy db-MBE-2 (Hartree) : ", int_energy_db
-print
+print("Total energy db-MBE-2 (Hartree)       : ", tot_energy_db)
+print("Interaction energy db-MBE-2 (Hartree) : ", int_energy_db)
+print()
 
 if 'unittesting' in pyadfenv.options:
     testobj.assertAlmostEqual(tot_energy_db, -380.1417309205247, 6)
@@ -116,9 +109,9 @@ toten_db_by_order = dbmbe_res.get_total_energies_by_order()
 error_db_1 = (toten_db_by_order[0] - toten_supermol) * kJmol
 error_db_2 = (toten_db_by_order[1] - toten_supermol) * kJmol
 
-print "Error compared to supermol, db-MBE-1 (kJ/mol): ", error_db_1
-print "Error compared to supermol, db-MBE-2 (kJ/mol): ", error_db_2
+print("Error compared to supermol, db-MBE-1 (kJ/mol): ", error_db_1)
+print("Error compared to supermol, db-MBE-2 (kJ/mol): ", error_db_2)
 
 if 'unittesting' in pyadfenv.options:
     testobj.assertAlmostEqual(error_db_1, 128.121110027912, 4)
-    testobj.assertAlmostEqual(error_db_2,   0.073161716399, 4)
+    testobj.assertAlmostEqual(error_db_2,   0.073092289418, 4)

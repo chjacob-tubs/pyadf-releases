@@ -1,12 +1,10 @@
-# -*- coding: utf-8 -*-
-
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2021 by Christoph R. Jacob, Tobias Bergmann,
-# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Thomas Dresselhaus,
-# Andre S. P. Gomes, Andreas Goetz, Michal Handzlik, Karin Kiewisch,
-# Moritz Klammler, Lars Ridder, Jetze Sikkema, Lucas Visscher, and
-# Mario Wolter.
+# Copyright (C) 2006-2022 by Christoph R. Jacob, Tobias Bergmann,
+# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Maria Chekmeneva,
+# Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz, 
+# Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder, 
+# Jetze Sikkema, Lucas Visscher, Johannes Vornweg and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -19,7 +17,7 @@
 #    GNU General Public License for more details.
 #
 #    You should have received a copy of the GNU General Public License
-#    along with PyADF.  If not, see <http://www.gnu.org/licenses/>.
+#    along with PyADF.  If not, see <https://www.gnu.org/licenses/>.
 """
 Classes for writing grids and grid functions to file.
 """
@@ -28,22 +26,23 @@ import re
 import os.path
 import numpy
 
-import Grids
-from GridFunctions import GridFunctionFactory, GridFunctionContainer
+from . import Grids
+from .GridFunctions import GridFunctionFactory, GridFunctionContainer
 
 from ..Errors import PyAdfError
 
 
 def read_xmldataset_to_numpy(filename, dataset_names):
     import xml.etree.ElementTree as ET
-    from StringIO import StringIO
+    from io import StringIO
 
     tree_root = ET.parse(filename).getroot()
 
     data_list = []
     for name in dataset_names:
-        dataset_element = tree_root.find("./dataset[@name='%s']" % name)
+        dataset_element = tree_root.find(f"./dataset[@name='{name}']")
 
+        # noinspection PyTypeChecker
         data = numpy.loadtxt(StringIO(dataset_element.text))
 
         data_size = int(dataset_element.attrib['size'])
@@ -57,14 +56,14 @@ def read_xmldataset_to_numpy(filename, dataset_names):
 
         data_list.append(data)
 
-    if len(data_list) == 1 :
+    if len(data_list) == 1:
         data_list = data_list[0]
     else:
         data_list = tuple(data_list)
     return data_list
 
 
-class GridReader(object):
+class GridReader:
 
     @staticmethod
     def read_xyzw(filename_full):
@@ -74,11 +73,10 @@ class GridReader(object):
                              r"\s+(-?[0-9a-zA-Z+-.]+)\s+(-?[0-9a-zA-Z+-.]+)", re.IGNORECASE)
 
         i = 0
-        with open(filename_full) as f:
+        with open(filename_full, encoding='utf-8') as f:
             for line in f:
                 if npoints_re.match(line):
                     npoints = numpy.int(npoints_re.match(line).group(1))
-                    v = numpy.zeros((npoints,))
                     xyz = numpy.zeros((npoints, 3))
                     w = numpy.zeros((npoints,))
 
@@ -101,7 +99,7 @@ class GridReader(object):
         return grid
 
 
-class GridFunctionReader(object):
+class GridFunctionReader:
 
     @staticmethod
     def read_xyzwv(filename_full, gf_type=None):
@@ -112,7 +110,7 @@ class GridFunctionReader(object):
                               re.IGNORECASE)
 
         i = 0
-        with open(filename_full) as f:
+        with open(filename_full, encoding='utf-8') as f:
             for line in f:
                 if npoints_re.match(line):
                     npoints = numpy.int(npoints_re.match(line).group(1))
@@ -133,10 +131,10 @@ class GridFunctionReader(object):
 
         import hashlib
         m = hashlib.md5()
-        m.update("Gridfunction read from file:")
-        m.update(os.path.abspath(filename_full))
+        m.update(b"Gridfunction read from file:")
+        m.update(os.path.abspath(filename_full).encode('utf-8'))
 
-        gf = GridFunctionFactory.newGridFunction(grid, v, checksum=m.digest(), gf_type=gf_type)
+        gf = GridFunctionFactory.newGridFunction(grid, v, checksum=m.hexdigest(), gf_type=gf_type)
 
         return gf
 
@@ -147,39 +145,39 @@ class GridFunctionReader(object):
 
         import hashlib
         m = hashlib.md5()
-        m.update("Electrostatic potential read from file:")
-        m.update(os.path.abspath(filename_full))
+        m.update(b"Electrostatic potential read from file:")
+        m.update(os.path.abspath(filename_full).encode('utf-8'))
 
-        pot_gf = GridFunctionFactory.newGridFunction(grid, elpot, checksum=m.digest(),
+        pot_gf = GridFunctionFactory.newGridFunction(grid, elpot, checksum=m.hexdigest(),
                                                      gf_type="potential")
 
         if nucpot is not None:
             m = hashlib.md5()
-            m.update("Nuclear potential read from file:")
-            m.update(os.path.abspath(filename_full))
+            m.update(b"Nuclear potential read from file:")
+            m.update(os.path.abspath(filename_full).encode('utf-8'))
 
-            nucpot_gf = GridFunctionFactory.newGridFunction(grid, nucpot, checksum=m.digest(),
+            nucpot_gf = GridFunctionFactory.newGridFunction(grid, nucpot, checksum=m.hexdigest(),
                                                             gf_type="potential")
-        else :
+        else:
             nucpot_gf = None
 
         m = hashlib.md5()
-        m.update("Density read from file:")
-        m.update(filename_full)
+        m.update(b"Density read from file:")
+        m.update(filename_full.encode('utf-8'))
 
-        dens_gf = GridFunctionFactory.newGridFunction(grid, rho, checksum=m.digest(), gf_type="density")
-
-        m = hashlib.md5()
-        m.update("Density gradient read from file:")
-        m.update(filename_full)
-
-        densgrad = GridFunctionFactory.newGridFunction(grid, rhod, checksum=m.digest())
+        dens_gf = GridFunctionFactory.newGridFunction(grid, rho, checksum=m.hexdigest(), gf_type="density")
 
         m = hashlib.md5()
-        m.update("Density Hessian read from file:")
-        m.update(filename_full)
+        m.update(b"Density gradient read from file:")
+        m.update(filename_full.encode('utf-8'))
 
-        denshess = GridFunctionFactory.newGridFunction(grid, rhodd, checksum=m.digest())
+        densgrad = GridFunctionFactory.newGridFunction(grid, rhod, checksum=m.hexdigest())
+
+        m = hashlib.md5()
+        m.update(b"Density Hessian read from file:")
+        m.update(filename_full.encode('utf-8'))
+
+        denshess = GridFunctionFactory.newGridFunction(grid, rhodd, checksum=m.hexdigest())
 
         rho_gf = GridFunctionContainer([dens_gf, densgrad, denshess])
 
@@ -204,7 +202,7 @@ class GridFunctionReader(object):
                                r"\s+(-?[0-9a-zA-Z+-.]+)", re.IGNORECASE)
 
         i = 0
-        with open(filename_full) as f:
+        with open(filename_full, encoding='utf-8') as f:
             for line in f:
                 if npoints_re.match(line):
                     npoints = numpy.int(npoints_re.match(line).group(1))

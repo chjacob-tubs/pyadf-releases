@@ -1,3 +1,8 @@
+import os
+from pyadf import *
+if 'pyadfenv' not in globals():
+    from pyadf.Initialization import *
+
 ###################################################################
 #
 # PyADF test ADFPotential_Unambiguous_CO
@@ -9,22 +14,20 @@
 #
 ###################################################################
 
-import math, numpy
-from scipy.special import erf
 
-def get_startpot (refresults, grid) :
-    smallest_exp = 2.0*0.96
+def get_startpot(refresults, grid):
+    smallest_exp = 2.0 * 0.96
     nelec = float(refresults.get_number_of_electrons())
 
     pot = refresults.get_potential(grid, pot='nuc')
     pot = pot + refresults.get_potential(grid, pot='coul')
 
-    fa_pot = refresults.get_potential(grid, pot='coul') * (-1.0/nelec) * smallest_exp
+    fa_pot = refresults.get_potential(grid, pot='coul') * (-1.0 / nelec) * smallest_exp
     pot = pot + fa_pot
     return pot
 
-def run_potjob (refresults, potproj, projchange) :
 
+def run_potjob(refresults, potproj, projchange):
     agrid = adfgrid(refresults)
     mol = refresults.get_molecule()
     mol.set_symmetry('NOSYM')
@@ -35,20 +38,18 @@ def run_potjob (refresults, potproj, projchange) :
 
     settings = adfsettings(functional='BP86', accint=6.0, converge=1e-04,
                            basispath='$PYADFHOME/test/testinputs/ADFPotential_Unambiguous_CO/basis-extfit')
-    settings.set_save_tapes([21,10])
+    settings.set_save_tapes([21, 10])
     settings.set_ncycles(1000)
 
-    job = adfsinglepointjob(mol, basis='DZP', settings=settings)
-    potops = {'EIGENSHIFT':0.001, 'SMALLEIGTHRESH':1e-6,
-              'POTPROJ':potproj, 'PROJCHANGE':projchange, 'DENSCONV':1.0e-5}
-    potjob = adfpotentialjob(job, refdens, potoptions=potops, startpot=startpot1)
+    j = adfsinglepointjob(mol, basis='DZP', settings=settings)
+    potops = {'EIGENSHIFT': 0.001, 'SMALLEIGTHRESH': 1e-6,
+              'POTPROJ': potproj, 'PROJCHANGE': projchange, 'DENSCONV': 1.0e-5}
+    potjob = adfpotentialjob(j, refdens, potoptions=potops, startpot=startpot1)
 
     return potjob.run()
 
-def compare_results(refresults, potresults) :
 
-    mol = refresults.get_molecule()
-
+def compare_results(refresults, potresults):
     ######################################################
     # comparison of densities (ADF grid)
     ######################################################
@@ -56,7 +57,7 @@ def compare_results(refresults, potresults) :
     agrid = adfgrid(refresults)
     refdens = refresults.get_density(grid=agrid)
     potdens = potresults.get_density(grid=agrid)
-    denserr_adf = (refdens-potdens).integral(abs)
+    denserr_adf = (refdens - potdens).integral(abs)
 
     ########################################################
     # comparison of orbital energies
@@ -71,9 +72,9 @@ def compare_results(refresults, potresults) :
 
     return denserr_adf, diff_orbens
 
-def main():
 
-    mol = molecule (os.path.join(pyadfenv.outdir, 'CO.xyz'))
+def main():
+    mol = molecule(os.path.join(pyadfenv.outdir, 'CO.xyz'))
     mol.set_symmetry('NOSYM')
 
     ###################################################################
@@ -82,7 +83,7 @@ def main():
 
     settings = adfsettings(functional='BP86', accint=6.0, converge=1e-04,
                            basispath='$PYADFHOME/test/testinputs/ADFPotential_Unambiguous_CO/basis-extfit')
-    settings.set_save_tapes([21,10])
+    settings.set_save_tapes([21, 10])
     settings.set_ncycles(100)
 
     refresults = adfsinglepointjob(mol, basis='DZP', settings=settings).run()
@@ -95,17 +96,17 @@ def main():
 
     denserr_adf, diff_orbens = compare_results(refresults, potresults)
 
-    print
-    print "CO/DZP/BP86 zero projection / balanced (sigma=1e-2):"
-    print
-    print "error in reconstructed density (ADF grid):  ", denserr_adf
-    print "error in orbital energies:                  ", diff_orbens[:12]
+    print()
+    print("CO/DZP/BP86 zero projection / balanced (sigma=1e-2):")
+    print()
+    print("error in reconstructed density (ADF grid):  ", denserr_adf)
+    print("error in orbital energies:                  ", diff_orbens[:12])
 
-    if 'unittesting' in pyadfenv.options :
-         testobj.assertAlmostEqual(denserr_adf, 0.0058701, 4)
-         testobj.assertAlmostEqual(diff_orbens[:12],
-                 [ 0.00364046,  0.02056636, -0.00699741, -0.00578036, -0.00741276, -0.00741276,
-                   0.0       , -0.01223837, -0.01223837, -0.03575814, -0.03604084, -0.03604084], 4)
+    if 'unittesting' in pyadfenv.options:
+        testobj.assertAlmostEqual(denserr_adf, 0.0058701, 4)
+        testobj.assertAlmostEqual(diff_orbens[:12],
+                                  [0.00364046, 0.02056636, -0.00699741, -0.00578036, -0.00741276, -0.00741276,
+                                   0.0, -0.01223837, -0.01223837, -0.03575814, -0.03604084, -0.03604084], 4)
 
     ####################################################################
     # potential reconstruction job (smooth projection, err < 1e-3)
@@ -115,17 +116,17 @@ def main():
 
     denserr_adf, diff_orbens = compare_results(refresults, potresults)
 
-    print
-    print "CO/DZP/BP86 smooth projection, err < 1e-3:"
-    print
-    print "error in reconstructed density (ADF grid):  ", denserr_adf
-    print "error in orbital energies:                  ", diff_orbens[:12]
+    print()
+    print("CO/DZP/BP86 smooth projection, err < 1e-3:")
+    print()
+    print("error in reconstructed density (ADF grid):  ", denserr_adf)
+    print("error in orbital energies:                  ", diff_orbens[:12])
 
-    if 'unittesting' in pyadfenv.options :
-         testobj.assert_(denserr_adf < 1.0e-3)
-         testobj.assertAlmostEqual(diff_orbens[:12],
-                [-0.00228256, -0.00348623, -0.00025208, -0.00030852,  0.00012506,  0.00012506,
-                  0.0       , -0.00171702, -0.00171702, -0.00153104, -0.00218519, -0.00218519], 4)
+    if 'unittesting' in pyadfenv.options:
+        testobj.assert_(denserr_adf < 1.0e-3)
+        testobj.assertAlmostEqual(diff_orbens[:12],
+                                  [-0.00228256, -0.00348623, -0.00025208, -0.00030852, 0.00012506, 0.00012506,
+                                   0.0, -0.00171702, -0.00171702, -0.00153104, -0.00218519, -0.00218519], 4)
 
     ####################################################################
     # potential reconstruction job (full projection)
@@ -135,17 +136,17 @@ def main():
 
     denserr_adf, diff_orbens = compare_results(refresults, potresults)
 
-    print
-    print "CO/DZP/BP86 full projection:"
-    print
-    print "error in reconstructed density (ADF grid):  ", denserr_adf
-    print "error in orbital energies:                  ", diff_orbens[:12]
+    print()
+    print("CO/DZP/BP86 full projection:")
+    print()
+    print("error in reconstructed density (ADF grid):  ", denserr_adf)
+    print("error in orbital energies:                  ", diff_orbens[:12])
 
-    if 'unittesting' in pyadfenv.options :
-         testobj.assertAlmostEqual(denserr_adf, 0.1583613, 4)
-         testobj.assertAlmostEqual(diff_orbens[:12],
-                 [-0.48936859, -0.12758322, -0.03110104, 0.002554,   0.02016181, 0.02016181,
-                   0.0,         0.02248438,  0.02248438, 0.06504899, 0.0371402,  0.0371402 ], 3)
+    if 'unittesting' in pyadfenv.options:
+        testobj.assertAlmostEqual(denserr_adf, 0.1583613, 4)
+        testobj.assertAlmostEqual(diff_orbens[:12],
+                                  [-0.48936859, -0.12758322, -0.03110104, 0.002554, 0.02016181, 0.02016181,
+                                   0.0, 0.02248438, 0.02248438, 0.06504899, 0.0371402, 0.0371402], 3)
 
     ####################################################################
     # potential reconstruction job (virt projection, err < 1e-3)
@@ -155,16 +156,19 @@ def main():
 
     denserr_adf, diff_orbens = compare_results(refresults, potresults)
 
-    print
-    print "CO/DZP/BP86 virt projection, err < 1e-3:"
-    print
-    print "error in reconstructed density (ADF grid):  ", denserr_adf
-    print "error in orbital energies:                  ", diff_orbens[:12]
+    print()
+    print("CO/DZP/BP86 virt projection, err < 1e-3:")
+    print()
+    print("error in reconstructed density (ADF grid):  ", denserr_adf)
+    print("error in orbital energies:                  ", diff_orbens[:12])
 
-    if 'unittesting' in pyadfenv.options :
-         testobj.assert_(denserr_adf < 1.0e-3)
-         testobj.assertAlmostEqual(diff_orbens[:12],
-                 [ -1.76825336e-02, -3.15750839e-03,  3.48663861e-04, 7.46838586e-05,  3.01087465e-04,  3.01087474e-04,
-                    0.00000000e+00, -9.86934181e-04, -9.86934204e-04, 1.90506912e-04, -8.13542591e-04, -8.13542550e-04], 3)
+    if 'unittesting' in pyadfenv.options:
+        testobj.assert_(denserr_adf < 1.0e-3)
+        testobj.assertAlmostEqual(diff_orbens[:12],
+                                  [-1.76825336e-02, -3.15750839e-03, 3.48663861e-04, 7.46838586e-05, 3.01087465e-04,
+                                   3.01087474e-04,
+                                   0.00000000e+00, -9.86934181e-04, -9.86934204e-04, 1.90506912e-04, -8.13542591e-04,
+                                   -8.13542550e-04], 3)
+
 
 main()

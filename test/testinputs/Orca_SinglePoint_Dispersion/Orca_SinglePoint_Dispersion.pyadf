@@ -1,0 +1,30 @@
+import os
+from pyadf import *
+if 'pyadfenv' not in globals():
+    from pyadf.Initialization import *
+
+h2o = molecule(os.path.join(pyadfenv.outdir, 'H2O.xyz'))
+
+# HF-D3 single point calculation
+
+settings = OrcaSettings(method='HF', basis='cc-pVDZ', disp='D3')
+results = OrcaSinglePointJob(h2o, settings=settings).run()
+
+energy = results.get_energy()
+testobj.assertAlmostEqual(energy, -76.026038806679, 6)
+
+# BP86-D3 single point calculation
+
+settings = OrcaSettings(method='DFT', functional='BP86', basis='cc-pVDZ', disp='D3')
+results = OrcaSinglePointJob(h2o, settings=settings).run()
+
+energy = results.get_energy()
+testobj.assertAlmostEqual(energy, -76.421558554982, 6)
+
+# BP86-D4 single point calculation
+
+settings = OrcaSettings(method='DFT', functional='BP86', basis='cc-pVDZ', disp='D4')
+results = OrcaSinglePointJob(h2o, settings=settings).run()
+
+energy = results.get_energy()
+testobj.assertAlmostEqual(energy, -76.421335646341, 6)

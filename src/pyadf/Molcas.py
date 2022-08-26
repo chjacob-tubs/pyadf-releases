@@ -1,12 +1,10 @@
-# -*- coding: utf-8 -*-
-
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2021 by Christoph R. Jacob, Tobias Bergmann,
-# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Thomas Dresselhaus,
-# Andre S. P. Gomes, Andreas Goetz, Michal Handzlik, Karin Kiewisch,
-# Moritz Klammler, Lars Ridder, Jetze Sikkema, Lucas Visscher, and
-# Mario Wolter.
+# Copyright (C) 2006-2022 by Christoph R. Jacob, Tobias Bergmann,
+# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Maria Chekmeneva,
+# Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz, 
+# Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder, 
+# Jetze Sikkema, Lucas Visscher, Johannes Vornweg and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -19,7 +17,7 @@
 #    GNU General Public License for more details.
 #
 #    You should have received a copy of the GNU General Public License
-#    along with PyADF.  If not, see <http://www.gnu.org/licenses/>.
+#    along with PyADF.  If not, see <https://www.gnu.org/licenses/>.
 """
  Molcas wrapper. It was created analog to the Dirac wrapper.
  This wrapper is capable of providing an embedding potential
@@ -31,23 +29,38 @@
  @organization: Westfaelische Wilhelmsuniversitaet Muenster (WWU)
  @contact:      t.dresselhaus@wwu.de
 """
-from BaseJob import job
-from BaseJob import results
-from Errors import PyAdfError
+from .BaseJob import job
+from .Errors import PyAdfError
+from .DensityEvaluator import GTODensityEvaluatorMixin
 
 import os
 
 
-class MolcasResults(results):
+class MolcasResults(GTODensityEvaluatorMixin):
     """
     @group Initialization:
         __init__
     """
 
     def __init__(self, j=None):
-        results.__init__(self, j)
+        super().__init__(j)
         # TODO make this according to the structure of PyADF
         self.tape10_filename = 'molcasjob.tape10'
+
+    def read_molden_file(self):
+        """
+        Returns Molden results file as a string.
+        """
+
+        try:
+            molden_filename = self.files.get_results_filename(self.fileid, tape=41)
+        except PyAdfError:
+            raise PyAdfError("Molcas Molden file not found")
+
+        with open(molden_filename, encoding='utf-8') as f:
+            content = f.read()
+
+        return content
 
     def get_scforb_filename(self):
         return self.files.get_results_filename(self.fileid, tape=21)
@@ -95,7 +108,7 @@ class MolcasResults(results):
         self.files.copy_result_file(self.fileid, 21, name)
 
 
-class MolcasSettings(object):
+class MolcasSettings:
     def __init__(self, basis='aug-cc-PVDZ', cholesky=True, functional='LDA', grid=None):
         """
         @param basis:      the basis set for the calculation
@@ -111,7 +124,7 @@ class MolcasSettings(object):
         self.method = None
         self.basis = None
         self.cholesky = None
-        self.functional = None
+        self._functional = None
         self.grid = None
 
         self.set_basis(basis)
@@ -141,6 +154,13 @@ class MolcasSettings(object):
         """
         self.basis = basisset
 
+    @property
+    def functional(self):
+        if self.method == 'DFT':
+            return self._functional
+        else:
+            return None
+
     def set_functional(self, functional):
         """
         Select the exchange-correlation functional for DFT.
@@ -150,7 +170,7 @@ class MolcasSettings(object):
             See Orca manual for available options.
         @type functional: str
         """
-        self.functional = functional
+        self._functional = functional
 
     def set_cholesky(self, value):
         """
@@ -180,15 +200,15 @@ class MolcasSettings(object):
         @returns: Text block
         @rtype:   L{str}
         """
-        s = '   Method: %s ' % self.method
+        s = f'   Method: {self.method} '
         if self.cholesky:
             s += '(Cholesky: ON) \n'
         else:
             s += '(Cholesky: OFF) \n'
-        s += '   Basis Set: %s \n' % self.basis
+        s += f'   Basis Set: {self.basis} \n'
         if self.method == 'DFT':
-            s += '   Exchange-correlation functional: %s \n' % self.functional
-            s += '   DFT integration grid: %s \n' % self.grid
+            s += f'   Exchange-correlation functional: {self.functional} \n'
+            s += f'   DFT integration grid: {self.grid} \n'
         return s
 
 
@@ -217,7 +237,7 @@ class MolcasRasSettings(MolcasSettings):
                            while the second and fourth are initially empty
         @type  occupation: [int]
         """
-        super(MolcasRasSettings, self).__init__(basis, cholesky, functional=None)
+        super().__init__(basis, cholesky, functional=None)
 
         if nActEl is None:
             self.nActEl = 2
@@ -245,8 +265,8 @@ class MolcasRasSettings(MolcasSettings):
         @returns: Text block
         @rtype:   L{str}
         """
-        s = super(MolcasRasSettings, self).__init__()
-        s += '   symmetry: %s \n' % self.symmetry
+        s = super().__init__()
+        s += f'   symmetry: {self.symmetry} \n'
         if self.method in ("CASSCF", "DMRG"):
             s += '   CASSCF / DMRG settings: \n'
             s += '      number of active electrons    : ' + str(self.nActEl) + '\n'
@@ -255,7 +275,7 @@ class MolcasRasSettings(MolcasSettings):
             s += '      occupation of active orbitals : ' + str(self.occupation) + '\n'
         if self.method == "DMRG":
             s += '   DMRG settings: \n'
-            s += '      number of DMRG states: %i ' % self.mDMRG
+            s += f'      number of DMRG states: {self.mDMRG:d} '
         return s
 
 
@@ -269,7 +289,7 @@ class MolcasJob(job):
                            calculation shall be used it is taken from this job.
         @type  fdein:      L{adffragmentsresults}
         """
-        job.__init__(self)
+        super().__init__()
         self.mol = mol
 
         if method.upper() not in ("HF", "DFT", "CASSCF", "DMRG"):
@@ -277,7 +297,7 @@ class MolcasJob(job):
         else:
             self.method = method.upper()
             if method in ("CASSCF", "DMRG"):
-                print "WARNING: CASSCF and DMRG support for Molcas is not tested and probably not working"
+                print("WARNING: CASSCF and DMRG support for Molcas is not tested and probably not working")
 
         if settings is None:
             if self.method in ("CASSCF", "DMRG"):
@@ -324,7 +344,7 @@ class MolcasJob(job):
         runscript += "export WorkDir=`pwd`\n"
 
         if nproc > 1:
-            runscript += "export MOLCAS_NPROCS=%i\n" % nproc
+            runscript += f"export MOLCAS_NPROCS={nproc:d}\n"
 
         # execute pymolcas (the main Molcas driver)
         runscript += "pymolcas molcasjob.input\n"
@@ -365,7 +385,7 @@ class MolcasJob(job):
             block += " CHOLesky\n"
         if (self.method == "DFT") and (self.settings.grid is not None):
             block += " GRID Input\n"
-            block += "  GRID=%s\n" % self.settings.grid
+            block += f"  GRID={self.settings.grid}\n"
             block += " END Of Grid Input\n"
         if self.fdein is not None:
             block += " EMBEdding\n"
@@ -430,7 +450,7 @@ class MolcasJob(job):
                 'molcasjob.scf.molden', 'xmldump']
 
     def check_success(self, outfile, errfile):
-        f = open(outfile)
+        f = open(outfile, encoding='utf-8')
         success = False
         for ll in f.readlines()[-10:]:
             if '.# Happy landing! #.' in ll:
@@ -439,13 +459,23 @@ class MolcasJob(job):
                 raise PyAdfError("Error termination in Molcas")
         return success
 
-    def get_checksum(self):
+    @property
+    def checksum(self):
         import hashlib
 
         m = hashlib.md5()
-        m.update(self.mol.get_xyz_file())
-        m.update(self.get_inputfile())
-        return m.digest()
+        m.update(self.mol.get_xyz_file().encode('utf-8'))
+        m.update(self.get_inputfile().encode('utf-8'))
+
+        if self.restart is not None:
+            m.update(b'Restarted from Molcas job \n')
+            m.update(self.restart.checksum.encode('utf-8'))
+
+        if self.fdein is not None:
+            m.update(b'Embedding potential imported from ADF job \n')
+            m.update(self.fdein.checksum.encode('utf-8'))
+
+        return m.hexdigest()
 
     def create_results_instance(self):
         return MolcasResults(self)
@@ -458,28 +488,28 @@ class MolcasJob(job):
 
     def print_molecule(self):
 
-        print "   Molecule"
-        print "   ========"
-        print
-        print self.get_molecule()
-        print
+        print("   Molecule")
+        print("   ========")
+        print()
+        print(self.get_molecule())
+        print()
 
     def print_settings(self):
 
-        print "   Settings"
-        print "   ========"
-        print
-        print self.settings
-        print
+        print("   Settings")
+        print("   ========")
+        print()
+        print(self.settings)
+        print()
 
     def print_extras(self):
         if self.restart is not None:
-            print " Using restart file " + self.restart.get_scforb_filename()
+            print(" Using restart file " + self.restart.get_scforb_filename())
 
     def print_jobinfo(self):
-        print " " + 50 * "-"
-        print " Running " + self.print_jobtype()
-        print
+        print(" " + 50 * "-")
+        print(" Running " + self.print_jobtype())
+        print()
 
         self.print_molecule()
 

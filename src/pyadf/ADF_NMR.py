@@ -1,12 +1,10 @@
-# -*- coding: utf-8 -*-
-
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2021 by Christoph R. Jacob, Tobias Bergmann,
-# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Thomas Dresselhaus,
-# Andre S. P. Gomes, Andreas Goetz, Michal Handzlik, Karin Kiewisch,
-# Moritz Klammler, Lars Ridder, Jetze Sikkema, Lucas Visscher, and
-# Mario Wolter.
+# Copyright (C) 2006-2022 by Christoph R. Jacob, Tobias Bergmann,
+# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Maria Chekmeneva,
+# Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz, 
+# Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder, 
+# Jetze Sikkema, Lucas Visscher, Johannes Vornweg and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -19,7 +17,7 @@
 #    GNU General Public License for more details.
 #
 #    You should have received a copy of the GNU General Public License
-#    along with PyADF.  If not, see <http://www.gnu.org/licenses/>.
+#    along with PyADF.  If not, see <https://www.gnu.org/licenses/>.
 """
  Job and results for ADF NMR calculations.
 
@@ -36,13 +34,13 @@
 import os
 import re
 
-from Errors import PyAdfError
-from ADFBase import adfjob, adfresults
+from .Errors import PyAdfError
+from .ADFBase import scmjob, scmresults
 
 
-class adfnmrresults(adfresults):
+class adfnmrresults(scmresults):
     """
-    Class for the results of a ADF NMR job.
+    Class for the results of an ADF NMR job.
 
     @group Initialization:
         __init__
@@ -54,7 +52,7 @@ class adfnmrresults(adfresults):
         """
         Constructur for adfnmrresults.
         """
-        adfresults.__init__(self, j)
+        super().__init__(j)
 
     def get_all_shieldings(self):
         """
@@ -139,6 +137,7 @@ class adfnmrresults(adfresults):
         counter = 0
 
         total = 0.0
+        dia = 0.0
         para = 0.0
         for line in output[start:end]:
 
@@ -164,7 +163,7 @@ class adfnmrresults(adfresults):
         return total, para, dia
 
 
-class adfnmrjob(adfjob):
+class adfnmrjob(scmjob):
     """
     A job class for ADF NMR shielding calculations.
 
@@ -186,7 +185,7 @@ class adfnmrjob(adfjob):
         @type  nucs:   list of int
         @param ghosts: list of coordinates for ghost sites (NICS)
         @type  ghosts: list of float[3]
-        @param u1k:    U1K options options, see ADF-NMR documentation of U1K key. 
+        @param u1k:    U1K options, see ADF-NMR documentation of U1K key.
                        set here to 'best' which if missing gives rubbish when spin-orbit coupling is on
         @type  u1k:    str
         @param out:    output options, see ADF-NMR documentation of OUT key
@@ -194,13 +193,14 @@ class adfnmrjob(adfjob):
         @type  out:    str
         """
 
-        adfjob.__init__(self)
+        super().__init__()
 
         self.adfresults = adfres
         self.nucs = nucs
         self.u1k = u1k
         self.use = use
         self.analysis = analysis
+        self.zora = False
         self.nmrnucs = adfres.get_atom_index(nucs)
 
         self.ghosts = ghosts
@@ -210,30 +210,31 @@ class adfnmrjob(adfjob):
     def create_results_instance(self):
         return adfnmrresults(self)
 
+    # noinspection PyMethodOverriding
     def get_runscript(self, nproc=1):
-        return adfjob.get_runscript(self, nproc=nproc, program='nmr')
+        return super().get_runscript(nproc=nproc, program='nmr')
 
     def get_input(self):
         nmrinput = "NMR \n"
 
         if self.u1k is not None:
-            nmrinput += " U1K %s\n" % self.u1k
+            nmrinput += f" U1K {self.u1k}\n"
 
         if self.use is not None:
-            nmrinput += " USE %s\n" % self.use
+            nmrinput += f" USE {self.use}\n"
 
         if self.out is not None:
-            nmrinput += " out %s\n" % self.out
+            nmrinput += f" out {self.out}\n"
         else:
             nmrinput += " out iso\n"
 
         if self.calc is not None:
-            nmrinput += " calc %s\n" % self.calc
+            nmrinput += f" calc {self.calc}\n"
         else:
             nmrinput += " calc all\n"
 
         if self.analysis is not None:
-            nmrinput += " Analysis\n %s\n End\n" % self.analysis
+            nmrinput += f" Analysis\n {self.analysis}\n End\n"
             if self.zora:
                 nmrinput += " FakeSO\n"
 
@@ -244,12 +245,12 @@ class adfnmrjob(adfjob):
         if self.ghosts is not None:
             nmrinput += " GHOSTS\n"
             for g in self.ghosts:
-                nmrinput += " %14.5f %14.5f %14.5f\n" % tuple(g)
+                nmrinput += " {:14.5f} {:14.5f} {:14.5f}\n".format(*g)
             nmrinput += " SubEnd\n"
         nmrinput += "END \n"
 
         if self._checksum_only:
-            nmrinput += self.adfresults.get_checksum()
+            nmrinput += self.adfresults.checksum
 
         return nmrinput
 
@@ -257,44 +258,44 @@ class adfnmrjob(adfjob):
         return "NMR job"
 
     def print_jobinfo(self):
-        print " " + 50 * "-"
-        print " Running " + self.print_jobtype()
-        print
-        print "   SCF taken from ADF job ", self.adfresults.fileid, " (results id)"
-        print
-        print "   Shielding will be calculated for nuclei : "
-        print self.adfresults.get_molecule().print_coordinates(self.nucs)
-        print
+        print(" " + 50 * "-")
+        print(" Running " + self.print_jobtype())
+        print()
+        print("   SCF taken from ADF job ", self.adfresults.fileid, " (results id)")
+        print()
+        print("   Shielding will be calculated for nuclei : ")
+        print(self.adfresults.get_molecule().print_coordinates(self.nucs))
+        print()
 
         if self.u1k is not None:
-            print "   U1K  set to : ", self.u1k
+            print("   U1K  set to : ", self.u1k)
             if self.u1k.lower() == 'all':
-                print "     Note: setting U1K to All is not recommended if with ZORA."
+                print("     Note: setting U1K to All is not recommended if with ZORA.")
         else:
-            print "   U1K  set to :  none"
-            print "     Note: verify whether this is recommended for the Hamiltonian in use."
+            print("   U1K  set to :  none")
+            print("     Note: verify whether this is recommended for the Hamiltonian in use.")
 
         if self.out is not None:
-            print "   OUT  set to : ", self.out
+            print("   OUT  set to : ", self.out)
         else:
-            print "   OUT  set to :  iso"
+            print("   OUT  set to :  iso")
 
         if self.calc is not None:
-            print "   Calc set to : ", self.out
+            print("   Calc set to : ", self.out)
         else:
-            print "   Calc set to :  All"
+            print("   Calc set to :  All")
 
         if self.ghosts is not None:
-            print "   Shielding will be calculated for ghost sites : "
+            print("   Shielding will be calculated for ghost sites : ")
             for i, g in enumerate(self.ghosts):
-                print "   %3i) %14.5f %14.5f %14.5f" % (i + 1, g[0], g[1], g[2])
-            print
+                print(f"   {i + 1:3d}) {g[0]:14.5f} {g[1]:14.5f} {g[2]:14.5f}")
+            print()
 
         if self.analysis is not None:
-            print "   Analysis is set to : ", self.analysis
+            print("   Analysis is set to : ", self.analysis)
 
     def before_run(self):
         self.adfresults.get_tapes_copy()
 
         if not os.path.exists('TAPE10'):
-            print "   WARNING: TAPE10 was not saved in SCF job"
+            print("   WARNING: TAPE10 was not saved in SCF job")

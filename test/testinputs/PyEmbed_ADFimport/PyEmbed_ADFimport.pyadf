@@ -1,17 +1,19 @@
-import math
-import numpy
+import os
+from pyadf import *
+if 'pyadfenv' not in globals():
+    from pyadf.Initialization import *
 
 fde_settings = adfsettings()
-fde_settings.set_save_tapes([21,10])
+fde_settings.set_save_tapes([21, 10])
 fde_settings.set_functional('BLYP')
 fde_settings.set_integration(accint=4.0)
 
 # other options
 basis_active = "DZP"
-fde_act_opts = {'FULLGRID':'', 'TNAD':'PW91k', 'ENERGY' : '' }
+fde_act_opts = {'FULLGRID': '', 'TNAD': 'PW91k', 'ENERGY': ''}
 
-file_h2o = os.path.join (pyadfenv.outdir, 'H2O.xyz')
-file_nh3 = os.path.join (pyadfenv.outdir, 'NH3.xyz')
+file_h2o = os.path.join(pyadfenv.outdir, 'H2O.xyz')
+file_nh3 = os.path.join(pyadfenv.outdir, 'NH3.xyz')
 
 m_h2o = molecule(file_h2o)
 m_h2o.set_symmetry('NOSYM')
@@ -26,40 +28,40 @@ m_tot.set_symmetry('NOSYM')
 
 r_nh3 = adfsinglepointjob(m_nh3, basis_active, settings=fde_settings, options=['NOSYMFIT']).run()
 
-frags = [ fragment(None,  [m_h2o]),
-          fragment(r_nh3, [m_nh3], isfrozen=True) ]
+frags = [fragment(None, [m_h2o]),
+         fragment(r_nh3, [m_nh3], isfrozen=True)]
 
 fde_res = adffragmentsjob(frags, basis_active, settings=fde_settings, fde=fde_act_opts,
-                           options=['NOSYMFIT']).run()
+                          options=['NOSYMFIT']).run()
 
 agrid = adfgrid(fde_res)
 
-fde_dens_h2o  = fde_res.get_nonfrozen_density(grid=agrid, fit=False, order=2)
+fde_dens_h2o = fde_res.get_nonfrozen_density(grid=agrid, fit=False, order=2)
 fde_elpot_h2o = fde_res.get_nonfrozen_potential(grid=agrid, pot='nuc') \
                 + fde_res.get_nonfrozen_potential(grid=agrid, pot='coul')
 
-fde_dens_nh3  = fde_res.get_frozen_density(grid=agrid, fit=False, order=2)
+fde_dens_nh3 = fde_res.get_frozen_density(grid=agrid, fit=False, order=2)
 fde_elpot_nh3 = fde_res.get_frozen_potential(grid=agrid, pot='nuc') \
                 + fde_res.get_frozen_potential(grid=agrid, pot='coul')
 
-fde_embpot    = fde_res.get_embedding_potential(grid=agrid)
-fde_nadpot_k  = fde_res.get_embedding_potential(grid=agrid, pot="kin")
+fde_embpot = fde_res.get_embedding_potential(grid=agrid)
+fde_nadpot_k = fde_res.get_embedding_potential(grid=agrid, pot="kin")
 fde_nadpot_xc = fde_res.get_embedding_potential(grid=agrid, pot="xc")
 
 ###
 # using pyembed to calculate the embedding potentials from the densities
 
 embed_settings = EmbedXCFunSettings()
-embed_settings.set_fun_nad_xc ({'BeckeX': 1.0, 'LYPC': 1.0})
-embed_settings.set_fun_nad_kin({'pw91k' : 1.0})
+embed_settings.set_fun_nad_xc({'BeckeX': 1.0, 'LYPC': 1.0})
+embed_settings.set_fun_nad_kin({'pw91k': 1.0})
 
 embed_settings.show_functionals()
 
 embed_eval = EmbedXCFunEvaluator(settings=embed_settings)
 
 embpot_h2o_dd = embed_eval.get_emb_pot(fde_dens_h2o, fde_dens_nh3, fde_elpot_nh3)
-#nadkin_h2o_dd = embed_eval.get_nad_pot_kin(fde_dens_h2o, fde_dens_nh3)
-#nadxc_h2o_dd  = embed_eval.get_nad_pot_xc(fde_dens_h2o, fde_dens_nh3)
+# nadkin_h2o_dd = embed_eval.get_nad_pot_kin(fde_dens_h2o, fde_dens_nh3)
+# nadxc_h2o_dd  = embed_eval.get_nad_pot_xc(fde_dens_h2o, fde_dens_nh3)
 
 ###
 # now import the PyEmbed embedding potential into a standard ADF calculation
@@ -69,14 +71,14 @@ j_h2o = adfimportembpotjob(j_h2o, embpot_h2o_dd)
 
 pyembed_res = j_h2o.run()
 
-fde_dens_h2o     = fde_res.get_nonfrozen_density(grid=agrid, fit=False)
+fde_dens_h2o = fde_res.get_nonfrozen_density(grid=agrid, fit=False)
 pyembed_dens_h2o = pyembed_res.get_nonfrozen_density(grid=agrid, fit=False)
 
 diffdens = fde_dens_h2o - pyembed_dens_h2o
 int_diffdens = diffdens.integral(func=lambda x: abs(x))
 
-print int_diffdens
+print(int_diffdens)
 
 if 'unittesting' in pyadfenv.options:
     testobj.assertTrue(int_diffdens < 1e-6,
-                       msg="Int. difference density (%13.6e) larger than 1e-6" % int_diffdens)
+                       msg=f"Int. difference density ({int_diffdens:13.6e}) larger than 1e-6")

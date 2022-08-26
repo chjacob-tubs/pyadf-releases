@@ -1,13 +1,12 @@
-#!/usr/bin/env python2
-# -*- coding: utf-8 -*-
+#!/usr/bin/env python3
 
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2021 by Christoph R. Jacob, Tobias Bergmann,
-# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Thomas Dresselhaus,
-# Andre S. P. Gomes, Andreas Goetz, Michal Handzlik, Karin Kiewisch,
-# Moritz Klammler, Lars Ridder, Jetze Sikkema, Lucas Visscher, and
-# Mario Wolter.
+# Copyright (C) 2006-2022 by Christoph R. Jacob, Tobias Bergmann,
+# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Maria Chekmeneva,
+# Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz, 
+# Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder, 
+# Jetze Sikkema, Lucas Visscher, Johannes Vornweg and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -20,18 +19,16 @@
 #    GNU General Public License for more details.
 #
 #    You should have received a copy of the GNU General Public License
-#    along with PyADF.  If not, see <http://www.gnu.org/licenses/>.
+#    along with PyADF.  If not, see <https://www.gnu.org/licenses/>.
 
 import sys
 import os
-
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import unittest
 
 from pyadf_doctests import make_doctest_suite
 from pyadf_testinputs import make_testinputs_suite
-from pyadf_unittests.PyAdfTestCase import PyAdfTextTestResult
+from pyadf_unittests.PyAdfTestCase import PyAdfTextTestRunner
 
 
 def get_options():
@@ -41,14 +38,21 @@ def get_options():
 
     parser.add_option("--tests", default="all",
                       dest="tests",
-                      help="which tests to run [available: doctests, unittests, short, medium, long, all]")
+                      help="which tests to run [available: doctests, unittests, "
+                           "short, medium, long, all, software name]")
+    parser.add_option("--nodoctests", action="store_false", default=True,
+                      dest="doctests", help="skip doc tests")
+    parser.add_option("--nounittests", action="store_false", default=True,
+                      dest="unittests", help="skip unit tests")
     parser.add_option("--noopenbabel", action="store_false", default=True,
                       dest="openbabel", help="skip tests relying on Openbabel")
     parser.add_option("--nodalton", action="store_false", default=True,
                       dest="dalton", help="skip Dalton tests")
+    parser.add_option("--noadf", action="store_false", default=True,
+                      dest="adf", help="skip ADF tests")
     parser.add_option("--nodirac", action="store_false", default=True,
                       dest="dirac", help="skip Dirac tests")
-    parser.add_option("--noquantumespresso", action="store_false", default=True,
+    parser.add_option("--noespresso", action="store_false", default=True,
                       dest="espresso", help="skip Quantum Espresso tests")
     parser.add_option("--nomolcas", action="store_false", default=True,
                       dest="molcas", help="skip Molcas tests")
@@ -62,14 +66,16 @@ def get_options():
                       dest="kftest", help="skip kf tests")
     parser.add_option("--singletest", default=None,
                       dest="singletest", help="name of one specific test to run")
-    parser.add_option("--keep", "-k", action="store_true", default=False,
-                      dest="keep", help="keep temporary test directories")
-    parser.add_option("--profile", "-p", action="store_true", default=False,
-                      dest="profile", help="run tests using the Python profiler")
     parser.add_option("--molclass", choices=["openbabel", "obfree", "rdkit"], default=None,
                       help="select molecule class to use [available: openbabel, rdkit, obfree]")
     parser.add_option("--jobrunnerconf", "-c", action="store", type='string', metavar='FILE', default=None,
                       dest="jobrunnerconf", help="set job runner configuration file [default: $HOME/.pyadfconfig]")
+    parser.add_option("--keep", "-k", action="store_true", default=False,
+                      dest="keep", help="keep temporary test directories")
+    parser.add_option("--profile", "-p", action="store_true", default=False,
+                      dest="profile", help="run tests using the Python profiler")
+    parser.add_option("--timings", "-t", action="store_true", default=False,
+                      dest="timing_report", help="print a timing report after running tests")
 
     (options, args) = parser.parse_args()
 
@@ -90,21 +96,26 @@ def test():
                                             molclass=options.molclass,
                                             jobrunnerconf=options.jobrunnerconf))
     else:
-        if options.tests != "unittests":  # add doctests, unless only unittests requested
+        if options.tests in ["doctests", "unittests"]:
+            options.doctests = False
+            options.unittests = False
+
+        if options.tests == "doctests" or options.doctests:  # add doctests
             doctests = make_doctest_suite(molclass=options.molclass)
             if doctests is not None:
                 suite.addTest(doctests)
 
-        if options.tests != "doctests":  # add unittests, unless onlt doctests requested
+        if options.tests == "unittests" or options.unittests:  # add unittests
             import kf
             from pyadf.JobRunnerConfiguration import JobRunnerConfiguration
-            from pyadf.ADFBase import adfjob
+            from pyadf.ADFBase import scmjob
 
             # we need to set up the JobRunner configuration for the KF module
-            job_runner_conf = JobRunnerConfiguration(conffile=options.jobrunnerconf)
-            kf.setup_kf_environment(job_runner_conf.get_environ_for_class(adfjob))
+            job_runner_conf = JobRunnerConfiguration(conffile=options.jobrunnerconf,
+                                                     jobbasedir=os.getcwd())
+            kf.setup_kf_environment(job_runner_conf.get_environ_for_class(scmjob))
 
-            suite.addTest(unittest.TestLoader().loadTestsFromTestCase(kf.KFFileTests))
+            # suite.addTest(unittest.TestLoader().loadTestsFromTestCase(kf.KFFileTests))
 
             import pyadf_unittests
             suite.addTest(unittest.TestLoader().loadTestsFromModule(pyadf_unittests))
@@ -112,6 +123,7 @@ def test():
         if not (options.tests in ["doctests", "unittests"]):
             suite.addTest(make_testinputs_suite(tests=options.tests,
                                                 dalton=options.dalton,
+                                                adf=options.adf,
                                                 dirac=options.dirac,
                                                 nwchem=options.nwchem,
                                                 espresso=options.espresso,
@@ -123,7 +135,7 @@ def test():
                                                 molclass=options.molclass,
                                                 jobrunnerconf=options.jobrunnerconf))
 
-    res = unittest.TextTestRunner(verbosity=2, descriptions=False, resultclass=PyAdfTextTestResult).run(suite)
+    res = PyAdfTextTestRunner(print_timing_report=options.timing_report).run(suite)
     return res
 
 

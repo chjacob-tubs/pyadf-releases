@@ -1,12 +1,10 @@
-# -*- coding: utf-8 -*-
-
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2021 by Christoph R. Jacob, Tobias Bergmann,
-# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Thomas Dresselhaus,
-# Andre S. P. Gomes, Andreas Goetz, Michal Handzlik, Karin Kiewisch,
-# Moritz Klammler, Lars Ridder, Jetze Sikkema, Lucas Visscher, and
-# Mario Wolter.
+# Copyright (C) 2006-2022 by Christoph R. Jacob, Tobias Bergmann,
+# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Maria Chekmeneva,
+# Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz, 
+# Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder, 
+# Jetze Sikkema, Lucas Visscher, Johannes Vornweg and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -19,17 +17,18 @@
 #    GNU General Public License for more details.
 #
 #    You should have received a copy of the GNU General Public License
-#    along with PyADF.  If not, see <http://www.gnu.org/licenses/>.
+#    along with PyADF.  If not, see <https://www.gnu.org/licenses/>.
+
 
 from ..Utils import Units, PT
-from pdbtools import PDBHandler, PDBRecord
+from .pdbtools import PDBHandler, PDBRecord
 from ..Errors import *
 import copy
 
-from BaseMolecule import BaseMolecule
+from .BaseMolecule import BaseMolecule
 
 
-class Atom(object):
+class Atom:
 
     def __init__(self, atnum=0, coords=None, unit='angstrom', bonds=None, mol=None, ghost=False, **other):
         self.atnum = atnum
@@ -55,65 +54,64 @@ class Atom(object):
         symbol = PT.get_symbol(self.atnum)
         if self.ghost:
             symbol = 'Gh.' + symbol
-        return '%5s %14.5f %14.5f %14.5f' % (symbol, self.x, self.y, self.z)
+        return f'{symbol:>5} {self.x:14.5f} {self.y:14.5f} {self.z:14.5f}'
 
-    def _setx(self, value):
-        self.coords = (float(value), self.coords[1], self.coords[2])
-
-    def _getx(self):
+    @property
+    def x(self):
         return self.coords[0]
 
-    def _sety(self, value):
-        self.coords = (self.coords[0], float(value), self.coords[2])
+    @x.setter
+    def x(self, value):
+        self.coords = (float(value), self.coords[1], self.coords[2])
 
-    def _gety(self):
+    @property
+    def y(self):
         return self.coords[1]
 
-    def _setz(self, value):
-        self.coords = (self.coords[0], self.coords[1], float(value))
+    @y.setter
+    def y(self, value):
+        self.coords = (self.coords[0], float(value), self.coords[2])
 
-    def _getz(self):
+    @property
+    def z(self):
         return self.coords[2]
 
-    x = property(_getx, _setx)
-    y = property(_gety, _sety)
-    z = property(_getz, _setz)
+    @z.setter
+    def z(self, value):
+        self.coords = (self.coords[0], self.coords[1], float(value))
 
-    def _getsymbol(self):
+    @property
+    def symbol(self):
         return PT.get_symbol(self.atnum)
 
-    def _setsymbol(self, symbol):
+    @symbol.setter
+    def symbol(self, symbol):
         self.atnum = PT.get_atomic_number(symbol)
 
-    symbol = property(_getsymbol, _setsymbol)
-
-    def _getmass(self):
+    @property
+    def mass(self):
         return PT.get_mass(self.atnum)
 
-    mass = property(_getmass)
-
-    def _getradius(self):
+    @property
+    def radius(self):
         return PT.get_radius(self.atnum)
 
-    radius = property(_getradius)
-
-    def _getconnectors(self):
+    @property
+    def connectors(self):
         return PT.get_connectors(self.atnum)
-
-    connectors = property(_getconnectors)
 
     def move_by(self, vector, unit='angstrom'):
         ratio = Units.conversion(unit, 'angstrom')
         try:
             self.coords = tuple(i + j * ratio for i, j in zip(self.coords, vector))
-        except:
+        except Exception:
             raise AtomError('moveBy: 3D vector needed as argument')
 
     def move_to(self, coords, unit='angstrom'):
         ratio = Units.conversion(unit, 'angstrom')
         try:
             self.coords = (ratio * float(coords[0]), ratio * float(coords[1]), ratio * float(coords[2]))
-        except:
+        except Exception:
             raise AtomError('moveTo: Y U MOVE ME TO SUCH NASTY PLACE?')
 
     def distance_to(self, atom, unit='angstrom'):
@@ -131,10 +129,10 @@ class Atom(object):
         return (self.x - atom.x)**2 + (self.y - atom.y)**2 + (self.z - atom.z)**2
 
 
-class Bond(object):
+class Bond:
     AR = 1.5
 
-    def __init__(self, atom1, atom2, order=1, mol=None, **other):
+    def __init__(self, atom1, atom2, order=1.0, mol=None, **other):
         self.atom1 = atom1
         self.atom2 = atom2
         self.order = order
@@ -169,6 +167,8 @@ class Bond(object):
 class OBFreeMolecule(BaseMolecule):
 
     def __init__(self, filename=None, inputformat='xyz'):
+        super().__init__()
+
         self.atoms = []
         self.bonds = []
         self.charge = 0
@@ -246,7 +246,7 @@ class OBFreeMolecule(BaseMolecule):
     def delete_atom(self, atom):
         try:
             self.atoms.remove(atom)
-        except:
+        except Exception:
             raise MoleculeError('delete_atom: invalid argument passed as atom')
         for b in atom.bonds:
             b.other_end(atom).bonds.remove(b)
@@ -260,7 +260,7 @@ class OBFreeMolecule(BaseMolecule):
         for at in self.atoms:
             try:
                 del at.id
-            except:
+            except AttributeError:
                 pass
 
     def get_fragment(self, atoms, ghosts=True):
@@ -334,9 +334,9 @@ class OBFreeMolecule(BaseMolecule):
             if at.ghost:
                 symb = 'Gh.' + symb
             if index:
-                line = "  %3i) %8s %14.5f %14.5f %14.5f" % (i + 1, symb, at.x, at.y, at.z)
+                line = f"  {i + 1:3d}) {symb:>8} {at.x:14.5f} {at.y:14.5f} {at.z:14.5f}"
             else:
-                line = "  %8s %14.5f %14.5f %14.5f" % (symb, at.x, at.y, at.z)
+                line = f"  {symb:>8} {at.x:14.5f} {at.y:14.5f} {at.z:14.5f}"
 
             line += "    " + suffix + "\n"
             lines += line
@@ -374,7 +374,7 @@ class OBFreeMolecule(BaseMolecule):
                     else:
                         break
         if fr > 0:
-            raise MoleculeError('readxyz: There are only %i frames in %s' % (frame - fr, f.name))
+            raise MoleculeError(f'readxyz: There are only {frame - fr:d} frames in {f.name}')
         f.close()
 
     def writexyz(self, f):
@@ -385,14 +385,14 @@ class OBFreeMolecule(BaseMolecule):
             raise MoleculeError('readmol: .mol files do not support multiple geometries')
 
         comment = []
-        for i in xrange(4):
+        for i in range(4):
             line = f.readline().rstrip()
             if line:
                 spl = line.split()
                 if spl[len(spl) - 1] == 'V2000':
                     natom = int(spl[0])
                     nbond = int(spl[1])
-                    for j in xrange(natom):
+                    for j in range(natom):
                         atomline = f.readline().split()
                         crd = tuple(map(float, atomline[0:3]))
                         symb = atomline[3]
@@ -401,7 +401,7 @@ class OBFreeMolecule(BaseMolecule):
                         except PTError:
                             num = 0
                         self.add_atom(Atom(atnum=num, coords=crd))
-                    for j in xrange(nbond):
+                    for j in range(nbond):
                         bondline = f.readline().split()
                         at1 = self.atoms[int(bondline[0]) - 1]
                         at2 = self.atoms[int(bondline[1]) - 1]
@@ -433,14 +433,14 @@ class OBFreeMolecule(BaseMolecule):
 
         self.set_atoms_id()
 
-        f.write('%3i%3i  0  0  0  0  0  0  0  0999 V2000\n' % (len(self.atoms), len(self.bonds)))
+        f.write(f'{len(self.atoms):3d}{len(self.bonds):3d}  0  0  0  0  0  0  0  0999 V2000\n')
         for at in self.atoms:
-            f.write('%10.4f%10.4f%10.4f %-3s 0  0  0  0  0  0\n' % (at.x, at.y, at.z, at.symbol))
+            f.write(f'{at.x:10.4f}{at.y:10.4f}{at.z:10.4f} {at.symbol:<3} 0  0  0  0  0  0\n')
         for bo in self.bonds:
             order = bo.order
             if order == Bond.AR:
                 order = 4
-            f.write('%3i%3i%3i  0  0  0\n' % (bo.atom1.id, bo.atom2.id, order))
+            f.write(f'{bo.atom1.id:3d}{bo.atom2.id:3d}{order:3d}  0  0  0\n')
         self.unset_atoms_id()
         f.write('M  END\n')
         f.close()
@@ -460,7 +460,7 @@ class OBFreeMolecule(BaseMolecule):
             elif line[0] == '@':
                 line = line.partition('>')[2]
                 if not line:
-                    raise MoleculeError('readmol2: Error in %s line %i: invalid @ record' % (f.name, i + 1))
+                    raise MoleculeError(f'readmol2: Error in {f.name} line {i + 1:d}: invalid @ record')
                 mode = (line, i)
 
             elif mode[0] == 'MOLECULE':
@@ -480,7 +480,7 @@ class OBFreeMolecule(BaseMolecule):
                 spl = line.split()
                 if len(spl) < 6:
                     raise MoleculeError(
-                        'readmol2: Error in %s line %i: not enough values in line' % (f.name, i + 1))
+                        f'readmol2: Error in {f.name} line {i + 1:d}: not enough values in line')
                 symb = spl[5].partition('.')[0]
                 try:
                     num = PT.get_atomic_number(symb)
@@ -502,12 +502,12 @@ class OBFreeMolecule(BaseMolecule):
                 spl = line.split()
                 if len(spl) < 4:
                     raise MoleculeError(
-                        'readmol2: Error in %s line %i: not enough values in line' % (f.name, i + 1))
+                        f'readmol2: Error in {f.name} line {i + 1:d}: not enough values in line')
                 try:
                     atom1 = self.atoms[int(spl[1]) - 1]
                     atom2 = self.atoms[int(spl[2]) - 1]
                 except IndexError:
-                    raise MoleculeError('readmol2: Error in %s line %i: wrong atom ID' % (f.name, i + 1))
+                    raise MoleculeError(f'readmol2: Error in {f.name} line {i + 1:d}: wrong atom ID')
                 newbond = Bond(atom1, atom2, order=bondorders[spl[3]])
                 if len(spl) > 4:
                     for flag in spl[4].split('|'):
@@ -519,16 +519,15 @@ class OBFreeMolecule(BaseMolecule):
         bondorders = ['1', '2', '3', 'ar']
 
         def write_prop(name, obj, separator, space=0, replacement=None):
-            form_str = '%-' + str(space) + 's'
             if name in obj.properties:
-                f.write(form_str % str(obj.properties[name]))
+                f.write(f"{str(obj.properties[name]):<{space}}")
             elif replacement is not None:
-                f.write(form_str % str(replacement))
+                f.write(f"{str(replacement):<{space}}")
             f.write(separator)
 
         f.write('@<TRIPOS>MOLECULE\n')
         write_prop('name', self, '\n')
-        f.write('%i %i\n' % (len(self.atoms), len(self.bonds)))
+        f.write(f'{len(self.atoms):d} {len(self.bonds):d}\n')
         write_prop('type', self, '\n')
         write_prop('charge_type', self, '\n')
         write_prop('flags', self, '\n')
@@ -536,9 +535,9 @@ class OBFreeMolecule(BaseMolecule):
 
         f.write('\n@<TRIPOS>ATOM\n')
         for i, at in enumerate(self.atoms):
-            f.write('%5i ' % (i + 1))
+            f.write(f'{i + 1:5d} ')
             write_prop('name', at, ' ', 5, at.symbol + str(i + 1))
-            f.write('%10.4f %10.4f %10.4f ' % at.coords)
+            f.write('{:10.4f} {:10.4f} {:10.4f} '.format(*at.coords))
             write_prop('type', at, ' ', 5, at.symbol)
             write_prop('subst_id', at, ' ', 5)
             write_prop('subst_name', at, ' ', 7)
@@ -548,7 +547,7 @@ class OBFreeMolecule(BaseMolecule):
 
         f.write('\n@<TRIPOS>BOND\n')
         for i, bo in enumerate(self.bonds):
-            f.write('%5i %5i %5i %4s' % (i + 1, bo.atom1.id, bo.atom2.id, bondorders[bo.order]))
+            f.write(f'{i + 1:5d} {bo.atom1.id:5d} {bo.atom2.id:5d} {bondorders[bo.order]:>4}')
             write_prop('flags', bo, '\n')
 
         self.unset_atoms_id()
@@ -557,7 +556,7 @@ class OBFreeMolecule(BaseMolecule):
         pdb = PDBHandler(f)
         models = pdb.get_models()
         if frame > len(models):
-            raise MoleculeError('readpdb: There are only %i frames in %s' % (len(models), f.name))
+            raise MoleculeError(f'readpdb: There are only {len(models):d} frames in {f.name}')
 
         for i in models[frame - 1]:
             if i.name in ['ATOM  ', 'HETATM']:
@@ -574,8 +573,8 @@ class OBFreeMolecule(BaseMolecule):
         pdb.add_record(PDBRecord('HEADER'))
         model = []
         for i, at in enumerate(self.atoms):
-            s = 'ATOM  %5i                   %8.3f%8.3f%8.3f                      %2s  ' % (
-                i + 1, at.x, at.y, at.z, at.symbol.upper())
+            s = 'ATOM  {:5d}                   {:8.3f}{:8.3f}{:8.3f}                      {:>2}  '\
+                .format(i + 1, at.x, at.y, at.z, at.symbol.upper())
             model.append(PDBRecord(s))
         pdb.add_model(model)
         pdb.add_record(pdb.calc_master())
@@ -584,7 +583,7 @@ class OBFreeMolecule(BaseMolecule):
 
     def readtmol(self, f, frame=1):
         if frame > 1:
-            raise MoleculeError('readtmol: There is only 1 frame in %s' % f.name)
+            raise MoleculeError(f'readtmol: There is only 1 frame in {f.name}')
 
         in_coord_block = False
         for line in f:
@@ -593,7 +592,7 @@ class OBFreeMolecule(BaseMolecule):
                     break
 
                 lst = line.split()
-                if len(lst) != 4:
+                if len(lst) < 4:
                     raise MoleculeError('readtmol: error reading tmol file')
                 num = PT.get_atomic_number(lst[3])
                 self.add_atom(Atom(atnum=num, coords=(lst[0], lst[1], lst[2]), unit='bohr'))
@@ -605,15 +604,16 @@ class OBFreeMolecule(BaseMolecule):
 
         f.write('$coord\n')
         for at in self.atoms:
-            f.write('%20.14f %20.14f %20.14f %-8s \n' % (at.x * ratio, at.y * ratio, at.z * ratio, at.symbol.lower()))
+            f.write(f'{at.x * ratio:20.14f} {at.y * ratio:20.14f} {at.z * ratio:20.14f} {at.symbol.lower():<8} \n')
         f.write('$end\n')
 
     def read(self, filename, inputformat='xyz', frame=1):
         if inputformat in self._iodict:
             try:
-                f = open(filename, 'rU')
-            except IOError:
-                raise FileError('read: Error reading file %s' % filename)
+                f = open(filename)
+            except OSError:
+                raise FileError(f'read: Error reading file {filename}')
+            # noinspection PyArgumentList
             ret = self._iodict[inputformat][0](self, f, frame)
             f.close()
             if len(self.bonds) == 0:
@@ -626,14 +626,16 @@ class OBFreeMolecule(BaseMolecule):
         if outputformat in self._iodict:
             try:
                 f = open(filename, 'w')
-            except IOError:
-                raise FileError('write: Error opening file %s' % filename)
+            except OSError:
+                raise FileError(f'write: Error opening file {filename}')
+            # noinspection PyTypeChecker
             self._iodict[outputformat][1](self, f)
             f.close()
         else:
             raise MoleculeError('write: Unsupported file format')
 
-    def get_checksum(self, representation='xyz'):
+    @property
+    def checksum(self, representation='xyz'):
         """
         Get a hexadecimal 128-bit md5 hash of the molecule.
 
@@ -650,8 +652,6 @@ class OBFreeMolecule(BaseMolecule):
         @date:                 Aug. 2011
 
         """
-
-        import os
         import tempfile
         import hashlib
 
@@ -670,23 +670,14 @@ class OBFreeMolecule(BaseMolecule):
         m = hashlib.md5()
         emptyhash = m.hexdigest()
 
-        tmp = tempfile.NamedTemporaryFile()
-        tmp.file.close()
-
-        # The file is empty now. Note  that we only call the `file' attribute's
-        # `close()' method.  Saying `tmp.close()' would  immediately unlink the
-        # pysical file which is not what we want.
-
-        self.write(tmp.name, outputformat=representation)
-
-        with open(tmp.name, 'r') as infile:
-            for line in infile:
-                m.update(line)
+        with tempfile.NamedTemporaryFile() as tmp:
+            self.write(tmp.name, outputformat=representation)
+            m.update(tmp.read())
 
         molhash = m.hexdigest()
         if molhash == emptyhash:
-            raise PyAdfError("""Error while trying to compute the md5 hash of
-            the molecule. Hash equals empty-string hash.""")
+            raise PyAdfError("Error while trying to compute the md5 hash of the molecule. "
+                             "Hash equals empty-string hash.")
 
         return molhash
 
@@ -702,28 +693,6 @@ class OBFreeMolecule(BaseMolecule):
             lines += str(at) + '\n'
         return lines
 
-    def get_geovar_atoms_block(self, geovar):
-        lines = ''
-        geovar = self._get_atoms(geovar)
-        for i, at in enumerate(self.atoms):
-            if at in geovar:
-                if at.ghost:
-                    symb = 'Gh.' + at.symbol
-                else:
-                    symb = at.symbol
-                lines += '%5s         atom%ix         atom%iy         atom%iz\n' % (symb, i + 1, i + 1, i + 1)
-            else:
-                lines += str(at) + '\n'
-        return lines
-
-    def get_geovar_block(self, geovar):
-        lines = 'GEOVAR\n'
-        geovar = zip(geovar, self._get_atoms(geovar))
-        for i, at in geovar:
-            lines += '  atom%ix  %14.5f\n  atom%iy  %14.5f\n  atom%iz  %14.5f\n' % (i, at.x, i, at.y, i, at.z)
-        lines += 'END\n\n'
-        return lines
-
     def get_cube_header(self):
         lines = ''
 
@@ -732,19 +701,20 @@ class OBFreeMolecule(BaseMolecule):
 
         for at in self.atoms:
             if not at.ghost:
-                lines += '%5d%12.6f%12.6f%12.6f%12.6f\n' % (at.atnum, 0.0, at.x * ratio, at.y * ratio, at.z * ratio)
+                lines += f'{at.atnum:5d}{0.0:12.6f}" + ' \
+                         f'f"{at.x * ratio:12.6f}{at.y * ratio:12.6f}{at.z * ratio:12.6f}\n'
         return lines
 
     def get_dalton_molfile(self, basis):
         lines = 'BASIS\n' + basis + '\nThis Dalton molecule file was generated by PyADF\n' + \
-                ' Homepage: http://www.pyadf.org\n'
-        types = set([at.atnum for at in self.atoms])
-        lines += 'Angstrom Nosymmetry Atomtypes=%d\n' % len(types)
+                ' Homepage: https://www.pyadf.org\n'
+        types = {at.atnum for at in self.atoms}
+        lines += f'Angstrom Nosymmetry Atomtypes={len(types):d}\n'
         for tp in types:
             atoms = [at for at in self.atoms if at.atnum == tp]
-            lines += 'Charge=%.1f Atoms=%d\n' % (tp, len(atoms))
+            lines += f'Charge={tp:.1f} Atoms={len(atoms):d}\n'
             for i, at in enumerate(atoms):
-                lines += '%-4s %14.5f %14.5f %14.5f \n' % (at.symbol + str(i + 1), at.x, at.y, at.z)
+                lines += f'{at.symbol + str(i + 1):<4} {at.x:14.5f} {at.y:14.5f} {at.z:14.5f} \n'
         return lines
 
     def write_dalton_molfile(self, filename, basis):
@@ -770,7 +740,7 @@ class OBFreeMolecule(BaseMolecule):
         return [at.atnum * int(not at.ghost) for at in atoms if ghosts or not at.ghost]
 
     def get_mass(self):
-        return sum([at.mass for at in self.atoms])
+        return sum(at.mass for at in self.atoms)
 
     def get_formula(self):
         atnums = [at.atnum for at in self.atoms]
@@ -965,35 +935,58 @@ class OBFreeMolecule(BaseMolecule):
             if at.atnum == 1:
                 for b in at.bonds:
                     if not b.other_end(at).atnum == 6:
-                        hetero_hydrogen_list.append(i+1)
+                        hetero_hydrogen_list.append(i + 1)
                         break
 
         return hetero_hydrogen_list
 
-    def guess_bonds(self, eff=1.15, addd=0.9):
+    def guess_bonds(self, addd=0.9):
         from math import floor
         import heapq
 
-        def element(order, ratio, atom1, atom2):
-            eford = order
-            if order == Bond.AR:
-                eford = eff
-            if order == 1 and ((atom1.symbol == 'N' and atom2.symbol == 'C')
-                               or (atom1.symbol == 'C' and atom2.symbol == 'N')):
-                eford = 1.11
-            return (eford + addd) * ratio, order, ratio, atom1, atom2
+        class HeapElement:
+            def __init__(self, order, ratio, atom1, atom2):
+                eff_ord = order
+                if order == 1.5:  # effective order for aromatic bonds
+                    eff_ord = 1.15
+                elif order == 1 and {atom1.symbol, atom2.symbol} == {'C', 'N'}:
+                    eff_ord = 1.11  # effective order for single C-N bond
+                value = (eff_ord + addd) * ratio
+                self.data = (value, order, ratio)
+                self.atoms = (atom1, atom2)
 
-        self.delete_all_bonds()
+            def unpack(self):
+                val_, o_, r_ = self.data
+                atom1, atom2 = self.atoms
+                return val_, o_, r_, atom1, atom2
+
+            def __lt__(self, other):
+                return self.data < other.data
+
+            def __le__(self, other):
+                return self.data <= other.data
+
+            def __eq__(self, other):
+                return self.data == other.data
+
+            def __ne__(self, other):
+                return self.data != other.data
+
+            def __gt__(self, other):
+                return self.data > other.data
+
+            def __ge__(self, other):
+                return self.data >= other.data
 
         dmax = 1.28
         dmax2 = dmax**2
-        cubesize = dmax * 2.1 * max([at.radius for at in self.atoms])
+        cubesize = dmax * 2.1 * max(at.radius for at in self.atoms)
 
         cubes = {}
         for i, at in enumerate(self.atoms):
             at.id = i + 1
             at.free = at.connectors
-            at.cube = tuple(map(lambda x: int(floor(x / cubesize)), at.coords))
+            at.cube = tuple(int(floor(x / cubesize)) for x in at.coords)
             if at.cube in cubes:
                 cubes[at.cube].append(at)
             else:
@@ -1013,9 +1006,9 @@ class OBFreeMolecule(BaseMolecule):
             if at1.free > 0:
                 for at2 in neighbors[at1.cube]:
                     if (at2.free > 0) and (at1.id < at2.id):
-                        ratio = at1.dist_sqr(at2) / ((at1.radius + at2.radius)**2)
-                        if ratio < dmax2:
-                            heap.append(element(0, ratio, at1, at2))
+                        rat = at1.dist_sqr(at2) / ((at1.radius + at2.radius)**2)
+                        if rat < dmax2:
+                            heap.append(HeapElement(0, rat, at1, at2))
                             # I hate to do this, but I guess there's no other way :/ [MH]
                             if at1.atnum == 16 and at2.atnum == 8:
                                 at1.free = 6
@@ -1027,14 +1020,14 @@ class OBFreeMolecule(BaseMolecule):
                                 at2.free += 1
         heapq.heapify(heap)
 
-        for at in filter(lambda x: x.atnum == 7, self.atoms):
+        for at in [x for x in self.atoms if x.atnum == 7]:
             if at.free > 6:
                 at.free = 4
             else:
                 at.free = 3
 
         while heap:
-            val, o, r, at1, at2 = heapq.heappop(heap)
+            val, o, r, at1, at2 = heapq.heappop(heap).unpack()
             step = 0.5
             if o % 2 == 0:
                 step = 1
@@ -1043,7 +1036,7 @@ class OBFreeMolecule(BaseMolecule):
                 at1.free -= step
                 at2.free -= step
                 if o < 3.0:
-                    heapq.heappush(heap, element(o, r, at1, at2))
+                    heapq.heappush(heap, HeapElement(o, r, at1, at2))
                 else:
                     if o == 1.5:
                         o = Bond.AR
@@ -1055,20 +1048,20 @@ class OBFreeMolecule(BaseMolecule):
 
         def dfs(atom, par):
             atom.arom += 1000
-            for b in atom.bonds:
-                oe = b.other_end(atom)
-                if b.is_aromatic() and oe.arom < 1000:
+            for bond in atom.bonds:
+                oe = bond.other_end(atom)
+                if bond.is_aromatic() and oe.arom < 1000:
                     if oe.arom > 2:
                         return False
                     if par and oe.arom == 1:
-                        b.order = 2
+                        bond.order = 2
                         return True
                     if dfs(oe, 1 - par):
-                        b.order = 1 + par
+                        bond.order = 1 + par
                         return True
 
         for at in self.atoms:
-            at.arom = len(filter(Bond.is_aromatic, at.bonds))
+            at.arom = len(list(filter(Bond.is_aromatic, at.bonds)))
 
         for at in self.atoms:
             if at.arom == 1:

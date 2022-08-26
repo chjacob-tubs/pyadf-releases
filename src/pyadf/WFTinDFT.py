@@ -1,12 +1,10 @@
-# -*- coding: utf-8 -*-
-
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2021 by Christoph R. Jacob, Tobias Bergmann,
-# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Thomas Dresselhaus,
-# Andre S. P. Gomes, Andreas Goetz, Michal Handzlik, Karin Kiewisch,
-# Moritz Klammler, Lars Ridder, Jetze Sikkema, Lucas Visscher, and
-# Mario Wolter.
+# Copyright (C) 2006-2022 by Christoph R. Jacob, Tobias Bergmann,
+# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Maria Chekmeneva,
+# Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz, 
+# Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder, 
+# Jetze Sikkema, Lucas Visscher, Johannes Vornweg and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -19,7 +17,7 @@
 #    GNU General Public License for more details.
 #
 #    You should have received a copy of the GNU General Public License
-#    along with PyADF.  If not, see <http://www.gnu.org/licenses/>.
+#    along with PyADF.  If not, see <https://www.gnu.org/licenses/>.
 """
  WFT-in-DFT calculations
 
@@ -29,9 +27,9 @@
 
 """
 
-from ADFFragments import fragment, fragmentlist, adffragmentsjob
-from BaseJob import metajob
-from Dirac import diracsinglepointjob
+from .ADFFragments import fragment, fragmentlist, adffragmentsjob
+from .BaseJob import metajob
+from .Dirac import diracsinglepointjob
 
 import os
 
@@ -43,18 +41,18 @@ class diracfragment(fragment):
         self._dirac_results = dirac_results
 
         adf_results = self._dirac_results.fdein
-        fragment.__init__(self, adf_results, mols, subfrag, isfrozen, fdeoptions, occ)
+        super().__init__(adf_results, mols, subfrag, isfrozen, fdeoptions, occ)
 
     def get_dirac_tape10_filename(self):
         return os.path.basename(self._dirac_results.get_gridout_filename()) + ".dirac"
 
     def get_fdeoptions_block(self):
-        block = fragment.get_fdeoptions_block(self)
+        block = super().get_fdeoptions_block()
         block += "     fileimport " + self.get_dirac_tape10_filename() + "\n"
         return block
 
     def get_special_options_block(self):
-        block = fragment.get_special_options_block(self)
+        block = super().get_special_options_block()
         block += " IMPORTGRID " + self.get_dirac_tape10_filename() + "\n\n"
         return block
 
@@ -62,7 +60,7 @@ class diracfragment(fragment):
         """
         Copies the fragment file to the working directory.
         """
-        fragment.copy_fragment_file(self)
+        super().copy_fragment_file()
 
         filename = self.get_dirac_tape10_filename()
         if not os.path.exists(filename):
@@ -72,7 +70,7 @@ class diracfragment(fragment):
         """
         Delete the fragment file that was previously copied to the working directory.
         """
-        fragment.delete_fragment_file_copy(self)
+        super().delete_fragment_file_copy()
 
         filename = self.get_dirac_tape10_filename()
         if os.path.exists(filename):
@@ -83,10 +81,10 @@ class diracfragment(fragment):
         Print information about the options used for this fragment.
         """
         if self.isfrozen:
-            print " type: frozen Dirac fragment"
+            print(" type: frozen Dirac fragment")
         else:
-            print " type: nonfrozen Dirac fragment"
-        print
+            print(" type: nonfrozen Dirac fragment")
+        print()
 
     def get_fragments_block(self, checksumonly):
         """
@@ -97,16 +95,16 @@ class diracfragment(fragment):
         @rtype:   str
         """
 
-        block = fragment.get_fragments_block(self, checksumonly)
+        block = super().get_fragments_block(checksumonly)
         if checksumonly:
-            block += self._dirac_results.get_checksum()
+            block += self._dirac_results.checksum
         return block
 
 
 class wftindftjob(metajob):
 
     def __init__(self, frags, adfoptions, diracoptions):
-        metajob.__init__(self)
+        super().__init__()
 
         if isinstance(frags, list):
             self._frags = fragmentlist(frags)
@@ -126,11 +124,11 @@ class wftindftjob(metajob):
 
         import copy
 
-        print "-" * 50
-        print "Beginning WFT-in-DFT embedding calculation "
-        print
-        print "Performing %i RELAX-cycles" % self._cycles
-        print
+        print("-" * 50)
+        print("Beginning WFT-in-DFT embedding calculation ")
+        print()
+        print(f"Performing {self._cycles:d} RELAX-cycles")
+        print()
 
         # first we do a normal DFT-in-DFT run
         initial_frags = copy.deepcopy(self._frags)
@@ -167,9 +165,9 @@ class wftindftjob(metajob):
 
         for i in range(self._cycles):
 
-            print "-" * 50
-            print "Performing cycle ", i + 1
-            print
+            print("-" * 50)
+            print("Performing cycle ", i + 1)
+            print()
 
             # do the Dirac calculation
             # pylint: disable-msg=W0142
@@ -201,9 +199,9 @@ class wftindftjob(metajob):
             #        Instead, the rho1 calculated by Dirac should be used
             dftindft_res = adffragmentsjob(initial_frags, **self._adfoptions).run()
 
-        print "-" * 50
-        print "Performing final DIRAC calculation "
-        print
+        print("-" * 50)
+        print("Performing final DIRAC calculation ")
+        print()
 
         dirac_res = diracsinglepointjob(dirac_mol, fdein=dftindft_res, fdeout=outgrid_res, **self._diracoptions).run()
 

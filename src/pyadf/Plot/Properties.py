@@ -1,12 +1,10 @@
-# -*- coding: utf-8 -*-
-
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2021 by Christoph R. Jacob, Tobias Bergmann,
-# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Thomas Dresselhaus,
-# Andre S. P. Gomes, Andreas Goetz, Michal Handzlik, Karin Kiewisch,
-# Moritz Klammler, Lars Ridder, Jetze Sikkema, Lucas Visscher, and
-# Mario Wolter.
+# Copyright (C) 2006-2022 by Christoph R. Jacob, Tobias Bergmann,
+# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Maria Chekmeneva,
+# Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz, 
+# Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder, 
+# Jetze Sikkema, Lucas Visscher, Johannes Vornweg and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -19,7 +17,7 @@
 #    GNU General Public License for more details.
 #
 #    You should have received a copy of the GNU General Public License
-#    along with PyADF.  If not, see <http://www.gnu.org/licenses/>.
+#    along with PyADF.  If not, see <https://www.gnu.org/licenses/>.
 """
 Defines classes for functions defined on grids.
 """
@@ -27,7 +25,7 @@ Defines classes for functions defined on grids.
 from ..Errors import PyAdfError
 
 
-class PlotPropertyFactory(object):
+class PlotPropertyFactory:
     """
     Factory for PlotProperty.
     """
@@ -52,9 +50,9 @@ class PlotPropertyFactory(object):
         @param orbs:
             a dictionary of the form {"irrep":[nums]} containing the
             orbitals to include. Use irrep "Loc" for localized orbitals
-        @type orbs: dict
+        @type orbs: dict or None
         """
-        options = {'fit':fit}
+        options = {'fit': fit}
         if orbs is not None:
             options['orbs'] = orbs
 
@@ -131,14 +129,14 @@ class PlotPropertyFactory(object):
         else:
             orb_type = 'orblapl'
 
-        options = {'irrep':irrep, 'orbnum':orbnum}
+        options = {'irrep': irrep, 'orbnum': orbnum}
 
         prop = PlotProperty("orbital", prop_type=orb_type, options=options)
 
         return prop
 
 
-class PlotProperty(object):
+class PlotProperty:
     """
     Class representing properties that can be stored as GridFunctions.
     """
@@ -159,7 +157,7 @@ class PlotProperty(object):
         if 'orbs' in self.opts:
             orbs = self.opts['orbs']
             orbs_temp = {}
-            for k, v in orbs.iteritems():
+            for k, v in orbs.items():
                 if not isinstance(v, list):
                     orbs_temp[k] = [v]
                 else:
@@ -171,24 +169,24 @@ class PlotProperty(object):
 
     def _check_consistency(self):
 
-        if not self.pclass in ['density', 'potential', 'orbital']:
+        if self.pclass not in ['density', 'potential', 'orbital']:
             raise PyAdfError("Invalid property class.")
 
         if self.pclass == 'density':
-            if not self.ptype in ['dens', 'sqrgrad', 'grad', 'lapl', 'hess']:
+            if self.ptype not in ['dens', 'sqrgrad', 'grad', 'lapl', 'hess']:
                 raise PyAdfError("Invalid type in for Density property.")
 
         elif self.pclass == 'potential':
-            if not self.ptype in ['total', 'nuc', 'coul', 'xc', 'kinpot',
+            if self.ptype not in ['total', 'nuc', 'coul', 'xc', 'kinpot',
                                   'recon', 'embpot', 'embcoul', 'embnuc', 'nadxc', 'nadkin']:
                 raise PyAdfError("Invalid type in for Potential property.")
 
             if 'func' in self.opts:
-                if not self.ptype in ['total', 'xc', 'kinpot', 'nadkin']:
+                if self.ptype not in ['total', 'xc', 'kinpot', 'nadkin']:
                     raise PyAdfError("Functional can only be selected with this potential type.")
 
         elif self.pclass == 'orbital':
-            if not self.ptype in ['orbital', 'orblapl']:
+            if self.ptype not in ['orbital', 'orblapl']:
                 raise PyAdfError("Invalid type in for Orbital property")
 
             if not ('irrep' in self.opts and 'orbnum' in self.opts):
@@ -198,8 +196,8 @@ class PlotProperty(object):
             if self.pclass == 'potential' and self.ptype in ['recon', 'embpot', 'nadkin']:
                 raise PyAdfError("Orbitals cannot be selected with this potential type.")
 
-            if ('Loc' in self.opts['orbs']):
-                if (len(self.opts['orbs']) > 1):
+            if 'Loc' in self.opts['orbs']:
+                if len(self.opts['orbs']) > 1:
                     raise PyAdfError('Localized and canonical orbitals cannot be used together.')
 
         if not (self.is_density or self.is_density_derivative or self.is_potential or
@@ -208,7 +206,7 @@ class PlotProperty(object):
 
     @property
     def str(self):
-        s = "%s %s Options: %s" % (self.pclass, self.ptype, str(self.opts))
+        s = f"{self.pclass} {self.ptype} Options: {str(self.opts)}"
         return s
 
     def __str__(self):
@@ -280,11 +278,11 @@ class PlotProperty(object):
 
         elif self.pclass == 'orbital':
             if self.ptype == 'orbital':
-                section = "SCF_%s" % self.opts['irrep'].replace('LOC', 'A')
-                variable = "%i" % self.opts['orbnum']
+                section = f"SCF_{self.opts['irrep'].replace('LOC', 'A')}"
+                variable = f"{self.opts['orbnum']:d}"
             elif self.ptype == 'orblapl':
-                section = "OrbLapl SCF_%s" % self.opts['irrep'].replace('LOC', 'A')
-                variable = "%i" % self.opts['orbnum']
+                section = f"OrbLapl SCF_{self.opts['irrep'].replace('LOC', 'A')}"
+                variable = f"{self.opts['orbnum']:d}"
             else:
                 raise PyAdfError("Invalid type for property class ORBITAL")
 

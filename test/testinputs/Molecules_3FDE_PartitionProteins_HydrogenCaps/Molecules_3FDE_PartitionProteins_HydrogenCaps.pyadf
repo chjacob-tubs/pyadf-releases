@@ -1,15 +1,19 @@
 import os
 import zipfile
+from pyadf import *
+
+if 'pyadfenv' not in globals():
+    from pyadf.Initialization import *
 
 
-def write_fragmentation_files(frags, zipname):
+def write_fragmentation_files(ffrags, zipname):
     with zipfile.ZipFile(os.path.join(pyadfenv.outdir, zipname), 'w') as zf:
-        for i, f in enumerate(frags.fragiter()):
+        for i, f in enumerate(ffrags.fragiter()):
             atblock = f.get_atoms_block()
-            zf.writestr('frag%i.out' % i, atblock)
-        for i, c in enumerate(frags.capiter()):
+            zf.writestr(f'frag{i:d}.out', atblock)
+        for i, c in enumerate(ffrags.capiter()):
             atblock = c.get_atoms_block()
-            zf.writestr('cap%i.out' % i, atblock)
+            zf.writestr(f'cap{i:d}.out', atblock)
 
 
 def compare_atblocks(first, second):
@@ -21,14 +25,15 @@ def compare_atblocks(first, second):
         testobj.assertAlmostEqual(float(l1[2]), float(l2[2]), 3)
         testobj.assertAlmostEqual(float(l1[3]), float(l2[3]), 3)
 
-def compare_fragmentation_results(frags, zip_orig):
+
+def compare_fragmentation_results(ffrags, zip_orig):
     with zipfile.ZipFile(os.path.join(pyadfenv.outdir, zip_orig), 'r') as zf:
-        for i, f in enumerate(frags.fragiter()):
-            atblock_orig = zf.open('frag%i.out' % i).readlines()
+        for i, f in enumerate(ffrags.fragiter()):
+            atblock_orig = [ll.decode() for ll in zf.open(f'frag{i:d}.out').readlines()]
             atblock = f.get_atoms_block().splitlines()
             compare_atblocks(atblock_orig, atblock)
-        for i, c in enumerate(frags.capiter()):
-            atblock_orig = zf.open('cap%i.out' % i).readlines()
+        for i, c in enumerate(ffrags.capiter()):
+            atblock_orig = [ll.decode() for ll in zf.open(f'cap{i:d}.out').readlines()]
             atblock = c.get_atoms_block().splitlines()
             compare_atblocks(atblock_orig, atblock)
 

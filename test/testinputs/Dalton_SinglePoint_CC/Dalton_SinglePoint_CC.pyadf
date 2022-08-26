@@ -1,0 +1,42 @@
+import os
+from pyadf import *
+if 'pyadfenv' not in globals():
+    from pyadf.Initialization import *
+
+
+h2o = molecule(os.path.join(pyadfenv.outdir, 'H2O.xyz'))
+
+
+# CCSD single point calculation
+
+settings = daltonsettings(method='CCSD', freeze_occ=1)
+results = daltonsinglepointjob(h2o, 'cc-pVDZ', settings=settings).run()
+
+scfenergy = results.get_scf_energy()
+energy = results.get_total_energy()
+
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(scfenergy, -76.0215733129, 6)
+    testobj.assertAlmostEqual(energy, -76.235299249, 6)
+
+
+# CCSD(T) single point calculation
+
+settings = daltonsettings(method='CCSD(T)', freeze_occ=1)
+results = daltonsinglepointjob(h2o, 'cc-pVDZ', settings=settings).run()
+
+energy = results.get_total_energy()
+
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(energy, -76.238490630, 6)
+
+scfenergy = results.get_energy('SCF')
+mp2energy = results.get_energy('MP2')
+ccsdenergy = results.get_energy('CCSD')
+
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(scfenergy, -76.0215733129, 6)
+    testobj.assertAlmostEqual(mp2energy, -76.2256651833, 6)
+    testobj.assertAlmostEqual(ccsdenergy, -76.235299249, 6)
+
+

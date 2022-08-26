@@ -1,12 +1,10 @@
-# -*- coding: utf-8 -*-
-
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2021 by Christoph R. Jacob, Tobias Bergmann,
-# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Thomas Dresselhaus,
-# Andre S. P. Gomes, Andreas Goetz, Michal Handzlik, Karin Kiewisch,
-# Moritz Klammler, Lars Ridder, Jetze Sikkema, Lucas Visscher, and
-# Mario Wolter.
+# Copyright (C) 2006-2022 by Christoph R. Jacob, Tobias Bergmann,
+# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Maria Chekmeneva,
+# Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz, 
+# Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder, 
+# Jetze Sikkema, Lucas Visscher, Johannes Vornweg and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -19,7 +17,7 @@
 #    GNU General Public License for more details.
 #
 #    You should have received a copy of the GNU General Public License
-#    along with PyADF.  If not, see <http://www.gnu.org/licenses/>.
+#    along with PyADF.  If not, see <https://www.gnu.org/licenses/>.
 """
  JobRunner configuration classes for PyADF.
 
@@ -30,15 +28,15 @@
 """
 
 import os
-from Errors import PyAdfError
+from .Errors import PyAdfError
 
 
-class JobRunnerConfiguration(object):
+class JobRunnerConfiguration:
     """
     Configuration class for job runners.
     """
 
-    def __init__(self, conffile=None):
+    def __init__(self, conffile=None, jobbasedir=None):
 
         # set default values, might be overwritten by initialize_from_conffile
         self._read_from_file = None
@@ -63,28 +61,33 @@ class JobRunnerConfiguration(object):
         elif 'NSCM' in os.environ:
             self.default_nproc = int(os.environ['NSCM'])
 
-        if conffile is None:
-            default_conffile = os.path.join(os.environ['HOME'], '.pyadfconfig')
-            if os.path.exists(default_conffile):
-                self.initialize_from_conffile(default_conffile)
-        else:
+        if conffile is not None:
             self.initialize_from_conffile(conffile)
+        else:
+            if jobbasedir is None:
+                default_conffile = os.path.join(os.environ['HOME'], '.pyadfconfig')
+            else:
+                default_conffile = self._find_default_conffile_in_parentdirs(jobbasedir)
+            if (default_conffile is not None) and os.path.exists(default_conffile):
+                self.initialize_from_conffile(default_conffile)
 
         if not self._validate_jobclass_dict(self.env_modules_load):
             raise PyAdfError('Error in JobRunnerConfiguration (env_module_load)')
         if not self._validate_jobclass_dict(self.parallel_config):
             raise PyAdfError('Error in JobRunnerConfiguration (parallel_config)')
 
+    # noinspection PyUnresolvedReferences
     def initialize_from_conffile(self, fn):
         if not os.path.exists(fn):
-            raise PyAdfError('JobRunner configuration file %s does not exist' % fn)
+            raise PyAdfError(f'JobRunner configuration file {fn} does not exist')
         self._read_from_file = os.path.abspath(fn)
 
-        # TODO: for Python3, we should use importlib (instead of imp) and follow this receipe:
-        # https://stackoverflow.com/questions/67631/how-to-import-a-module-given-the-full-path
-
-        import imp
-        conf = imp.load_source('pyadf.jobrunnerconf.conffile', fn)
+        import importlib.util
+        from importlib.machinery import SourceFileLoader
+        spec = importlib.util.spec_from_loader("pyadf.jobrunnerconf.conffile",
+                                               SourceFileLoader("pyadf.jobrunnerconf.conffile", fn))
+        conf = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(conf)
 
         if 'default_shell' in dir(conf):
             self.default_shell = conf.default_shell
@@ -94,9 +97,20 @@ class JobRunnerConfiguration(object):
             self.parallel_config.update(conf.parallel_config)
 
     def print_configuration(self):
-        print "JobRunner configuration read from file: ", self._read_from_file
-        print "     default shell: ", self.default_shell
-        print "     env_modules_load: ", self.env_modules_load
+        print("JobRunner configuration read from file: ", self._read_from_file)
+        print("     default shell: ", self.default_shell)
+        print("     env_modules_load: ", self.env_modules_load)
+
+    @staticmethod
+    def _find_default_conffile_in_parentdirs(jobbasedir):
+        cur_dir = jobbasedir
+        while not cur_dir == '/':
+            test_file = os.path.join(cur_dir, '.pyadfconfig')
+            if os.path.exists(test_file):
+                return test_file
+            else:
+                cur_dir = os.path.dirname(cur_dir)
+        return None
 
     @staticmethod
     def _pyadf_class_from_string(clsname):
@@ -130,11 +144,11 @@ class JobRunnerConfiguration(object):
 
         pyadf_base_jobclass = self._pyadf_class_from_string('job')
 
-        for jobclass in jobclass_dict.keys():
+        for jobclass in list(jobclass_dict.keys()):
             cls = self._pyadf_class_from_string(jobclass)
 
             if (cls is None) or not (issubclass(cls, pyadf_base_jobclass)):
-                print 'Error: %s is not a valid job (base) class' % jobclass
+                print(f'Error: {jobclass} is not a valid job (base) class')
                 return False
 
         return True
@@ -166,8 +180,10 @@ class JobRunnerConfiguration(object):
     def _env_output_to_environ_dict(env_output):
         environ_dict = {}
         for line in env_output.splitlines():
-            e = line.strip().split('=')
-            environ_dict[e[0]] = e[1]
+            if line:
+                e = line.strip().split('=', 1)
+                if len(e) == 2:
+                    environ_dict[e[0]] = e[1]
         return environ_dict
 
     def get_environ_for_class(self, cls):
@@ -181,11 +197,10 @@ class JobRunnerConfiguration(object):
         if len(env_modules) > 0:
             module_cmd = ''
             for mod in env_modules:
-                module_cmd += 'module load %s; ' % mod
+                module_cmd += f'module load {mod}; '
 
             env_output_new = Popen(module_cmd+'env', shell=True, executable=self.default_shell,
-                                   stdout=PIPE).communicate()[0]
-
+                                   stdout=PIPE).communicate()[0].decode('utf-8')
             environ = self._env_output_to_environ_dict(env_output_new)
         else:
             environ = os.environ

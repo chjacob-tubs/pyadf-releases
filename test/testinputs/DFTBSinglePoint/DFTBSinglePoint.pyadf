@@ -1,29 +1,30 @@
+import os
+from pyadf import *
+if 'pyadfenv' not in globals():
+    from pyadf.Initialization import *
 
-h2o = molecule (os.path.join(pyadfenv.outdir, 'H2O.xyz'))
+h2o = molecule(os.path.join(pyadfenv.outdir, 'H2O.xyz'))
 
 # SCC-DFTB with DFTB.org/mio-1-1
 
-results = dftbsinglepointjob( h2o, 'SCC-DFTB', 'DFTB.org/mio-1-1').run()
+results = dftbsinglepointjob(h2o, 'SCC-DFTB', 'DFTB.org/mio-1-1').run()
 
 energy = results.get_energy()
-dipole_vect = results.get_dipole_vector ()
-dipole_magn = results.get_dipole_magnitude ()
+dipole_vect = results.get_dipole_vector()
+dipole_magn = results.get_dipole_magnitude()
 
-testobj.assertAlmostEqual(energy,      -4.07648495, 6)
-testobj.assertAlmostEqual(dipole_magn,  0.65263042, 6)
-testobj.assertAlmostEqual(dipole_vect, [0.6325182371,  0.1472605397, -0.0645095850], 6)
-
+testobj.assertAlmostEqual(energy, -4.07648495, 6)
+testobj.assertAlmostEqual(dipole_magn, 0.65263042, 6)
+testobj.assertAlmostEqual(dipole_vect, [0.6325182371, 0.1472605397, -0.0645095850], 6)
 
 # DFTB3 with DFTB.org/3ob-3-1
 
-results = dftbsinglepointjob( h2o, 'DFTB3', 'DFTB.org/3ob-3-1').run()
+results = dftbsinglepointjob(h2o, 'DFTB3', 'DFTB.org/3ob-3-1').run()
 
 energy = results.get_energy()
-dipole_vect = results.get_dipole_vector ()
-dipole_magn = results.get_dipole_magnitude ()
+dipole_vect = results.get_dipole_vector()
+dipole_magn = results.get_dipole_magnitude()
 
-testobj.assertAlmostEqual(energy,      -4.06905112, 6)
-testobj.assertAlmostEqual(dipole_magn,  0.78991114, 6)
-testobj.assertAlmostEqual(dipole_vect, [0.7656587563,  0.1776802826, -0.0784601668], 6)
-
-
+testobj.assertAlmostEqual(energy, -4.06905112, 6)
+testobj.assertAlmostEqual(dipole_magn, 0.78991114, 6)
+testobj.assertAlmostEqual(dipole_vect, [0.7656587563, 0.1776802826, -0.0784601668], 6)

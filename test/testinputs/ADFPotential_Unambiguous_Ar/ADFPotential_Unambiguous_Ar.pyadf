@@ -1,3 +1,8 @@
+import os
+from pyadf import *
+if 'pyadfenv' not in globals():
+    from pyadf.Initialization import *
+
 ###################################################################
 #
 # PyADF test ADFPotential_Unambiguous_Ar
@@ -9,28 +14,28 @@
 #
 ###################################################################
 
-import math, numpy
 from scipy.special import erf
 
 from hydrogen_solver import *
 
-def get_startpot (refresults, grid) :
-    smallest_exp = 3.0*1.45
+
+def get_startpot(refresults, grid):
+    smallest_exp = 3.0 * 1.45
 
     pot = refresults.get_potential(grid, pot='nuc')
     pot = pot + refresults.get_potential(grid, pot='coul')
 
     erf_pot = refresults.get_potential(grid, pot='nuc') * 1.0
 
-    for i, c in enumerate(grid.coorditer()) :
+    for i, c in enumerate(grid.coorditer()):
         r = math.sqrt(c[0]**2 + c[1]**2 + c[2]**2) / Bohr_in_Angstrom
-        erf_pot._values[i] = - (smallest_exp)/r * erf(0.5*r)
+        erf_pot.values[i] = - smallest_exp / r * erf(0.5 * r)
 
     pot = pot + erf_pot
     return pot
 
-def run_potjob (refresults, potproj, projchange=None) :
 
+def run_potjob(refresults, potproj, projchange=None):
     agrid = adfgrid(refresults)
     mol = refresults.get_molecule()
 
@@ -39,20 +44,20 @@ def run_potjob (refresults, potproj, projchange=None) :
     startpot1 = get_startpot(refresults, agrid)
 
     settings = adfsettings(functional='BP86', accint=12.0, converge=1e-04)
-    settings.set_save_tapes([21,10])
+    settings.set_save_tapes([21, 10])
     settings.set_ncycles(1000)
 
-    job = adfsinglepointjob(mol, basis='DZP', settings=settings, options=['LINEARSCALING 100\nEND'])
-    potopts = {'EIGENSHIFT':0.00, 'SMALLEIGTHRESH':1e-6, 
-              'POTPROJ':potproj, 'DENSCONV':5.0e-6}
+    j = adfsinglepointjob(mol, basis='DZP', settings=settings, options=['LINEARSCALING 100\nEND'])
+    potopts = {'EIGENSHIFT': 0.00, 'SMALLEIGTHRESH': 1e-6,
+               'POTPROJ': potproj, 'DENSCONV': 5.0e-6}
     if projchange is not None:
-         potopts['PROJCHANGE'] = projchange
-    potjob = adfpotentialjob(job, refdens, potoptions=potopts, startpot=startpot1)
+        potopts['PROJCHANGE'] = projchange
+    potjob = adfpotentialjob(j, refdens, potoptions=potopts, startpot=startpot1)
 
     return potjob.run()
 
-def compare_results(refresults, potresults, recpot_num) :
 
+def compare_results(refresults, potresults, recpot_num):
     mol = refresults.get_molecule()
 
     ######################################################
@@ -62,7 +67,7 @@ def compare_results(refresults, potresults, recpot_num) :
     agrid = adfgrid(refresults)
     refdens = refresults.get_density(grid=agrid)
     potdens = potresults.get_density(grid=agrid)
-    denserr_adf = (refdens-potdens).integral(abs)
+    denserr_adf = (refdens - potdens).integral(abs)
 
     ######################################################
     # comparison of densities (logarithmic grid)
@@ -70,14 +75,14 @@ def compare_results(refresults, potresults, recpot_num) :
 
     grid = LogGrid(400, b=0.01, rmax=100.0)
 
-    coords = numpy.zeros((grid.N,3))
-    coords[:,0] = grid.r
+    coords = numpy.zeros((grid.N, 3))
+    coords[:, 0] = grid.r
     loggrid = customgrid(mol, coords)
 
     d_ref = refresults.get_density(grid=loggrid).get_values()
     d_rec = potresults.get_density(grid=loggrid).get_values()
 
-    denserr = 4.0*math.pi*grid.calc_integral(grid.r*grid.r*abs(d_ref-d_rec))
+    denserr = 4.0 * math.pi * grid.calc_integral(grid.r * grid.r * abs(d_ref - d_rec))
 
     ########################################################
     # numerical density on accurate potential
@@ -85,8 +90,8 @@ def compare_results(refresults, potresults, recpot_num) :
 
     startpot = get_startpot(refresults, loggrid).get_values()
 
-    dens_recpot_num = calc_density(grid, startpot+recpot_num, {0:3, 1:2})
-    denserr_recpot_num = 4.0*math.pi*grid.calc_integral(grid.r*grid.r*abs(d_ref-dens_recpot_num/grid.r**2))
+    dens_recpot_num = calc_density(grid, startpot + recpot_num, {0: 3, 1: 2})
+    denserr_recpot_num = 4.0 * math.pi * grid.calc_integral(grid.r * grid.r * abs(d_ref - dens_recpot_num / grid.r**2))
 
     ########################################################
     # numerical density on reconstructed potential
@@ -94,14 +99,14 @@ def compare_results(refresults, potresults, recpot_num) :
 
     recpot_bas = potresults.get_potential(grid=loggrid, pot='reconstructed').get_values()
 
-    dens_recpot_bas = calc_density(grid, startpot+recpot_bas, {0:3, 1:2})
-    denserr_recpot_bas = 4.0*math.pi*grid.calc_integral(grid.r*grid.r*abs(d_ref-dens_recpot_bas/grid.r**2))
+    dens_recpot_bas = calc_density(grid, startpot + recpot_bas, {0: 3, 1: 2})
+    denserr_recpot_bas = 4.0 * math.pi * grid.calc_integral(grid.r * grid.r * abs(d_ref - dens_recpot_bas / grid.r**2))
 
     return denserr_adf, denserr, denserr_recpot_num, denserr_recpot_bas
 
-def main():
 
-    mol = molecule (os.path.join(pyadfenv.outdir, 'Ar.xyz'))
+def main():
+    mol = molecule(os.path.join(pyadfenv.outdir, 'Ar.xyz'))
     mol.set_symmetry('NOSYM')
 
     ###################################################################
@@ -109,7 +114,7 @@ def main():
     ###################################################################
 
     settings = adfsettings(functional='BP86', accint=12.0, converge=1e-04)
-    settings.set_save_tapes([21,10])
+    settings.set_save_tapes([21, 10])
     settings.set_ncycles(100)
 
     refresults = adfsinglepointjob(mol, basis='DZP', settings=settings, options=['LINEARSCALING 100\nEND']).run()
@@ -124,19 +129,19 @@ def main():
 
     denserr_adf, denserr, denserr_recpot_num, denserr_recpot_bas = compare_results(refresults, potresults, recpot_num)
 
-    print
-    print "Ar/DZP/BP86 zero projection / balanced (sigma=1e-2):"
-    print
-    print "error in reconstructed density (ADF grid):          ", denserr_adf
-    print "error in reconstructed density (logarithmic grid):  ", denserr
-    print "numerical density error on accurate potential:      ", denserr_recpot_num
-    print "numerical density error on reconstructed potential: ", denserr_recpot_bas
+    print()
+    print("Ar/DZP/BP86 zero projection / balanced (sigma=1e-2):")
+    print()
+    print("error in reconstructed density (ADF grid):          ", denserr_adf)
+    print("error in reconstructed density (logarithmic grid):  ", denserr)
+    print("numerical density error on accurate potential:      ", denserr_recpot_num)
+    print("numerical density error on reconstructed potential: ", denserr_recpot_bas)
 
-    if 'unittesting' in pyadfenv.options :
-         testobj.assertAlmostEqual(denserr_adf, 0.000811, 4)
-         testobj.assertAlmostEqual(denserr,     0.000811, 4)
-         testobj.assert_(denserr_recpot_num < 1.0e-4)
-         testobj.assertAlmostEqual(denserr_recpot_bas, 0.425960, 3)
+    if 'unittesting' in pyadfenv.options:
+        testobj.assertAlmostEqual(denserr_adf, 0.000811, 4)
+        testobj.assertAlmostEqual(denserr, 0.000811, 4)
+        testobj.assert_(denserr_recpot_num < 1.0e-4)
+        testobj.assertAlmostEqual(denserr_recpot_bas, 0.425960, 3)
 
     ####################################################################
     # potential reconstruction job (smooth projection, err < 1e-3)
@@ -148,19 +153,19 @@ def main():
 
     denserr_adf, denserr, denserr_recpot_num, denserr_recpot_bas = compare_results(refresults, potresults, recpot_num)
 
-    print
-    print "Ar/DZP/BP86 smooth projection, err < 1.0e-3 :"
-    print
-    print "error in reconstructed density (ADF grid):          ", denserr_adf
-    print "error in reconstructed density (logarithmic grid):  ", denserr
-    print "numerical density error on accurate potential:      ", denserr_recpot_num
-    print "numerical density error on reconstructed potential: ", denserr_recpot_bas
+    print()
+    print("Ar/DZP/BP86 smooth projection, err < 1.0e-3 :")
+    print()
+    print("error in reconstructed density (ADF grid):          ", denserr_adf)
+    print("error in reconstructed density (logarithmic grid):  ", denserr)
+    print("numerical density error on accurate potential:      ", denserr_recpot_num)
+    print("numerical density error on reconstructed potential: ", denserr_recpot_bas)
 
-    if 'unittesting' in pyadfenv.options :
-         testobj.assert_(denserr < 1.0e-3)
-         testobj.assert_(denserr < 1.0e-3)
-         testobj.assert_(denserr_recpot_num < 1.0e-4)
-         testobj.assertAlmostEqual(denserr_recpot_bas, 0.1660928, 3)
+    if 'unittesting' in pyadfenv.options:
+        testobj.assert_(denserr < 1.0e-3)
+        testobj.assert_(denserr < 1.0e-3)
+        testobj.assert_(denserr_recpot_num < 1.0e-4)
+        testobj.assertAlmostEqual(denserr_recpot_bas, 0.1660928, 3)
 
     ####################################################################
     # potential reconstruction job (full projection)
@@ -172,19 +177,19 @@ def main():
 
     denserr_adf, denserr, denserr_recpot_num, denserr_recpot_bas = compare_results(refresults, potresults, recpot_num)
 
-    print
-    print "Ar/DZP/BP86 full projection:"
-    print
-    print "error in reconstructed density (ADF grid):          ", denserr_adf
-    print "error in reconstructed density (logarithmic grid):  ", denserr
-    print "numerical density error on accurate potential:      ", denserr_recpot_num
-    print "numerical density error on reconstructed potential: ", denserr_recpot_bas
+    print()
+    print("Ar/DZP/BP86 full projection:")
+    print()
+    print("error in reconstructed density (ADF grid):          ", denserr_adf)
+    print("error in reconstructed density (logarithmic grid):  ", denserr)
+    print("numerical density error on accurate potential:      ", denserr_recpot_num)
+    print("numerical density error on reconstructed potential: ", denserr_recpot_bas)
 
-    if 'unittesting' in pyadfenv.options :
-         testobj.assertAlmostEqual(denserr_adf, 0.051326, 4)
-         testobj.assertAlmostEqual(denserr,     0.051402, 4)
-         testobj.assert_(denserr_recpot_num < 1.0e-4)
-         testobj.assertAlmostEqual(denserr_recpot_bas, 0.025661, 3)
+    if 'unittesting' in pyadfenv.options:
+        testobj.assertAlmostEqual(denserr_adf, 0.051326, 4)
+        testobj.assertAlmostEqual(denserr, 0.051402, 4)
+        testobj.assert_(denserr_recpot_num < 1.0e-4)
+        testobj.assertAlmostEqual(denserr_recpot_bas, 0.025661, 3)
 
     ####################################################################
     # potential reconstruction job (restr. projection, err < 1.0e-3)
@@ -196,26 +201,26 @@ def main():
 
     denserr_adf, denserr, denserr_recpot_num, denserr_recpot_bas = compare_results(refresults, potresults, recpot_num)
 
-    print
-    print "Ar/DZP/BP86 restr. projection (err < 1.0e-3):"
-    print
-    print "error in reconstructed density (ADF grid):          ", denserr_adf
-    print "error in reconstructed density (logarithmic grid):  ", denserr
-    print "numerical density error on accurate potential:      ", denserr_recpot_num
-    print "numerical density error on reconstructed potential: ", denserr_recpot_bas
+    print()
+    print("Ar/DZP/BP86 restr. projection (err < 1.0e-3):")
+    print()
+    print("error in reconstructed density (ADF grid):          ", denserr_adf)
+    print("error in reconstructed density (logarithmic grid):  ", denserr)
+    print("numerical density error on accurate potential:      ", denserr_recpot_num)
+    print("numerical density error on reconstructed potential: ", denserr_recpot_bas)
 
-    if 'unittesting' in pyadfenv.options :
-         testobj.assert_(denserr_adf < 1.0e-3)
-         testobj.assert_(denserr < 1.0e-3)
-         testobj.assert_(denserr_recpot_num < 1.00005e-4)
-         testobj.assertAlmostEqual(denserr_recpot_bas, 0.12214, 3)
+    if 'unittesting' in pyadfenv.options:
+        testobj.assert_(denserr_adf < 1.0e-3)
+        testobj.assert_(denserr < 1.0e-3)
+        testobj.assert_(denserr_recpot_num < 1.00005e-4)
+        testobj.assertAlmostEqual(denserr_recpot_bas, 0.12214, 3)
 
     ###################################################################
     # B) reference calculation (HF for Ar atom)
     ###################################################################
 
     settings = adfsettings(functional='HARTREEFOCK', accint=12.0, converge=1e-04)
-    settings.set_save_tapes([21,10])
+    settings.set_save_tapes([21, 10])
     settings.set_ncycles(100)
 
     refresults = adfsinglepointjob(mol, basis='DZP', settings=settings, options=['LINEARSCALING 100\nEND']).run()
@@ -226,33 +231,35 @@ def main():
 
     potresults = run_potjob(refresults, potproj='VIRT', projchange=10.0)
 
-    recpot_num = numpy.loadtxt(os.path.join(pyadfenv.outdir,'Ar_recpot_num_dzp_hf.txt'))
+    recpot_num = numpy.loadtxt(os.path.join(pyadfenv.outdir, 'Ar_recpot_num_dzp_hf.txt'))
 
-    #grid = LogGrid(400, b=0.01, rmax=100.0)
-    #coords = numpy.zeros((grid.N,3))
-    #coords[:,0] = grid.r
-    #loggrid = customgrid(mol, coords)
+    # grid = LogGrid(400, b=0.01, rmax=100.0)
+    # coords = numpy.zeros((grid.N,3))
+    # coords[:,0] = grid.r
+    # loggrid = customgrid(mol, coords)
     #
-    #d_ref = refresults.get_density(grid=loggrid).get_values()
-    #startpot = get_startpot(refresults, loggrid).get_values()
+    # d_ref = refresults.get_density(grid=loggrid).get_values()
+    # startpot = get_startpot(refresults, loggrid).get_values()
     #
-    #recpot_num = reconstruct_potential(grid, grid.r*grid.r*d_ref, startpot+recpot_num, {0:3,1:2}, denserr=1e-4) + recpot_num
-    #numpy.savetxt(os.path.join(pyadfenv.outdir, 'Ar_recpot_num_dzp_hf.txt'), recpot_num)
+    # recpot_num = reconstruct_potential(grid, grid.r*grid.r*d_ref, startpot+recpot_num,
+    #                                    {0:3,1:2}, denserr=1e-4) + recpot_num
+    # numpy.savetxt(os.path.join(pyadfenv.outdir, 'Ar_recpot_num_dzp_hf.txt'), recpot_num)
 
     denserr_adf, denserr, denserr_recpot_num, denserr_recpot_bas = compare_results(refresults, potresults, recpot_num)
 
-    print
-    print "Ar/DZP/HF full projection:"
-    print
-    print "error in reconstructed density (ADF grid):          ", denserr_adf
-    print "error in reconstructed density (logarithmic grid):  ", denserr
-    print "numerical density error on accurate potential:      ", denserr_recpot_num
-    print "numerical density error on reconstructed potential: ", denserr_recpot_bas
+    print()
+    print("Ar/DZP/HF full projection:")
+    print()
+    print("error in reconstructed density (ADF grid):          ", denserr_adf)
+    print("error in reconstructed density (logarithmic grid):  ", denserr)
+    print("numerical density error on accurate potential:      ", denserr_recpot_num)
+    print("numerical density error on reconstructed potential: ", denserr_recpot_bas)
 
-    if 'unittesting' in pyadfenv.options :
-         testobj.assertAlmostEqual(denserr_adf, 0.068594, 4)
-         testobj.assertAlmostEqual(denserr,     0.068720, 4)
-         testobj.assert_(denserr_recpot_num < 1.00005e-4)
-         testobj.assertAlmostEqual(denserr_recpot_bas, 0.056684, 3)
+    if 'unittesting' in pyadfenv.options:
+        testobj.assertAlmostEqual(denserr_adf, 0.068594, 4)
+        testobj.assertAlmostEqual(denserr, 0.068720, 4)
+        testobj.assert_(denserr_recpot_num < 1.00005e-4)
+        testobj.assertAlmostEqual(denserr_recpot_bas, 0.056684, 3)
+
 
 main()

@@ -1,12 +1,10 @@
-# -*- coding: utf-8 -*-
-
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2021 by Christoph R. Jacob, Tobias Bergmann,
-# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Thomas Dresselhaus,
-# Andre S. P. Gomes, Andreas Goetz, Michal Handzlik, Karin Kiewisch,
-# Moritz Klammler, Lars Ridder, Jetze Sikkema, Lucas Visscher, and
-# Mario Wolter.
+# Copyright (C) 2006-2022 by Christoph R. Jacob, Tobias Bergmann,
+# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Maria Chekmeneva,
+# Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz, 
+# Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder, 
+# Jetze Sikkema, Lucas Visscher, Johannes Vornweg and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -19,7 +17,7 @@
 #    GNU General Public License for more details.
 #
 #    You should have received a copy of the GNU General Public License
-#    along with PyADF.  If not, see <http://www.gnu.org/licenses/>.
+#    along with PyADF.  If not, see <https://www.gnu.org/licenses/>.
 """
  The basics needed for Dirac calculations
 
@@ -34,10 +32,10 @@
  @group Results:
     diracresults, diracsinglepointresults
 """
-from Errors import PyAdfError
-from BaseJob import results, job
-from Plot.GridFunctions import GridFunction1D
-from Utils import newjobmarker
+from .Errors import PyAdfError
+from .BaseJob import results, job
+from .Plot.GridFunctions import GridFunction1D
+from .Utils import newjobmarker
 import os
 import re
 
@@ -57,7 +55,7 @@ class diracresults(results):
         """
         Constructor for diracresults.
         """
-        results.__init__(self, j)
+        super().__init__(j)
 
     def get_dfcoef_filename(self):
         """
@@ -123,7 +121,8 @@ class diracsinglepointresults(diracresults):
         """
         Constructor for diracsinglepointresults.
         """
-        diracresults.__init__(self, j)
+        super().__init__(j)
+        self._ccenergies = None
 
     def get_molecule(self):
         """
@@ -142,20 +141,23 @@ class diracsinglepointresults(diracresults):
 
         This uses the xml output that is still rather limited in DIRAC but is to be extended.
 
-        @rtype: float
+        @rtype: dict
         """
-        from xml.dom.minidom import parse
-        dom = parse(self.get_xml_filename())
+        if self._ccenergies is not None:
+            ccenergies = self._ccenergies
+        else:
+            from xml.dom.minidom import parse
+            dom = parse(self.get_xml_filename())
 
-        ccenergies = {}
-        for quantity in dom.getElementsByTagName('quantity'):
-            label = quantity.getAttribute('label')
-            if label.find('energy') != -1:
-                ccenergies[label] = float(quantity.firstChild.data)
+            ccenergies = {}
+            for quantity in dom.getElementsByTagName('quantity'):
+                label = quantity.getAttribute('label')
+                if label.find('energy') != -1:
+                    ccenergies[label] = float(quantity.firstChild.data)
 
         return ccenergies
 
-    def get_energy(self):
+    def get_scf_energy(self):
         """
         Return the total energy.
 
@@ -182,6 +184,23 @@ class diracsinglepointresults(diracresults):
 
         return energy
 
+    def get_energy(self, level='SCF'):
+        if level in ['SCF', 'HF', 'DHF', 'DFT', 'DKS']:
+            energy = self.get_scf_energy()
+        elif level in ['MP2', 'CCSD', 'CCSD(T)', 'CCSD-T', 'CCSD+T']:
+            ccenergies = self.get_ccenergies()
+            try:
+                energy = ccenergies[level+' energy']
+            except KeyError:
+                raise PyAdfError('Unknown level specified for get_energy')
+        else:
+            raise PyAdfError('Unknown level specified for get_energy')
+
+        return energy
+
+    def get_total_energy(self):
+        return self.get_energy(self.job.settings.method)
+
     def get_dipole_vector(self, level='DHF'):
         """
         Return the dipole moment vector.
@@ -189,14 +208,14 @@ class diracsinglepointresults(diracresults):
         @returns: the dipole moment vector, in atomic units
         @rtype: float[3]
         """
-        from Utils import au_in_Debye
+        from .Utils import au_in_Debye
         import numpy
 
         dipole = numpy.zeros((3,))
 
         output = self.get_output()
 
-        print "\n\nNote: extracting dipole vector for " + level + " level of theory\n"
+        print("\n\nNote: extracting dipole vector for " + level + " level of theory\n")
 
         headerline = 1
         start0 = re.compile(r".+Properties\s+for\s+([A-Z0-9]+)")
@@ -225,23 +244,23 @@ class diracsinglepointresults(diracresults):
 
         return dipole / au_in_Debye
 
-    def _get_fdeout(self):
+    @property
+    def fdeout(self):
+        """
+        The results of the ADF FDE calculation from which the grid is used for exporting.
+
+        @type: L{adffragmentsresults}
+        """
         return self.job.fdeout
 
-    fdeout = property(_get_fdeout, None, None, """
-    The results of the ADF FDE calculation from which the grid is used for exporting.
+    @property
+    def fdein(self):
+        """
+        The results of the ADF FDE calculation from that the embedding potential was imported.
 
-    @type: L{adffragmentsresults}
-    """)
-
-    def _get_fdein(self):
+        @type: L{adffragmentsresults}
+        """
         return self.job.fdein
-
-    fdein = property(_get_fdein, None, None, """
-    The results of the ADF FDE calculation from that the embedding potential was imported.
-
-    @type: L{adffragmentsresults}
-    """)
 
     def export_dirac_tape10(self, outfile):
         """
@@ -258,7 +277,7 @@ class diracsinglepointresults(diracresults):
         else:
             env = os.environ
 
-        cpkfCmd = [os.path.join(env.setdefault('ADFBIN', ''), 'cpkf'),
+        cpkfCmd = [os.path.join(env.setdefault('AMSBIN', ''), 'cpkf'),
                    self.fdeout.get_tape_filename(tape=10), outfile, 'Num Int Params']
 
         DEVNULL = open(os.devnull, 'wb')
@@ -283,37 +302,35 @@ class diracjob(job):
         """
         Constructor for Dirac jobs.
         """
-        job.__init__(self)
-        self._checksum_only = False
+        super().__init__()
 
     def create_results_instance(self):
         return diracresults(self)
 
     def print_jobtype(self):
-        pass
+        raise NotImplementedError
 
     def get_molecule(self):
         """
         Abstract method. Should be overwritten to return the L{molecule}.
         """
-        pass
+        raise NotImplementedError
 
     def get_diracfile(self):
         """
         Abstract method. Should be overwritten to return the Dirac input file.
         """
-        return ""
+        raise NotImplementedError
 
-    def get_checksum(self):
+    @property
+    def checksum(self):
         import hashlib
         m = hashlib.md5()
 
-        self._checksum_only = True
-        m.update(self.get_diracfile())
-        m.update(str(self.get_molecule()))
-        self._checksum_only = False
+        m.update(self.get_diracfile().encode('utf-8'))
+        m.update(str(self.get_molecule()).encode('utf-8'))
 
-        return m.digest()
+        return m.hexdigest()
 
     def get_runscript(self, nproc=1):
 
@@ -334,7 +351,7 @@ class diracjob(job):
 
         runscript += "$DIRACBIN/pam "
         if nproc > 1:
-            runscript += '--mpi=%i ' % nproc
+            runscript += f'--mpi={nproc:d} '
         runscript += ' --put="' + " ".join([pf for pf in put_files if os.path.exists(pf)]) + '"'
         runscript += ' --get="' + " ".join([gf for gf in get_files]) + '"'
         if 'DIRMAX_GB' in os.environ:
@@ -377,7 +394,7 @@ class diracjob(job):
         return True
 
 
-class diracsettings(object):
+class diracsettings:
     """
     Class that holds the settings for a Dirac calculation..
 
@@ -457,7 +474,8 @@ class diracsettings(object):
         if self.domoltra or (transform is not None):
             self.set_transform(transform)
         self.set_properties(properties)
-        self.set_functional(functional)
+        if self.method == 'DFT':
+            self.set_functional(functional)
         self.set_dftgrid(dftgrid)
         self.set_nucmod(nucmod)
 
@@ -467,7 +485,7 @@ class diracsettings(object):
         """
         Select the computational method.
 
-        Available options are: HF, DFT, MP2, CCSD, CCSDt, (FSCC, IHFSCC)
+        Available options are: HF, DFT, MP2, CCSD, CCSDt [=CCSD(T)], FSCC, IHFSCC
 
         @param method: string identifying the selected method
         @type  method: str
@@ -479,7 +497,7 @@ class diracsettings(object):
         elif self.method == 'MP2':
             self.exportfde_level = 'MP2'
             self.domoltra = True
-        elif self.method in ('CCSD', 'CCSDt', 'FSCC', 'IHFSCC'):
+        elif self.method in ('CCSD', 'CCSDt', 'CCSD(T)', 'FSCC', 'IHFSCC'):
             self.exportfde_level = 'CCSD'
             self.domoltra = True
 
@@ -512,12 +530,12 @@ class diracsettings(object):
                                   'Levy': 'Levy-Leblond (NR limit of Dirac equation)',
                                   'Nonr': 'Non-relativistic (true 1 component) Hamiltonian'}
 
-        valid_input = supported_hamiltonians.keys()
+        valid_input = list(supported_hamiltonians.keys())
 
         if hamiltonian not in valid_input:
-            print "Invalid choice of Hamiltonian. Choose among:\n"
+            print("Invalid choice of Hamiltonian. Choose among:\n")
             for k in valid_input:
-                print k, "  ", supported_hamiltonians[k]
+                print(k, "  ", supported_hamiltonians[k])
             raise PyAdfError("Invalid Hamiltonian in Dirac settings")
         else:
             self.hamiltonian = hamiltonian
@@ -539,6 +557,13 @@ class diracsettings(object):
         self.proplist = properties
         self.doprop = (self.proplist is not None)
 
+    @property
+    def functional(self):
+        if self.method == 'DFT':
+            return self.fun_xc
+        else:
+            return None
+
     def set_functional(self, functional):
         """
         Select the exchange-correlation functional for DFT.
@@ -548,7 +573,10 @@ class diracsettings(object):
             See Dirac manual for available options.
         @type functional: str
         """
-        self.fun_xc = functional
+        if self.method == 'DFT':
+            self.fun_xc = functional
+        else:
+            raise PyAdfError('Functional can only be set for DFT calculations')
 
     def set_dftgrid(self, dftgrid):
         """
@@ -618,7 +646,7 @@ class diracsettings(object):
                 self.ccmain['DOFOPR'] = 'T'
         elif self.method == 'CCSD':
             self.ccener['DOCCSD'] = 'T'
-        elif self.method == 'CCSDt':
+        elif self.method in ['CCSDt', 'CCSD(T)']:
             self.ccener['DOCCSD'] = 'T'
             self.ccener['DOCCSDT'] = 'T'
         else:
@@ -627,13 +655,13 @@ class diracsettings(object):
     @staticmethod
     def get_option_block_from_dict(options):
         block = ""
-        for k, v in options.iteritems():
+        for k, v in options.items():
             block += k + "\n"
             if isinstance(v, list):
                 for e in v:
-                    if e is not '':
+                    if e != '':
                         block += e + "\n"
-            elif v is not '':
+            elif v != '':
                 block += v + "\n"
         return block
 
@@ -750,10 +778,10 @@ class diracsettings(object):
         Returns a human-readable description of the settings.
         """
         s = ""
-        s += "  Method: %s \n" % self.method
-        s += "  Hamiltonian: %s \n" % self.hamiltonian
+        s += f"  Method: {self.method} \n"
+        s += f"  Hamiltonian: {self.hamiltonian} \n"
         if self.method == 'DFT':
-            s += "  Exchange-correlation functional: %s \n" % self.fun_xc
+            s += f"  Exchange-correlation functional: {self.fun_xc} \n"
         if self.domoltra:
             s += "  Moltra active: " + str(self.moltra_active) + "\n"
         if self.doprop:
@@ -817,7 +845,7 @@ class diracsinglepointjob(diracjob):
         @type options: list of str
 
         """
-        diracjob.__init__(self)
+        super().__init__()
 
         self.mol = mol
         self.basis = basis
@@ -850,8 +878,29 @@ class diracsinglepointjob(diracjob):
     def create_results_instance(self):
         return diracsinglepointresults(self)
 
+    @property
+    def checksum(self):
+        import hashlib
+        m = hashlib.md5()
+
+        m.update(self.get_diracfile().encode('utf-8'))
+        m.update(str(self.get_molecule()).encode('utf-8'))
+
+        if self.restart is not None:
+            m.update(b'Restarted from Dirac job \n')
+            m.update(self.restart.checksum.encode('utf-8'))
+
+        if self.fdein is not None:
+            m.update(b'Embedding potential imported from ADF job \n')
+            m.update(self.fdein.checksum.encode('utf-8'))
+        if self.fdeout is not None:
+            m.update(b'Embedding potential exported for ADF job \n')
+            m.update(self.fdeout.checksum.encode('utf-8'))
+
+        return m.hexdigest()
+
     def get_runscript(self, nproc=1):
-        return diracjob.get_runscript(self, nproc=nproc)
+        return super().get_runscript(nproc=nproc)
 
     # FIXME: restart with Dirac not implemented
     def set_restart(self, restart):
@@ -884,17 +933,15 @@ class diracsinglepointjob(diracjob):
         if self.fdein is not None:
             block += ".EMBPOT\n"
             block += "EMBPOT\n"
-            if self._checksum_only:
-                block += self.fdein.get_checksum()
         if self.fdeout is not None:
             if self.fdein is None:
                 block += '.EXONLY\n'
+                block += "GRIDOUT\n"
+                block += "other\n"
             else:
                 block += ".GRIDOUT\n"
-            block += "GRIDOUT\n"
+                block += "GRIDOUT\n"
             block += ".OLDESP\n"
-            if self._checksum_only:
-                block += self.fdeout.get_checksum()
             block += self.settings.get_fdeexportlevel_block()
 
         return block
@@ -912,7 +959,7 @@ class diracsinglepointjob(diracjob):
     def get_wavefunction_block(self):
         block = "**WAVE FUNCTION\n"
         block += ".SCF\n"
-        if self.settings.method in ('MP2', 'CCSD', 'CCSDt', 'FSCC', 'IHFSCC'):
+        if self.settings.method in ('MP2', 'CCSD', 'CCSDt', 'CCSD(T)', 'FSCC', 'IHFSCC'):
             block += ".RELCCSD\n"
         if self.settings.wf_options is not None:
             block += self.settings.get_option_block_from_dict(self.settings.wf_options)
@@ -967,7 +1014,7 @@ class diracsinglepointjob(diracjob):
         diracfile += self.get_other_blocks()
         if self.settings.domoltra:
             diracfile += self.get_moltra_block()
-        if self.settings.method in ('MP2', 'CCSD', 'CCSDt', 'FSCC', 'IHFSCC'):
+        if self.settings.method in ('MP2', 'CCSD', 'CCSDt', 'CCSD(T)', 'FSCC', 'IHFSCC'):
             diracfile += self.settings.get_relccsd_block()
 
         diracfile += "*END OF\n \n"
@@ -982,7 +1029,7 @@ class diracsinglepointjob(diracjob):
         return "Dirac single point job"
 
     def before_run(self):
-        diracjob.before_run(self)
+        super().before_run()
 
         if self.restart is not None:
             self.restart.copy_dfcoef()
@@ -999,31 +1046,31 @@ class diracsinglepointjob(diracjob):
         if self.fdein is not None:
             os.remove('EMBPOT')
 
-        diracjob.after_run(self)
+        super().after_run()
 
     def print_molecule(self):
 
-        print "   Molecule"
-        print "   ========"
-        print
-        print self.get_molecule()
-        print
+        print("   Molecule")
+        print("   ========")
+        print()
+        print(self.get_molecule())
+        print()
 
     def print_settings(self):
 
-        print "   Settings"
-        print "   ========"
-        print
-        print self.settings
-        print
+        print("   Settings")
+        print("   ========")
+        print()
+        print(self.settings)
+        print()
 
     def print_extras(self):
         pass
 
     def print_jobinfo(self):
-        print " " + 50 * "-"
-        print " Running " + self.print_jobtype()
-        print
+        print(" " + 50 * "-")
+        print(" Running " + self.print_jobtype())
+        print()
 
         self.print_molecule()
 

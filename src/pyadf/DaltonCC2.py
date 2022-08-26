@@ -1,12 +1,10 @@
-# -*- coding: utf-8 -*-
-
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2021 by Christoph R. Jacob, Tobias Bergmann,
-# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Thomas Dresselhaus,
-# Andre S. P. Gomes, Andreas Goetz, Michal Handzlik, Karin Kiewisch,
-# Moritz Klammler, Lars Ridder, Jetze Sikkema, Lucas Visscher, and
-# Mario Wolter.
+# Copyright (C) 2006-2022 by Christoph R. Jacob, Tobias Bergmann,
+# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Maria Chekmeneva,
+# Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz, 
+# Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder, 
+# Jetze Sikkema, Lucas Visscher, Johannes Vornweg and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -19,7 +17,7 @@
 #    GNU General Public License for more details.
 #
 #    You should have received a copy of the GNU General Public License
-#    along with PyADF.  If not, see <http://www.gnu.org/licenses/>.
+#    along with PyADF.  If not, see <https://www.gnu.org/licenses/>.
 """
  Dalton CC2 excitation energy calculations
 
@@ -35,8 +33,8 @@
     daltonCC2results
 """
 
-from Errors import PyAdfError
-from DaltonSinglePoint import daltonjob, daltonsinglepointjob, \
+from .Errors import PyAdfError
+from .DaltonSinglePoint import daltonjob, daltonsinglepointjob, \
     daltonsinglepointresults, daltonsettings
 
 import re
@@ -56,7 +54,7 @@ class daltonCC2results(daltonsinglepointresults):
         """
         Constructor for daltonCC2results.
         """
-        daltonsinglepointresults.__init__(self, j)
+        super().__init__(j)
 
     def get_excitation_energies(self):
         """
@@ -137,7 +135,7 @@ class daltonCC2settings(daltonsettings):
         __str__
     """
 
-    def __init__(self, nexci=10, freeze_occ=0, freeze_virt=0, ):
+    def __init__(self, nexci=10, freeze_occ=0, freeze_virt=0, memory=None):
         """
         Constructor for daltonCC2settings.
 
@@ -151,15 +149,14 @@ class daltonCC2settings(daltonsettings):
 
         @param freeze_virt: number of virtual orbitals to freeze, see L{set_freeze}.
         @type  freeze_virt: int
+
+        @param memory: the maximum total memory to use (in MB)
+        @type  memory: integer
         """
-        daltonsettings.__init__(self, method='CC')
+        super().__init__(method='CC', freeze_occ=freeze_occ, freeze_virt=freeze_virt, memory=memory)
 
         self.nexci = None
-        self.freeze_occ = None
-        self.freeze_virt = None
-
         self.set_nexci(nexci)
-        self.set_freeze(freeze_occ, freeze_virt)
 
     def set_nexci(self, nexci):
         """
@@ -170,26 +167,14 @@ class daltonCC2settings(daltonsettings):
         """
         self.nexci = nexci
 
-    def set_freeze(self, freeze_occ, freeze_virt):
-        """
-        Set the number of orbitals to freeze in the CC2 calculation.
-
-        @param freeze_occ: number of frozen occupied orbitals
-        @type  freeze_occ: int
-        @param freeze_virt: number of frozen virtual orbitals
-        @type  freeze_virt: int
-        """
-        self.freeze_occ = freeze_occ
-        self.freeze_virt = freeze_virt
-
     def __str__(self):
         """
         Returns a human-readable description of the settings.
         """
         s = "  Method: CC2 \n\n"
-        s += "  Number of excitations: %i \n" % self.nexci
-        s += "  Number of frozen occupied orbitals: %i \n" % self.freeze_occ
-        s += "  Number of frozen virtual orbitals:  %i \n" % self.freeze_virt
+        s += f"  Number of excitations: {self.nexci:d} \n"
+        s += f"  Number of frozen occupied orbitals: {self.freeze_occ:d} \n"
+        s += f"  Number of frozen virtual orbitals:  {self.freeze_virt:d} \n"
         return s
 
 
@@ -240,23 +225,18 @@ class daltonCC2job(daltonsinglepointjob):
         else:
             self.settings = settings
 
-        daltonsinglepointjob.__init__(self, mol, basis, fdein=fdein,
-                                      settings=self.settings, options=options)
+        super().__init__(mol, basis, fdein=fdein, settings=self.settings, options=options)
 
-    # CC is not available in MPI parallel runs
-    only_serial = True
-
-    def get_runscript(self, nproc):
+    # noinspection PyMethodOverriding
+    def get_runscript(self, nproc=1):
         return daltonjob.get_runscript(self, nproc=nproc, memory=self.settings.memory)
 
-    def _get_nexci(self):
+    @property
+    def nexci(self):
+        """
+        The number of excitations that were calculated.
+        """
         return self.settings.nexci
-
-    nexci = property(_get_nexci, None, None, """
-    The number of excitations that were calculated.
-
-    @type: int
-    """)
 
     def create_results_instance(self):
         return daltonCC2results(self)
@@ -275,7 +255,7 @@ class daltonCC2job(daltonsinglepointjob):
         block += "1 \n"
         # freeze orbitals
         block += ".FREEZE\n"
-        block += "%i %i\n" % (self.settings.freeze_occ, self.settings.freeze_virt)
+        block += f"{self.settings.freeze_occ:d} {self.settings.freeze_virt:d}\n"
         block += "*CCEXCI \n"
         block += ".NCCEXCI \n"
         block += str(self.settings.nexci) + "\n"
@@ -288,11 +268,6 @@ class daltonCC2job(daltonsinglepointjob):
         block += "*CCEXGR\n"
         block += ".DIPOLE\n"
         return block
-
-    def get_other_blocks(self):
-        blocks = daltonsinglepointjob.get_other_blocks(self)
-        blocks += self.get_cc_block()
-        return blocks
 
     def print_jobtype(self):
         return "Dalton Excitations (CC2) job"

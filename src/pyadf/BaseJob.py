@@ -1,12 +1,10 @@
-# -*- coding: utf-8 -*-
-
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2021 by Christoph R. Jacob, Tobias Bergmann,
-# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Thomas Dresselhaus,
-# Andre S. P. Gomes, Andreas Goetz, Michal Handzlik, Karin Kiewisch,
-# Moritz Klammler, Lars Ridder, Jetze Sikkema, Lucas Visscher, and
-# Mario Wolter.
+# Copyright (C) 2006-2022 by Christoph R. Jacob, Tobias Bergmann,
+# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Maria Chekmeneva,
+# Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz, 
+# Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder, 
+# Jetze Sikkema, Lucas Visscher, Johannes Vornweg and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -19,7 +17,7 @@
 #    GNU General Public License for more details.
 #
 #    You should have received a copy of the GNU General Public License
-#    along with PyADF.  If not, see <http://www.gnu.org/licenses/>.
+#    along with PyADF.  If not, see <https://www.gnu.org/licenses/>.
 """
  The base classes for jobs and results.
 
@@ -34,7 +32,7 @@
 """
 
 
-class results(object):
+class results:
     """
     An abstract class for results of a calculation.
 
@@ -56,7 +54,7 @@ class results(object):
     @group Access to result files:
       get_output
     @group Access to internal properties:
-      get_checksum
+      checksum
 
     @undocumented:
         __deepcopy__
@@ -70,7 +68,7 @@ class results(object):
         """
         import copy
 
-        from Files import adf_filemanager
+        from .Files import adf_filemanager
         self.files = adf_filemanager()
 
         if j is None:
@@ -89,7 +87,8 @@ class results(object):
         import copy
         return copy.copy(self)
 
-    def get_checksum(self):
+    @property
+    def checksum(self):
         """
         Return the checksum associated with the results.
 
@@ -97,7 +96,7 @@ class results(object):
         @rtype:   str
         """
         if self._checksum is None:
-            self._checksum = self.job.get_checksum()
+            self._checksum = self.job.checksum
         return self._checksum
 
     def get_output(self):
@@ -111,6 +110,9 @@ class results(object):
             return None
         else:
             return self.files.get_output(self.fileid)
+
+    def get_molecule(self):
+        return None
 
     def get_dipole_vector(self):
         """
@@ -140,7 +142,7 @@ class results(object):
             return None
 
 
-class job(object):
+class job:
     """
     An abstract job base class.
 
@@ -151,11 +153,11 @@ class job(object):
     @group Running Internals:
         get_runscript, before_run, after_run, check_success
     @group Other Internals:
-        get_checksum, create_results_instance, result_filenames,
+        checksum, create_results_instance, result_filenames,
         print_jobinfo, print_jobtype
 
-    @undocumented: __delattr__, __getattribute__, __hash__, __new__, __reduce__,
-                   __reduce_ex__, __repr__, __str__, __setattr__
+    @undocumented: __delattr__, __getattribute__, __hash__, __new__,
+                   __repr__, __str__, __setattr__
     """
 
     only_serial = False
@@ -204,7 +206,8 @@ class job(object):
         """
         return True
 
-    def get_checksum(self):
+    @property
+    def checksum(self):
         """
         Abstract method for obtaining a checksum of the job.
         """
@@ -231,7 +234,7 @@ class job(object):
         """
 
         if job_runner is None:
-            from JobRunner import DefaultJobRunner
+            from .JobRunner import DefaultJobRunner
             res = DefaultJobRunner().run_job(self)
         else:
             res = job_runner.run_job(self)
@@ -256,7 +259,7 @@ class metajob(job):
         Constructor for metajob.
 
         """
-        job.__init__(self)
+        super().__init__()
 
     def metarun(self):
         """
@@ -274,7 +277,7 @@ class metajob(job):
         L{metarun} instead of executing a run script.
 
         @returns: An object representing the results of the calculation.
-        @rtype: L{results}
+        @rtype: subclass of L{results}
         """
         self.before_run()
         res = self.metarun()

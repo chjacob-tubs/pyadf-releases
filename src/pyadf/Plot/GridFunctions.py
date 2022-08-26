@@ -1,12 +1,10 @@
-# -*- coding: utf-8 -*-
-
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2021 by Christoph R. Jacob, Tobias Bergmann,
-# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Thomas Dresselhaus,
-# Andre S. P. Gomes, Andreas Goetz, Michal Handzlik, Karin Kiewisch,
-# Moritz Klammler, Lars Ridder, Jetze Sikkema, Lucas Visscher, and
-# Mario Wolter.
+# Copyright (C) 2006-2022 by Christoph R. Jacob, Tobias Bergmann,
+# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Maria Chekmeneva,
+# Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz, 
+# Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder, 
+# Jetze Sikkema, Lucas Visscher, Johannes Vornweg and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -19,22 +17,20 @@
 #    GNU General Public License for more details.
 #
 #    You should have received a copy of the GNU General Public License
-#    along with PyADF.  If not, see <http://www.gnu.org/licenses/>.
+#    along with PyADF.  If not, see <https://www.gnu.org/licenses/>.
 """
 Defines classes for functions defined on grids.
 """
 
 import numbers
 import numpy
-from itertools import izip
 
 from ..Errors import PyAdfError
 
-import Grids
+from . import Grids
 
 
-class GridFunction(object):
-
+class GridFunction:
     """
     Basic class for grid functions consisting of a grid and values on this grid.
     """
@@ -78,27 +74,23 @@ class GridFunction(object):
         if not (self._values.shape[0] == self.grid.npoints):
             raise PyAdfError("Grid and Values not consistent")
 
-    def get_checksum(self):
+    @property
+    def checksum(self):
         """
-        Getter for checksum property.
+        Checksum of the gridfunction.
+
+        Read-only, because it should either be set when constructing a
+        gridfunction, or calculated automatically from the Numpy data.
         """
         if self._checksum is None:
             import hashlib
             m = hashlib.md5()
-            m.update(self.grid.get_checksum())
+            m.update(self.grid.checksum.encode('utf-8'))
             m.update(self._values.data)
 
-            self._checksum = m.digest()
+            self._checksum = m.hexdigest()
 
         return self._checksum
-
-    checksum = property(get_checksum, None, None)
-    """
-    Checksum of the gridfunction.
-
-    Read-only, because it should either be set when constructing a
-    gridfunction, or calculated automatically from the Numpy data.
-    """
 
     def get_values(self):
         """
@@ -112,20 +104,16 @@ class GridFunction(object):
         new_shape = self.grid.shape + self._values.shape[1:]
         return self._values.reshape(new_shape)
 
-    def _get_values(self):
+    @property
+    def values(self):
         """
-        Getter for values property.
+        The values of the gridfunction. Read-only.
+
+        In contrast to get_values, the values are given in a
+        Numpy array with the first dimension matching the
+        number of grid points.
         """
         return self._values
-
-    values = property(_get_values, None, None)
-    """
-    The values of the gridfunction. Read-only.
-
-    In contrast to get_values, the values are given in a
-    Numpy array with the first dimension matching the
-    number of grid points.
-    """
 
     def valueiter(self):
         """
@@ -175,11 +163,11 @@ class GridFunction(object):
         # calculate checksum for added density
         import hashlib
         m = hashlib.md5()
-        m.update("Grid function obtained by adding :\n")
-        m.update(self.get_checksum())
-        m.update("Constant shift %18.10f" % const)
+        m.update(b"Grid function obtained by adding :\n")
+        m.update(self.checksum.encode('utf-8'))
+        m.update(f"Constant shift {const:18.10f}".encode('utf-8'))
 
-        return self._result_gridfunction_for_operators(new_values, m.digest())
+        return self._result_gridfunction_for_operators(new_values, m.hexdigest())
 
     def _add_with_factor(self, other, fact=1.0):
 
@@ -190,12 +178,12 @@ class GridFunction(object):
         # calculate checksum for added density
         import hashlib
         m = hashlib.md5()
-        m.update("Grid function obtained by adding :\n")
-        m.update(self.get_checksum())
-        m.update("with factor %18.10f times \n" % fact)
-        m.update(other.get_checksum())
+        m.update(b"Grid function obtained by adding :\n")
+        m.update(self.checksum.encode('utf-8'))
+        m.update(f"with factor {fact:18.10f} times \n".encode('utf-8'))
+        m.update(other.checksum.encode('utf-8'))
 
-        return self._result_gridfunction_for_operators(new_values, m.digest(), other)
+        return self._result_gridfunction_for_operators(new_values, m.hexdigest(), other)
 
     def __add__(self, other):
         """
@@ -218,7 +206,7 @@ class GridFunction(object):
             >>> dens_tot.get_cubfile('total_density.cub')
 
         """
-        if isinstance(other, numbers.Number):
+        if isinstance(other, numbers.Complex):
             return self._add_constant(other)
         elif isinstance(other, GridFunction):
             return self._add_with_factor(other)
@@ -250,7 +238,7 @@ class GridFunction(object):
             >>> print "RMS density deviation: ", math.sqrt(diffdens.integral(lambda x: x*x))
 
         """
-        if isinstance(other, numbers.Number):
+        if isinstance(other, numbers.Complex):
             return self._add_constant(-other)
         elif isinstance(other, GridFunction):
             return self._add_with_factor(other, fact=-1.0)
@@ -264,17 +252,22 @@ class GridFunction(object):
         return -self.__sub__(other)
 
     def _mul_with_constant(self, fact):
+        """
+        Multiply gridfunction with a constant factor/
 
+        @fact: factor
+        @type fact: L{Number}
+        """
         new_values = self.values * fact
 
         # calculate checksum for added density
         import hashlib
         m = hashlib.md5()
-        m.update("Grid function obtained by multiplying with factor :\n")
-        m.update(self.get_checksum())
-        m.update(str(fact))
+        m.update(b"Grid function obtained by multiplying with factor :\n")
+        m.update(self.checksum.encode('utf-8'))
+        m.update(str(fact).encode('utf-8'))
 
-        return self._result_gridfunction_for_operators(new_values, m.digest())
+        return self._result_gridfunction_for_operators(new_values, m.hexdigest())
 
     def __mul__(self, other):
         """
@@ -286,7 +279,7 @@ class GridFunction(object):
         For two instances of C{GridFunction1D}, a multiplication
         is defined pointwise. The two instances must use the same grid.
         """
-        if isinstance(other, numbers.Number):
+        if isinstance(other, numbers.Complex):
             return self._mul_with_constant(other)
         else:
             return NotImplemented
@@ -297,7 +290,7 @@ class GridFunction(object):
     def __neg__(self):
         return self._mul_with_constant(-1.0)
 
-    def __div__(self, other):
+    def __truediv__(self, other):
         """
         Division of gridfunctions.
 
@@ -307,10 +300,23 @@ class GridFunction(object):
         For two instances of C{GridFunction1D}, a division
         is defined pointwise. The two instances must use the same grid.
         """
-        if isinstance(other, numbers.Number):
+        if isinstance(other, numbers.Complex):
             return self._mul_with_constant(1.0 / other)
         else:
             return NotImplemented
+
+    def __pow__(self, exp):
+
+        new_values = self.values**exp
+
+        import hashlib
+        m = hashlib.md5()
+        m.update(b"Density obtained by taking\n")
+        m.update(self.checksum.encode('utf-8'))
+        m.update(b"to the power of \n")
+        m.update(str(exp).encode('utf-8'))
+
+        return self._result_gridfunction_for_operators(new_values, m.hexdigest())
 
     def apply_function(self, func):
         """
@@ -332,16 +338,16 @@ class GridFunction(object):
         # calculate checksum for result gridfunction
         import hashlib
         m = hashlib.md5()
-        m.update("Grid function obtained by applying function :\n")
-        m.update(self.get_checksum())
+        m.update(b"Grid function obtained by applying function :\n")
+        m.update(self.checksum.encode('utf-8'))
 
         if isinstance(func, numpy.ufunc):
-            m.update(func.__name__)
+            m.update(func.__name__.encode('utf-8'))
         else:
             # func.__code__.co_code contains the bytecode of the function
             m.update(func.__code__.co_code)
 
-        return self._result_gridfunction_for_operators(new_values, m.digest())
+        return self._result_gridfunction_for_operators(new_values, m.hexdigest())
 
     def filter_volume(self, involume):
         """
@@ -367,20 +373,19 @@ class GridFunction(object):
         # calculate checksum for result gridfunction
         import hashlib
         m = hashlib.md5()
-        m.update("Grid function obtained by applying function :\n")
-        m.update(self.get_checksum())
+        m.update(b"Grid function obtained by applying function :\n")
+        m.update(self.checksum.encode('utf-8'))
 
         if isinstance(involume, numpy.ufunc):
-            m.update(involume.__name__)
+            m.update(involume.__name__.encode('utf-8'))
         else:
             # func.__code__.co_code contains the bytecode of the function
             m.update(involume.__code__.co_code)
 
-        return self._result_gridfunction_for_operators(new_values, m.digest())
+        return self._result_gridfunction_for_operators(new_values, m.hexdigest())
 
 
 class GridFunction1D(GridFunction):
-
     """
     Class for a 1D gridfunction, i.e., one value per grid point.
     """
@@ -389,7 +394,7 @@ class GridFunction1D(GridFunction):
         if not (len(values.shape) == 1):
             raise PyAdfError("Wrong shape of values for GridFunction1D")
 
-        GridFunction.__init__(self, grid, values, checksum)
+        super().__init__(grid, values, checksum)
 
     def filter_negative(self, thresh=0.0):
 
@@ -398,10 +403,11 @@ class GridFunction1D(GridFunction):
         # calculate checksum for negative density
         import hashlib
         m = hashlib.md5()
-        m.update("Grid function keeping only negative values, thresh %18.8f :\n" % thresh)
-        m.update(self.get_checksum())
+        m.update(b"Grid function keeping only negative values\n")
+        m.update(f"thresh {thresh:18.8f} :\n".encode('utf-8'))
+        m.update(self.checksum.encode('utf-8'))
 
-        return self._result_gridfunction_for_operators(new_values, m.digest())
+        return self._result_gridfunction_for_operators(new_values, m.hexdigest())
 
     def filter_positive(self, thresh=0.0):
 
@@ -410,10 +416,11 @@ class GridFunction1D(GridFunction):
         # calculate checksum for negative density
         import hashlib
         m = hashlib.md5()
-        m.update("Grid function keeping only positve values, thresh %18.8f :\n" % thresh)
-        m.update(self.get_checksum())
+        m.update(b"Grid function keeping only positve values \n")
+        m.update(f"Thresh {thresh:18.8f} :\n".encode('utf-8'))
+        m.update(self.checksum.encode('utf-8'))
 
-        return self._result_gridfunction_for_operators(new_values, m.digest())
+        return self._result_gridfunction_for_operators(new_values, m.hexdigest())
 
     def filter_zeros(self, thresh=1e-4):
 
@@ -426,10 +433,11 @@ class GridFunction1D(GridFunction):
         # calculate checksum for negative density
         import hashlib
         m = hashlib.md5()
-        m.update("Grid function obtained from filter_zeros, thresh %18.8f :\n" % thresh)
-        m.update(self.get_checksum())
+        m.update(b"Grid function obtained from filter_zeros \n")
+        m.update(f"Thresh {thresh:18.8f} :\n".encode('utf-8'))
+        m.update(self.checksum.encode('utf-8'))
 
-        return self._result_gridfunction_for_operators(new_values, m.digest())
+        return self._result_gridfunction_for_operators(new_values, m.hexdigest())
 
     def _mul(self, other):
         """
@@ -442,46 +450,33 @@ class GridFunction1D(GridFunction):
         # calculate checksum for product
         import hashlib
         m = hashlib.md5()
-        m.update("Grid function obtained by multiplying :\n")
-        m.update(self.get_checksum())
-        m.update(other.get_checksum())
+        m.update(b"Grid function obtained by multiplying :\n")
+        m.update(self.checksum.encode('utf-8'))
+        m.update(other.checksum.encode('utf-8'))
 
-        return self._result_gridfunction_for_operators(new_values, m.digest(), other)
+        return self._result_gridfunction_for_operators(new_values, m.hexdigest(), other)
 
     def __mul__(self, other):
-        if isinstance(other, numbers.Number):
+        if isinstance(other, numbers.Complex):
             return self._mul_with_constant(other)
         elif isinstance(other, GridFunction):
             return self._mul(other)
         else:
             return NotImplemented
 
-    def __div__(self, other):
-        if isinstance(other, numbers.Number):
+    def __truediv__(self, other):
+        if isinstance(other, numbers.Complex):
             return self._mul_with_constant(1.0 / other)
         elif isinstance(other, GridFunction):
-            return self._mul(other ** (-1.0))
+            return self._mul(other**(-1.0))
         else:
             return NotImplemented
 
-    def __rdiv__(self, other):
+    def __rtruediv__(self, other):
         """
         Division other / self.
         """
-        return other * (self ** (-1.0))
-
-    def __pow__(self, exp):
-
-        new_values = self.values ** exp
-
-        import hashlib
-        m = hashlib.md5()
-        m.update("Density obtained by taking\n")
-        m.update(self.get_checksum())
-        m.update("to the power of \n")
-        m.update(str(exp))
-
-        return self._result_gridfunction_for_operators(new_values, m.digest())
+        return other * (self**(-1.0))
 
     def integral(self, func=None, ignore=None, involume=None):
         """
@@ -540,7 +535,7 @@ class GridFunction1D(GridFunction):
             else:
                 v = self.values
 
-            ii = numpy.dot(w, v) 
+            ii = numpy.dot(w, v)
 
         return ii
 
@@ -571,7 +566,7 @@ class GridFunction1D(GridFunction):
 
         vor_int = numpy.zeros((len(atoms),))
 
-        for w, val, v in izip(self.grid.weightiter(), self.valueiter(), self.grid.voronoiiter()):
+        for w, val, v in zip(self.grid.weightiter(), self.valueiter(), self.grid.voronoiiter()):
 
             for iatom in range(len(atoms)):
                 if atoms[iatom] == v:
@@ -613,7 +608,7 @@ class GridFunction1D(GridFunction):
             filtered_gf = self.filter_volume(involume)
             filtered_gf.get_cubfile(filename)
         else:
-            from FileWriters import GridFunctionWriter
+            from .FileWriters import GridFunctionWriter
             GridFunctionWriter.write_cube(self, filename)
 
     def get_xyzwvfile(self, filename, bohr=True, endmarker=False, add_comment=True):
@@ -622,7 +617,7 @@ class GridFunction1D(GridFunction):
 
         See L{GridFunctionWriter.write_xyzwv} for details on file format.
         """
-        from FileWriters import GridFunctionWriter
+        from .FileWriters import GridFunctionWriter
         GridFunctionWriter.write_xyzwv(self, filename, bohr,
                                        endmarker=endmarker, add_comment=add_comment)
 
@@ -632,7 +627,7 @@ class GridFunction1D(GridFunction):
 
         See L{GridFunctionWriter.write_xyzv} for details on file format.
         """
-        from FileWriters import GridFunctionWriter
+        from .FileWriters import GridFunctionWriter
         GridFunctionWriter.write_xyzv(self, filename, bohr,
                                       endmarker=endmarker, add_comment=add_comment)
 
@@ -659,17 +654,17 @@ class GridFunction1D(GridFunction):
         interp = Grids.interpolation(self)
         for i, point in enumerate(int_grid.coorditer()):
             if i % 500 == 0:
-                print "Interpolating point %i of %i " % (i, int_grid.npoints)
+                print(f"Interpolating point {i:d} of {int_grid.npoints:d} ")
             new_values[i] = interp.get_value_at_point(point)
 
         import hashlib
         m = hashlib.md5()
-        m.update("Interpolated from :\n")
-        m.update(self.get_checksum())
-        m.update("on grid :\n")
-        m.update(int_grid.get_grid_block(True))
+        m.update(b"Interpolated from :\n")
+        m.update(self.checksum.encode('utf-8'))
+        m.update(b"on grid :\n")
+        m.update(int_grid.get_grid_block(True).encode('utf-8'))
 
-        return GridFunction1D(int_grid, new_values, m.digest())
+        return GridFunction1D(int_grid, new_values, m.hexdigest())
 
     def get_value_at_point(self, point):
         """
@@ -682,7 +677,6 @@ class GridFunction1D(GridFunction):
 
 
 class GridFunction2D(GridFunction):
-
     """
     Class for a 2D gridfunction, i.e., one vector per grid point.
     """
@@ -691,7 +685,7 @@ class GridFunction2D(GridFunction):
         if not (len(values.shape) == 2):
             raise PyAdfError("Wrong shape of values for GridFunction1D")
 
-        GridFunction.__init__(self, grid, values, checksum)
+        super().__init__(grid, values, checksum)
 
     def abssquare(self):
         """
@@ -703,20 +697,19 @@ class GridFunction2D(GridFunction):
 
         import hashlib
         m = hashlib.md5()
-        m.update("Density obtained by taking absulte value squared of\n")
-        m.update(self.get_checksum())
+        m.update(b"Density obtained by taking absulte value squared of\n")
+        m.update(self.checksum.encode('utf-8'))
 
-        return self._result_gridfunction_for_operators(new_values, m.digest())
+        return self._result_gridfunction_for_operators(new_values, m.hexdigest())
 
 
 class GridFunctionDensity(GridFunction1D):
-
     """
     Class for densities as special case of 1D grid functions.
     """
 
     def __init__(self, grid, values, checksum=None):
-        GridFunction1D.__init__(self, grid, values, checksum)
+        super().__init__(grid, values, checksum)
         self.type = 'density'
 
     def _result_type_for_operators(self, other):
@@ -735,7 +728,7 @@ class GridFunctionDensity(GridFunction1D):
         @param filename: The filename of the xsf file to be written.
         @type  filename: str
         """
-        from FileWriters import GridFunctionWriter
+        from .FileWriters import GridFunctionWriter
         GridFunctionWriter.write_xsf(self, filename)
 
     def get_electronic_dipole_moment_grid(self, involume=None):
@@ -761,8 +754,8 @@ class GridFunctionDensity(GridFunction1D):
             dipole = filtered_gf.get_electronic_dipole_moment_grid()
         else:
             ii_x = ii_y = ii_z = 0.0
-            for w, val, c in izip(self.grid.weightiter(), self.valueiter(),
-                                  self.grid.coorditer(bohr=True)):
+            for w, val, c in zip(self.grid.weightiter(), self.valueiter(),
+                                 self.grid.coorditer(bohr=True)):
                 ii_x += -w * val * c[0]
                 ii_y += -w * val * c[1]
                 ii_z += -w * val * c[2]
@@ -795,8 +788,8 @@ class GridFunctionDensity(GridFunction1D):
         for iatom in range(len(atoms)):
             voronoidip.append([ii_x, ii_y, ii_z])
 
-        for w, val, c, v in izip(self.grid.weightiter(), self.valueiter(),
-                                 self.grid.coorditer(bohr=True), self.grid.voronoiiter()):
+        for w, val, c, v in zip(self.grid.weightiter(), self.valueiter(),
+                                self.grid.coorditer(bohr=True), self.grid.voronoiiter()):
 
             for iatom in range(len(atoms)):
                 if atoms[iatom] == v:
@@ -825,26 +818,24 @@ class GridFunctionDensity(GridFunction1D):
 
         """
         e_x = e_y = e_z = 0.0
-        for w, val, c in izip(self.grid.weightiter(), self.valueiter(),
-                              self.grid.coorditer(bohr=True)):
-            dist = numpy.sqrt((c[0] - pointcoord[0]) ** 2
-                              + (c[1] - pointcoord[1]) ** 2
-                              + (c[2] - pointcoord[2]) ** 2)
-            e_x += - w * val * (c[0] - pointcoord[0]) / dist ** 3
-            e_y += - w * val * (c[1] - pointcoord[1]) / dist ** 3
-            e_z += - w * val * (c[2] - pointcoord[2]) / dist ** 3
+        for w, val, c in zip(self.grid.weightiter(), self.valueiter(), self.grid.coorditer(bohr=True)):
+            dist = numpy.sqrt((c[0] - pointcoord[0])**2
+                              + (c[1] - pointcoord[1])**2
+                              + (c[2] - pointcoord[2])**2)
+            e_x += - w * val * (c[0] - pointcoord[0]) / dist**3
+            e_y += - w * val * (c[1] - pointcoord[1]) / dist**3
+            e_z += - w * val * (c[2] - pointcoord[2]) / dist**3
 
         return numpy.array([e_x, e_y, e_z])
 
 
 class GridFunctionPotential(GridFunction1D):
-
     """
     Class for potentials as special case of 1D grid functions.
     """
 
     def __init__(self, grid, values, checksum=None):
-        GridFunction1D.__init__(self, grid, values, checksum)
+        super().__init__(grid, values, checksum)
         self.type = 'potential'
 
     def _result_type_for_operators(self, other):
@@ -856,7 +847,6 @@ class GridFunctionPotential(GridFunction1D):
 
 
 class _GridFunctionContainerMetaclass(type):
-
     """
     Meta class to handle the delegation in GridFunctionContainer.
     """
@@ -880,7 +870,7 @@ class _GridFunctionContainerMetaclass(type):
                 for gf1, gf2 in zip(self.wrapped, other.wrapped):
                     method = getattr(gf1, methodname)
                     rr = method(gf2, *args, **kwargs)
-                    if rr is NotImplemented :
+                    if rr is NotImplemented:
                         return NotImplemented
                     else:
                         res.append(rr)
@@ -888,7 +878,7 @@ class _GridFunctionContainerMetaclass(type):
                 for gf in self.wrapped:
                     method = getattr(gf, methodname)
                     rr = method(other, *args, **kwargs)
-                    if rr is NotImplemented :
+                    if rr is NotImplemented:
                         return NotImplemented
                     else:
                         res.append(rr)
@@ -904,32 +894,30 @@ class _GridFunctionContainerMetaclass(type):
             attrs[methodname] = mcs.delegate_unary(methodname)
 
         binary_delegations = ['__add__', '__radd__', '__sub__', '__rsub__',
-                              '__mul__', '__rmul__', '__div__', '__rdiv__']
+                              '__mul__', '__rmul__', '__truediv__', '__rtruediv__']
         for methodname in binary_delegations:
             attrs[methodname] = mcs.delegate_binary(methodname)
 
         return type(name, bases, attrs)
 
 
-class GridFunctionContainer(object):
-
+class GridFunctionContainer(metaclass=_GridFunctionContainerMetaclass):
     """
     GridFunctionContainers wrap several grid functions on the same grid into one.
     """
-    __metaclass__ = _GridFunctionContainerMetaclass
 
     def __init__(self, wrapped_gfs, checksum=None, gf_type=None):
-        """
+        f"""
         @param wrapped_gfs: a list of the gridfunctions to wrap into this container
         """
+        self.grid = wrapped_gfs[0].grid
+        self.wrapped = wrapped_gfs
+
         for gf in wrapped_gfs:
             if not (isinstance(gf, GridFunction) or isinstance(gf, GridFunctionContainer)):
                 raise PyAdfError('Only GridFunctions can be wrapped into GradFunctionContainer')
             if gf.grid is not wrapped_gfs[0].grid:
                 raise PyAdfError('GridFunctions in container must use the same grid')
-
-        self.grid = wrapped_gfs[0].grid
-        self.wrapped = wrapped_gfs
 
         self._checksum = checksum
         self.type = gf_type
@@ -937,22 +925,19 @@ class GridFunctionContainer(object):
     def __getitem__(self, key):
         return self.wrapped[key]
 
-    def get_checksum(self):
-        """
-        Getter for checksum property.
-        """
+    @property
+    def checksum(self):
         if self._checksum is None:
             import hashlib
             m = hashlib.md5()
             for gf in self.wrapped:
-                m.update(gf.get_checksum())
-            self._checksum = m.digest()
+                m.update(gf.checksum.encode('utf-8'))
+            self._checksum = m.hexdigest()
 
         return self._checksum
 
 
 class GridFunctionUnrestricted(GridFunctionContainer):
-
     """
     Unrestricted gridfunctions contain both alpha and beta values.
     """
@@ -960,7 +945,7 @@ class GridFunctionUnrestricted(GridFunctionContainer):
     def __init__(self, wrapped_gfs, checksum=None, gf_type=None):
         if not len(wrapped_gfs) == 2:
             raise PyAdfError('Exactly two grid functions needed for GridFunctionUnrestricted')
-        GridFunctionContainer.__init__(self, wrapped_gfs, checksum, gf_type)
+        super().__init__(wrapped_gfs, checksum, gf_type)
 
         # FIXME: remove
         self.nspin = 2
@@ -987,20 +972,20 @@ class GridFunctionUnrestricted(GridFunctionContainer):
 
 
 class GridFunctionDensityWithDerivatives(GridFunctionContainer):
-
     """
     Container for density, density gradient, and density Laplacian.
     """
+
     def __init__(self, wrapped_gfs, checksum=None):
         if len(wrapped_gfs) <= 1:
             raise PyAdfError("No density derivatives provided")
 
         self.order = len(wrapped_gfs)
 
-        GridFunctionContainer.__init__(self, wrapped_gfs, checksum, gf_type="density")
+        super().__init__(wrapped_gfs, checksum, gf_type="density")
 
 
-class GridFunctionFactory(object):
+class GridFunctionFactory:
 
     @classmethod
     def newGridFunction(cls, grid, values, checksum=None, gf_type=None):
@@ -1026,14 +1011,14 @@ class GridFunctionFactory(object):
         if checksum is not None:
             import hashlib
             ma = hashlib.md5()
-            ma.update("Alpha grid function:")
-            ma.update(checksum)
-            checksum_a = ma.digest()
+            ma.update(b"Alpha grid function:")
+            ma.update(checksum.encode('utf-8'))
+            checksum_a = ma.hexdigest()
 
             mb = hashlib.md5()
-            mb.update("Beta grid function:")
-            mb.update(checksum)
-            checksum_b = ma.digest()
+            mb.update(b"Beta grid function:")
+            mb.update(checksum.encode('utf-8'))
+            checksum_b = ma.hexdigest()
         else:
             checksum_a = checksum_b = None
 
@@ -1047,7 +1032,7 @@ class GridFunctionFactory(object):
     @classmethod
     def newGridFunctionFromFile(cls, filename, file_format=None, gf_type=None):
         import os.path
-        from FileReaders import GridFunctionReader
+        from .FileReaders import GridFunctionReader
 
         if file_format is None:
             fmt = os.path.splitext(filename)[1]

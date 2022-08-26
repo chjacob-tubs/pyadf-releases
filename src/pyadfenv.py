@@ -1,12 +1,10 @@
-# -*- coding: utf-8 -*-
-
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2021 by Christoph R. Jacob, Tobias Bergmann,
-# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Thomas Dresselhaus,
-# Andre S. P. Gomes, Andreas Goetz, Michal Handzlik, Karin Kiewisch,
-# Moritz Klammler, Lars Ridder, Jetze Sikkema, Lucas Visscher, and
-# Mario Wolter.
+# Copyright (C) 2006-2022 by Christoph R. Jacob, Tobias Bergmann,
+# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Maria Chekmeneva,
+# Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz, 
+# Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder, 
+# Jetze Sikkema, Lucas Visscher, Johannes Vornweg and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -19,7 +17,7 @@
 #    GNU General Public License for more details.
 #
 #    You should have received a copy of the GNU General Public License
-#    along with PyADF.  If not, see <http://www.gnu.org/licenses/>.
+#    along with PyADF.  If not, see <https://www.gnu.org/licenses/>.
 
 import os.path
 import shutil
@@ -36,6 +34,22 @@ class env:
         self.options = options
         self.pyadfout = os.path.join(outdir,
                                      'pyadf.' + os.path.basename(inputname) + '.' + jobid + '.out')
+
+    def print_summary(self):
+        # directory pyadf was started from (where the input is)
+        print(" Directory of input file:")
+        print("     ", self.startdir)
+        print()
+
+        # directory where the output goes
+        print(" Directory of output files:")
+        print("     ", self.outdir)
+        print()
+
+        # name of the input file
+        print(" " + 40 * "-")
+        print(" PyADF input file: ", os.path.abspath(self.inputname))
+        print()
 
     def cleanup(self):
 

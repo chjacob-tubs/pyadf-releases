@@ -1,4 +1,8 @@
 import math
+import os
+from pyadf import *
+if 'pyadfenv' not in globals():
+    from pyadf.Initialization import *
 
 supermol = molecule(os.path.join(pyadfenv.outdir, 'cys_cys.pdb'), 'pdb')
 supermol.set_spin(0)
@@ -35,8 +39,8 @@ mfcc_frags = mfcc_results.get_fragmentlist()
 
 # 3-FDE (0) calculation
 fde_results = adf3fdejob(mfcc_frags, basis, core=core, settings=settings,
-                          fde={'RHO1FITTED': '', 'CapDensConv': 1e-3},
-                          fdeoptions={'DENSTYPE': 'SCFfitted'}).run()
+                         fde={'RHO1FITTED': '', 'CapDensConv': 1e-3},
+                         fdeoptions={'DENSTYPE': 'SCFfitted'}).run()
 
 fde_dipole = fde_results.get_dipole_vector()
 fde_dens = fde_results.get_density(grid=agrid, fit=True)
@@ -65,23 +69,23 @@ elnuc_super = (supermol_coulpot * supermol_nucpot).integral()
 elnuc_mfcc = (mfcc_coulpot * supermol_nucpot).integral()
 elnuc_fde = (fde_coulpot * supermol_nucpot).integral()
 
-print "Electon-Nuclear interaction energy (a.u.)"
-print "Supermolecule: ", elnuc_super
-print "MFCC:          ", elnuc_mfcc - elnuc_super
-print "3-FDE:         ", elnuc_fde - elnuc_super
-print
+print("Electon-Nuclear interaction energy (a.u.)")
+print("Supermolecule: ", elnuc_super)
+print("MFCC:          ", elnuc_mfcc - elnuc_super)
+print("3-FDE:         ", elnuc_fde - elnuc_super)
+print()
 
-testobj.assertAlmostEqual(elnuc_super, -1261649.2420240438, 4)
-testobj.assertAlmostEqual(elnuc_mfcc - elnuc_super, 11.236410662, 4)
-testobj.assertAlmostEqual(elnuc_fde - elnuc_super, 18.465913598, 4)
+testobj.assertAlmostEqual(elnuc_super, -1261649.2421456522, 4)
+testobj.assertAlmostEqual(elnuc_mfcc - elnuc_super, 11.236410663, 4)
+testobj.assertAlmostEqual(elnuc_fde - elnuc_super, 18.465914039, 4)
 
 # second, test dipole moments
 
-print "Dipole moment (a.u.): "
-print "Supermolecule: ", supermol_dipole
-print "MFCC:          ", mfcc_dipole
-print "3-FDE:         ", fde_dipole
-print
+print("Dipole moment (a.u.): ")
+print("Supermolecule: ", supermol_dipole)
+print("MFCC:          ", mfcc_dipole)
+print("3-FDE:         ", fde_dipole)
+print()
 
 testobj.assertAlmostEqual([-0.38075328, -0.45339284,  0.17361213], supermol_dipole, 4)
 testobj.assertAlmostEqual([-0.37046405, -0.46913567,  0.19081197], mfcc_dipole, 4)
@@ -94,10 +98,9 @@ diff_dens = fde_dens - supermol_dens
 sqrt_error = math.sqrt(diff_dens.integral(func=lambda x: x*x))
 abs_error = diff_dens.integral(func=lambda x: abs(x))
 
-print " fde Diff Dens Int        : ", diff_dens.integral()
-print " fde Diff Dens Int (Sqr.) : ", sqrt_error
-print " fde Diff Dens Int (Abs.) : ", abs_error
+print(" fde Diff Dens Int        : ", diff_dens.integral())
+print(" fde Diff Dens Int (Sqr.) : ", sqrt_error)
+print(" fde Diff Dens Int (Abs.) : ", abs_error)
 
 testobj.assertAlmostEqual(sqrt_error, 0.00635101, 5)
 testobj.assertAlmostEqual(abs_error,  0.07764864, 5)
-

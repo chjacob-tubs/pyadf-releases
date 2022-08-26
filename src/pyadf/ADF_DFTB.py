@@ -1,12 +1,10 @@
-# -*- coding: utf-8 -*-
-
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2021 by Christoph R. Jacob, Tobias Bergmann,
-# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Thomas Dresselhaus,
-# Andre S. P. Gomes, Andreas Goetz, Michal Handzlik, Karin Kiewisch,
-# Moritz Klammler, Lars Ridder, Jetze Sikkema, Lucas Visscher, and
-# Mario Wolter.
+# Copyright (C) 2006-2022 by Christoph R. Jacob, Tobias Bergmann,
+# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Maria Chekmeneva,
+# Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz, 
+# Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder, 
+# Jetze Sikkema, Lucas Visscher, Johannes Vornweg and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -19,7 +17,7 @@
 #    GNU General Public License for more details.
 #
 #    You should have received a copy of the GNU General Public License
-#    along with PyADF.  If not, see <http://www.gnu.org/licenses/>.
+#    along with PyADF.  If not, see <https://www.gnu.org/licenses/>.
 """
  The basics needed for ADF calculations: simple jobs and results.
 
@@ -33,35 +31,96 @@
     dftbresults
 """
 
-from ADFBase import amssettings, amsjob
+import os
+
+from .Molecule import molecule
+from .ADFBase import amssettings, amsresults, amsjob
 
 
 class dftbsettings(amssettings):
 
     def __init__(self):
-        pass
+        super().__init__()
 
     def __str__(self):
-        ss = amssettings.__str__(self)
+        ss = super().__str__()
         return ss
 
 
-class dftbsinglepointjob(amsjob):
+class dftbresults(amsresults):
+
+    def __init__(self, j=None):
+        """
+        Constructor for dftbresults.
+        """
+        super().__init__(j)
+
+    def get_molecule(self):
+        """
+        Return the molecular geometry after the ADF job.
+
+        This can be changes with respect to the input geometry
+        because it was optimized in the calculation.
+
+        @returns: The molecular geometry.
+        @rtype:   L{molecule}
+        """
+        nnuc = self.get_result_from_tape('Molecule', 'nAtoms')
+
+        atnums = self.get_result_from_tape('Molecule', 'AtomicNumbers')
+        xyz = self.get_result_from_tape('Molecule', 'Coords')
+        xyznuc = xyz.reshape(nnuc, 3)
+
+        m = molecule()
+        m.add_atoms(atnums, xyznuc, atomicunits=True)
+
+        return m
+
+    def get_dipole_vector(self):
+        """
+        Return the dipole moment vector.
+
+        @returns: the dipole moment vector, in atomic units
+        @rtype: float[3]
+        """
+        return self.get_result_from_tape('AMSResults', 'DipoleMoment')
+
+    def get_energy(self):
+        """
+        Return the bond energy.
+
+        @returns: the bond energy in atomic units
+        @rtype: float
+        """
+        return self.get_result_from_tape('AMSResults', 'Energy')
+
+
+class dftbjob(amsjob):
     """
-    DFTB single point job
+    Generic DFTB job
     """
 
-    def __init__(self, mol, model='SCC-DFTB', parameters='Dresden', settings=None):
+    def __init__(self, mol, model='SCC-DFTB', parameters='Dresden', settings=None, amstask='SinglePoint'):
         if settings is None:
             mysettings = dftbsettings()
         else:
             mysettings = settings
 
-        amsjob.__init__(self, mol, task='SinglePoint', settings=mysettings)
+        super().__init__(mol, task=amstask, settings=mysettings)
         self.model = None
         self.parameters = None
         self.init_dftb_model(model, parameters)
         self.init_dftb_settings(settings)
+
+    def create_results_instance(self):
+        """
+        Create an instance of the matching results object for this job.
+        """
+        return dftbresults(self)
+
+    def result_filenames(self):
+        fns = super().result_filenames()
+        return fns + [os.path.join('ams.results', f) for f in ['dftb.rkf']]
 
     def init_dftb_settings(self, settings=None):
         if settings is None:
@@ -75,40 +134,40 @@ class dftbsinglepointjob(amsjob):
 
     def get_engine_block(self):
         block = " Engine DFTB\n"
-        block += "  ResourcesDir %s \n" % self.parameters
-        block += "  Model %s \n" % self.model
+        block += f"  ResourcesDir {self.parameters} \n"
+        block += f"  Model {self.model} \n"
         block += " EndEngine\n\n"
         return block
 
     def print_jobtype(self):
-        return "AMS DFTB single point job"
+        raise NotImplementedError
 
     def print_molecule(self):
 
-        print "   Molecule"
-        print "   ========"
-        print
-        print self.mol
-        print
+        print("   Molecule")
+        print("   ========")
+        print()
+        print(self.mol)
+        print()
 
     def print_settings(self):
 
-        print "   Settings"
-        print "   ========"
-        print
-        print "   Model: %s" % self.model
-        print "   DFTB Parameters: %s" % self.parameters
-        print
-        print self.settings
-        print
+        print("   Settings")
+        print("   ========")
+        print()
+        print(f"   Model: {self.model}")
+        print(f"   DFTB Parameters: {self.parameters}")
+        print()
+        print(self.settings)
+        print()
 
     def print_extras(self):
         pass
 
     def print_jobinfo(self):
-        print " " + 50 * "-"
-        print " Running " + self.print_jobtype()
-        print
+        print(" " + 50 * "-")
+        print(" Running " + self.print_jobtype())
+        print()
 
         self.print_molecule()
 
@@ -117,28 +176,34 @@ class dftbsinglepointjob(amsjob):
         self.print_extras()
 
 
-class dftbgeometryjob(dftbsinglepointjob):
+class dftbsinglepointjob(dftbjob):
     """
     DFTB geometry optimization
     """
 
     def __init__(self, mol, model='SCC-DFTB', parameters='Dresden', settings=None):
-        if settings is None:
-            mysettings = dftbsettings()
-        else:
-            mysettings = settings
-
-        amsjob.__init__(self, mol, task='GeometryOptimization', settings=mysettings)
-        self.init_dftb_model(model, parameters)
+        super().__init__(mol, model=model, parameters=parameters, settings=settings, amstask='SinglePoint')
 
     def print_jobtype(self):
-        return "AMS DFTB geomery optimization job"
+        return "AMS DFTB single point job"
+
+
+class dftbgeometryjob(dftbjob):
+    """
+    DFTB geometry optimization
+    """
+
+    def __init__(self, mol, model='SCC-DFTB', parameters='Dresden', settings=None):
+        super().__init__(mol, model=model, parameters=parameters, settings=settings, amstask='GeometryOptimization')
+
+    def print_jobtype(self):
+        return "AMS DFTB geomtery optimization job"
 
 
 class dftbfreqjob(dftbsinglepointjob):
 
     def __init__(self, mol, model='SCC-DFTB', parameters='Dresden', settings=None):
-        dftbsinglepointjob.__init__(self, mol, model, parameters, settings)
+        super().__init__(mol, model, parameters, settings)
 
     def get_properties_block(self):
         block = " Properties\n"

@@ -1,0 +1,40 @@
+import os
+from pyadf import *
+if 'pyadfenv' not in globals():
+    from pyadf.Initialization import *
+
+
+h2o = molecule(os.path.join(pyadfenv.outdir, 'H2O.xyz'))
+
+
+# CCSD single point calculation
+
+settings = nwchemsettings(method='CCSD')
+results = nwchemsinglepointjob(h2o, 'cc-pVDZ', settings=settings).run()
+
+energy = results.get_total_energy()
+
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(energy, -76.235299249, 6)
+
+
+# CCSD(T) single point calculation
+
+settings = nwchemsettings(method='CCSD(T)')
+results = nwchemsinglepointjob(h2o, 'cc-pVDZ', settings=settings).run()
+
+energy = results.get_total_energy()
+
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(energy, -76.238490630, 6)
+
+
+# CCSD+T(CCSD) single point calculation
+
+settings = nwchemsettings(method='CCSD+T(CCSD)')
+results = nwchemsinglepointjob(h2o, 'cc-pVDZ', settings=settings).run()
+
+energy = results.get_total_energy()
+
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(energy, -76.238585772, 6)

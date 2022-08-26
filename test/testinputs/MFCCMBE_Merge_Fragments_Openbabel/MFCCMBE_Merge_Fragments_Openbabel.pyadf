@@ -1,0 +1,37 @@
+import os
+from pyadf import *
+if 'pyadfenv' not in globals():
+    from pyadf.Initialization import *
+
+prot = molecule(os.path.join(pyadfenv.outdir, 'turn_11_h.pdb'), 'pdb')
+
+# SETTINGS
+settings = adfsettings(zlmfit=False)
+settings.set_save_tapes([21, 10])
+settings.set_functional('BP86')
+settings.set_integration(4.0, becke='Normal')
+options = ['TOTALENERGY', 'NOSYM', 'NOSYMFIT']
+core = 'None'
+basis = 'SZ'
+
+# Create Fragments
+frags = cappedfragmentlist()
+frags.partition_protein(prot, caps='mfcc', fragsize=1)
+
+monolist = []
+for frag in frags.fragiter():
+    monolist.append(frag)
+
+# Test Nondisjoint Dimer
+newfrag1 = monolist[1].merge_fragments(monolist[2])
+res1 = adfsinglepointjob(newfrag1._mols[0], basis=basis, settings=settings, core=core, options=options).run()
+res1_tot_energy = res1.get_total_energy()
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(res1_tot_energy, -740.9346871895207, 6)
+
+# Test Disjoint Dimer
+newfrag2 = monolist[2].merge_fragments(monolist[6])
+res2 = adfsinglepointjob(newfrag2._mols[0], basis=basis, settings=settings, core=core, options=options).run()
+res2_tot_energy = res2.get_total_energy()
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(res2_tot_energy, -949.4529264924056, 6)

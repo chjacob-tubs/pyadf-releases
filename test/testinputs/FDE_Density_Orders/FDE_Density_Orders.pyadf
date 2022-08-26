@@ -1,3 +1,8 @@
+import os
+from pyadf import *
+if 'pyadfenv' not in globals():
+    from pyadf.Initialization import *
+
 file_h2o_1 = os.path.join(pyadfenv.outdir, 'FDE-H2O-1.xyz')
 file_h2o_2 = os.path.join(pyadfenv.outdir, 'FDE-H2O-2.xyz')
 file_mol = os.path.join(pyadfenv.outdir, 'FDE-mol.xyz')
@@ -8,7 +13,7 @@ m_mol = molecule(file_mol)
 
 m_tot = m_mol + m_h2o_1 + m_h2o_2
 
-print m_tot.print_coordinates()
+print(m_tot.print_coordinates())
 
 # Prepare first water molecule
 r_h2o_1 = adfsinglepointjob(m_h2o_1, 'SZ', options=['NOSYMFIT']).run()
@@ -48,9 +53,9 @@ fde_frozen_dens = fde_res.get_frozen_density(grid=cgrid, order=1)
 
 diffdens = fde_dens - (fde_nonfrozen_dens + fde_frozen_dens)
 
-print fde_dens
-print fde_nonfrozen_dens, fde_frozen_dens
-print diffdens
+print(fde_dens)
+print(fde_nonfrozen_dens, fde_frozen_dens)
+print(diffdens)
 
 if 'unittesting' in pyadfenv.options:
     testobj.assert_(diffdens[0].values.max() < 1e-8)

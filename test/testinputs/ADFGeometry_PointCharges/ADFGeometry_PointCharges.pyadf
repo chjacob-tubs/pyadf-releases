@@ -1,0 +1,63 @@
+import os
+from pyadf import *
+if 'pyadfenv' not in globals():
+    from pyadf.Initialization import *
+
+
+def check_results(etot, dip_magn):
+    testobj.assertAlmostEqual(etot, -76.35422747, 5)
+    testobj.assertAlmostEqual(dip_magn, 0.7088891, 4)
+
+
+def check_results_pc(etot, dip_magn):
+    testobj.assertAlmostEqual(etot, -76.350065519, 5)
+    testobj.assertAlmostEqual(dip_magn, 0.7580703, 4)
+
+
+h2o = molecule(os.path.join(pyadfenv.outdir, 'FDE-mol.xyz'))
+h2o.set_symmetry('NOSYM')
+
+settings = adfsettings(functional='PBE')
+
+frozen_atoms = [1]
+
+results = adfgeometryjob(h2o, 'DZP', settings=settings, frozen_atoms=frozen_atoms, options=['TOTALENERGY']).run()
+
+toten = results.get_result_from_tape('Total Energy', 'Total energy')
+dipole_vect = results.get_dipole_vector()
+dipole_magn = results.get_dipole_magnitude()
+
+print(f"Total energy: {toten:12.6f}")
+print(f"Dipole moment magnitude: {dipole_magn:12.6f}")
+
+if 'unittesting' in pyadfenv.options:
+    check_results(toten, dipole_magn)
+
+h2o_1 = molecule(os.path.join(pyadfenv.outdir, 'FDE-H2O-1.xyz'))
+h2o_2 = molecule(os.path.join(pyadfenv.outdir, 'FDE-H2O-2.xyz'))
+
+pc = []
+for m in [h2o_1, h2o_2]:
+    cc = m.get_coordinates()
+    sym = m.get_atom_symbols()
+    for s, c in zip(sym, cc):
+        if s == 'H':
+            charge = 0.417
+        elif s == 'O':
+            charge = -0.834
+        else:
+            raise PyAdfError('Unknown element')
+        pc.append(c + [charge])
+
+results = adfgeometryjob(h2o, 'DZP', settings=settings, pointcharges=pc, frozen_atoms=frozen_atoms,
+                         options=['TOTALENERGY']).run()
+
+toten = results.get_result_from_tape('Total Energy', 'Total energy')
+dipole_vect = results.get_dipole_vector()
+dipole_magn = results.get_dipole_magnitude()
+
+print(f"Total energy: {toten:12.6f}")
+print(f"Dipole moment magnitude: {dipole_magn:12.6f}")
+
+if 'unittesting' in pyadfenv.options:
+    check_results_pc(toten, dipole_magn)

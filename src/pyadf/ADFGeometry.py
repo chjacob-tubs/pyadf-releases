@@ -1,12 +1,10 @@
-# -*- coding: utf-8 -*-
-
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2021 by Christoph R. Jacob, Tobias Bergmann,
-# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Thomas Dresselhaus,
-# Andre S. P. Gomes, Andreas Goetz, Michal Handzlik, Karin Kiewisch,
-# Moritz Klammler, Lars Ridder, Jetze Sikkema, Lucas Visscher, and
-# Mario Wolter.
+# Copyright (C) 2006-2022 by Christoph R. Jacob, Tobias Bergmann,
+# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Maria Chekmeneva,
+# Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz, 
+# Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder, 
+# Jetze Sikkema, Lucas Visscher, Johannes Vornweg and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -19,7 +17,7 @@
 #    GNU General Public License for more details.
 #
 #    You should have received a copy of the GNU General Public License
-#    along with PyADF.  If not, see <http://www.gnu.org/licenses/>.
+#    along with PyADF.  If not, see <https://www.gnu.org/licenses/>.
 """
  Job and results for ADF geometry optimizations.
 
@@ -35,8 +33,8 @@
     adfgradientsresults
 """
 
-from Errors import PyAdfError
-from ADFSinglePoint import adfsettings, \
+from .Errors import PyAdfError
+from .ADFSinglePoint import adfsettings, \
     adfsinglepointjob, \
     adfsinglepointresults
 
@@ -52,12 +50,12 @@ class adfgradientsresults(adfsinglepointresults):
     """
 
     def __init__(self, j=None):
-        adfsinglepointresults.__init__(self, j)
+        super().__init__(j)
 
     def get_gradients(self, energytype=''):
         nnuc = self.get_result_from_tape('Geometry', 'nnuc')
         if energytype == '':
-            grad = self.get_result_from_tape('GeoOpt', 'Gradients')
+            grad = self.get_result_from_tape('GeoOpt', 'Gradients_CART')
         else:
             grad = self.get_result_from_tape('Gradient', energytype)
 
@@ -70,7 +68,7 @@ class adfgradientsresults(adfsinglepointresults):
         return grad
 
 
-class adfgeometrysettings(object):
+class adfgeometrysettings:
     """
     Class for the settings of an ADF geometry optimization job (adfgeometryjob)
 
@@ -87,7 +85,7 @@ class adfgeometrysettings(object):
         Create settings object for a geometry optimization job
 
         @param optim:
-           optimization: 'Cartesian', 'Internal' or 'Delocal'
+           optimization: 'Cartesian' or 'Delocalized' (default: 'Auto')
         @type optim: str
 
         @param iterations:
@@ -123,7 +121,7 @@ class adfgeometrysettings(object):
             s += 'ADF default\n'
         else:
             s += '\n'
-            for k, v in self.converge.iteritems():
+            for k, v in self.converge.items():
                 s += 16 * ' ' + k + ': ' + str(v) + '\n'
         return s
 
@@ -136,8 +134,8 @@ class adfgeometrysettings(object):
     def set_converge(self, converge):
         self.converge = {}
         if converge is not None:
-            for k, v in converge.iteritems():
-                if k not in ('E', 'Grad', 'Rad', 'Angle'):
+            for k, v in converge.items():
+                if k not in ('Energy', 'Gradients', 'Step'):
                     raise PyAdfError('Wrong key for converge in adgeometrysettings.set_converge()')
                 self.converge[k] = v
 
@@ -153,14 +151,12 @@ class adfgeometryjob(adfsinglepointjob):
 
     @group Initialization:
         __init__
-    @group Input Generation:
-        get_geovar_atoms_block
     @group Other Internals:
         print_geometrysettings
     """
 
-    def __init__(self, mol, basis, settings=None, geometrysettings=None, selected_atoms=None,
-                 core=None, options=None):
+    def __init__(self, mol, basis, settings=None, geometrysettings=None, frozen_atoms=None,
+                 pointcharges=None, electricfield=None, core=None, options=None):
         """
         Create a new ADF geometry optimization job.
 
@@ -195,11 +191,20 @@ class adfgeometryjob(adfsinglepointjob):
             Settings for the geometry optimization
         @type geometrysettings: L{adfgeometrysettings}
 
-        @param selected_atoms:
-            Optionally, a list of atoms for which the coordinates should be optimized.
+        @param frozen_atoms:
+            Optionally, a list of atoms for which the coordinates should be frozen.
             (The atom numbering starts with 1). By default, all atoms are optimized.
-        @type selected_atoms:
-            list of int
+        @type frozen_atoms:
+            list of int or list of str
+
+        @param pointcharges:
+            Coordinates (x, y, z in Angstrom) and charges of point charges.
+            If no charges are given, zero charges are used.
+        @type pointcharges: float[3][n] or float[4][n]
+
+        @param electricfield:
+            Electric field (x, y, z in atomic units).
+        @type pointcharges: float[3]
 
         """
         if settings is None:
@@ -210,70 +215,74 @@ class adfgeometryjob(adfsinglepointjob):
         else:
             self.geometrysettings = geometrysettings
 
-        if selected_atoms:
-            self.geometrysettings.set_optim('Cartesian Selected')
-            if type(selected_atoms[0]) == int:
-                self._selected_atoms = selected_atoms
+        if frozen_atoms:
+            if type(frozen_atoms[0]) == int:
+                self._frozen_atoms = frozen_atoms
             else:
                 symbs = mol.get_atom_symbols()
-                self._selected_atoms = []
+                self._frozen_atoms = []
                 for i, s in enumerate(symbs):
-                    if s in selected_atoms:
-                        self._selected_atoms.append(i + 1)
+                    if s in frozen_atoms:
+                        self._frozen_atoms.append(i + 1)
         else:
-            self._selected_atoms = None
+            self._frozen_atoms = None
 
-        adfsinglepointjob.__init__(self, mol, basis, core=core, settings=settings, options=options)
+        super().__init__(mol, basis, core=core, settings=settings,
+                         pointcharges=pointcharges, electricfield=electricfield,
+                         options=options)
+        self.task = 'GeometryOptimization'
+
+    def get_properties_block(self):
+        return self.get_geometry_block()
 
     def get_geometry_block(self):
         gs = self.geometrysettings
-        block = " GEOMETRY \n"
+        block = "GeometryOptimization \n"
+        block += "  Method Auto \n"
         if gs.optim is not None:
-            block += "   Optim " + gs.optim + "\n"
-        if gs.iterations is not None:
-            block += "   Iterations " + str(gs.iterations) + "\n"
-        if gs.converge != {}:
-            conv = "   Converge "
-            for k, v in gs.converge.iteritems():
-                conv += k + "=" + str(v)
-            block += conv + "\n"
-        block += " END\n\n"
-        return block
-
-    def get_atoms_block(self):
-        block = ""
-        if self._selected_atoms:
-            block += self.get_geovar_atoms_block()
+            block += "  CoordinateType " + gs.optim + "\n"
         else:
-            block += adfsinglepointjob.get_atoms_block(self)
+            block += "  CoordinateType Auto\n"
+
+        if gs.iterations is not None:
+            block += "  MaxIterations " + str(gs.iterations) + "\n"
+        if gs.converge != {}:
+            conv = "  Convergence \n"
+            for k, v in gs.converge.items():
+                conv += "   " + k + " " + str(v)
+            block += conv + "\n"
+            block += "  END\n"
+        block += "END\n\n"
+        if self._frozen_atoms is not None:
+            block += self.get_constraints_block()
         return block
 
-    def get_geovar_atoms_block(self):
-        block = " ATOMS\n"
-        block += self.get_molecule().get_geovar_atoms_block(self._selected_atoms)
-        block += " END\n\n"
-        block += self.get_molecule().get_geovar_block(self._selected_atoms)
+    def get_constraints_block(self):
+        block = " Constraints\n"
+        for i in self._frozen_atoms:
+            block += f"  Atom {i:d} \n"
+        block += " End\n\n"
         return block
 
     def print_jobtype(self):
-        if self._selected_atoms:
+        if self._frozen_atoms:
             return "ADF geometry optimization job (selected atoms only)"
         else:
             return "ADF geometry optimization job"
 
     def print_settings(self):
-        adfsinglepointjob.print_settings(self)
+        super().print_settings()
         self.print_geometrysettings()
 
     def print_geometrysettings(self):
-        print "   Geometry optimization settings"
-        print "   =============================="
-        print
-        print self.geometrysettings
-        print
+        print("   Geometry optimization settings")
+        print("   ==============================")
+        print()
+        print(self.geometrysettings)
+        print()
 
 
-class adfgradientsjob(adfsinglepointjob):
+class adfgradientsjob(adfgeometryjob):
     """
     A job class for ADF gradient calculations.
 
@@ -325,19 +334,13 @@ class adfgradientsjob(adfsinglepointjob):
             opts = []
         else:
             opts = copy.copy(options)
-        opts.append('STOPAFTER GGRADS')
-        opts.append('GRAD_TRF_BTRF')
-        adfsinglepointjob.__init__(self, mol, basis, core=core,
-                                   settings=settings, options=opts)
+
+        gs = adfgeometrysettings(iterations=0, converge={'Gradients': '1e3'})
+
+        super().__init__(mol, basis, core=core, geometrysettings=gs, settings=settings, options=opts)
 
     def create_results_instance(self):
         return adfgradientsresults(self)
-
-    def get_geometry_block(self):
-        block = " GEOMETRY \n"
-        block += "  converge grad=1.0e-8\n"
-        block += " END\n\n"
-        return block
 
     def print_jobtype(self):
         return "ADF gradients job"

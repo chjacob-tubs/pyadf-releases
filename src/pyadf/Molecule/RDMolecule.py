@@ -1,12 +1,10 @@
-# -*- coding: utf-8 -*-
-
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2021 by Christoph R. Jacob, Tobias Bergmann,
-# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Thomas Dresselhaus,
-# Andre S. P. Gomes, Andreas Goetz, Michal Handzlik, Karin Kiewisch,
-# Moritz Klammler, Lars Ridder, Jetze Sikkema, Lucas Visscher, and
-# Mario Wolter.
+# Copyright (C) 2006-2022 by Christoph R. Jacob, Tobias Bergmann,
+# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Maria Chekmeneva,
+# Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz, 
+# Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder, 
+# Jetze Sikkema, Lucas Visscher, Johannes Vornweg and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -19,7 +17,7 @@
 #    GNU General Public License for more details.
 #
 #    You should have received a copy of the GNU General Public License
-#    along with PyADF.  If not, see <http://www.gnu.org/licenses/>.
+#    along with PyADF.  If not, see <https://www.gnu.org/licenses/>.
 """
  Defines the L{RDMolecule} class.
 
@@ -35,24 +33,25 @@
 
  This RDMolecule attempts to provide the same class interface
  while using rdkit instead
- 
+
  @author:       Lars Ridder
  @organization: Netherlands eScience Center (NLeSC)
  @contact:      lars.ridder@esciencecenter.nl
 
  @warning:
     RDKit does not derive bond orders for ligands in pdb files,
-    therefore cannot be trusted for adding the correct number of 
+    therefore cannot be trusted for adding the correct number of
     hydrogens to those
     Also, RDKit does not accout for correction according to pH
 """
 
+# noinspection PyPackageRequirements
 from rdkit import Chem, Geometry
 
 from ..Errors import PyAdfError
 from ..Utils import pse, Bohr_in_Angstrom
-from BaseMolecule import BaseMolecule
-from ProteinMolecule import ProteinMoleculeMixin
+from .BaseMolecule import BaseMolecule
+from .ProteinMolecule import ProteinMoleculeMixin
 
 import copy
 import math
@@ -95,8 +94,7 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
     @group File Input/Output methods:
         read, write
     @group Printing methods:
-        __str__, print_coordinates, get_geovar_atoms_block, get_geovar_block,
-        get_dalton_molfile, write_dalton_molfile, get_cube_header, get_xyz_file
+        __str__, print_coordinates, get_dalton_molfile, write_dalton_molfile, get_cube_header, get_xyz_file
     @group Inquiry methods:
         get_number_of_atoms, get_charge, get_spin, has_spin_assigned,
         get_coordinates, get_atom_symbols,
@@ -113,11 +111,6 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
         get_restype_resnums
     @group Hydrogen-related methods:
         add_hydrogens, find_adjacent_hydrogens
-
-    @undocumented: __deepcopy__, set_RDMol
-    @undocumented: __delattr__, __getattribute__, __hash__, __new__, __reduce__,
-                   __reduce_ex__, __repr__, __str__, __setattr__
-
     """
 
     def __init__(self, filename=None, inputformat='xyz'):
@@ -149,7 +142,7 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
             use L{set_symmetry}.
 
         """
-        super(RDMolecule, self).__init__()
+        super().__init__()
         self.mol = Chem.Mol()
         self.symmetry = None
 
@@ -158,6 +151,7 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
         # By default, the charge is initialized to zero.
         # This is necessary because openbabel does not provide a
         # HasTotalChargeAssigned() method
+        self._charge = 0
         self.set_charge(0)
 
         self.TotalSpinMultiplicity = None
@@ -174,7 +168,7 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
         """
         self.mol = other.mol
         self.symmetry = other.symmetry
-        self._charge = other._charge
+        self._charge = other.get_charge()
         self.is_ghost = other.is_ghost
 
     def __deepcopy__(self, memo):
@@ -205,7 +199,7 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
         @exampleuse:
 
             >>> mol = RDMolecule('h2o.xyz')
-            >>> print mol
+            >>> print(mol)
             Cartesian coordinates:
             1)     H       -0.21489        3.43542        2.17104
             2)     O       -0.89430        3.96159        2.68087
@@ -231,13 +225,13 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
         @exampleuse:
 
         >>> h2o = RDMolecule('h2o.xyz')
-        >>> print h2o
+        >>> print(h2o)
         Cartesian coordinates:
         1)     H       -0.21489        3.43542        2.17104
         2)     O       -0.89430        3.96159        2.68087
         3)     H       -0.43479        4.75018        3.07278
         >>> an = RDMolecule('an.xyz')
-        >>> print an
+        >>> print(an)
         Cartesian coordinates:
         1)     C        2.40366        0.63303       -0.29209
         2)     C        1.77188        1.66625        0.53174
@@ -246,7 +240,7 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
         5)     H        1.92918        0.59583       -1.28199
         6)     H        3.47247        0.85113       -0.42037
         >>> mol =  an + h2o
-        >>> print mol
+        >>> print(mol)
         Cartesian coordinates:
         1)     C        2.40366        0.63303       -0.29209
         2)     C        1.77188        1.66625        0.53174
@@ -273,6 +267,17 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
         m.set_charge(self.get_charge() + other.get_charge())
         if self.has_spin_assigned() or other.has_spin_assigned():
             m.set_spin(self.get_spin() + other.get_spin())
+
+        # if residue information is present, copy it to the new molecule
+        for i in range(self.get_number_of_atoms()):
+            chainid, resname, resnum = self.get_atom_resinfo(i + 1)
+            if (resname is not None) and (resnum is not None):
+                m.set_residue(resname, resnum, chainid, [i + 1])
+        for i in range(other.get_number_of_atoms()):
+            chainid, resname, resnum = other.get_atom_resinfo(i + 1)
+            if (resname is not None) and (resnum is not None):
+                m.set_residue(resname, resnum, chainid, [self.get_number_of_atoms() + i + 1])
+
         return m
 
     def add_as_ghosts(self, other):
@@ -291,7 +296,7 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
         >>> an = RDMolecule('an.xyz')
         >>> h2o = RDMolecule('h2o.xyz')
         >>> mol = an.add_as_ghosts(h2o)
-        >>> print mol
+        >>> print(mol)
         Cartesian coordinates:
         1)     C        2.40366        0.63303       -0.29209
         2)     C        1.77188        1.66625        0.53174
@@ -350,12 +355,12 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
 
         >>> h2o = RDMolecule('h2o.xyz')
         >>> mol = h2o.displace_atom(atom=1, coordinate='x', atomicunits=False)
-        >>> print h2o
+        >>> print(h2o)
         Cartesian coordinates:
         1)  H       -0.21489        3.43542        2.17104
         2)  O       -0.89430        3.96159        2.68087
         3)  H       -0.43479        4.75018        3.07278
-        >>> print mol
+        >>> print(mol)
         Cartesian coordinates:
         1)  H       -0.20489        3.43542        2.17104
         2)  O       -0.89430        3.96159        2.68087
@@ -423,14 +428,14 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
         @exampleuse:
 
             >>> an = RDMolecule('an.xyz')
-            >>> print an
-              Cartesian coordinates: 
-                1)        C        2.40366000        0.63303000       -0.29209000    
-                2)        C        1.77188000        1.66625000        0.53174000    
-                3)        N        1.27005000        2.49581000        1.19175000    
-                4)        H        2.29842000       -0.34974000        0.18696000    
-                5)        H        1.92918000        0.59583000       -1.28199000    
-                6)        H        3.47247000        0.85113000       -0.42037000    
+            >>> print(an)
+              Cartesian coordinates:
+                1)        C        2.40366000        0.63303000       -0.29209000
+                2)        C        1.77188000        1.66625000        0.53174000
+                3)        N        1.27005000        2.49581000        1.19175000
+                4)        H        2.29842000       -0.34974000        0.18696000
+                5)        H        1.92918000        0.59583000       -1.28199000
+                6)        H        3.47247000        0.85113000       -0.42037000
             <BLANKLINE>
         """
         import os
@@ -454,9 +459,9 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
 
             c = self.mol.GetConformer()
 
-            # PDB only uses three significant digits, so read XYZ again 
+            # PDB only uses three significant digits, so read XYZ again
             # to recover the remaining digits
-            f = open(filename, 'r')
+            f = open(filename)
             lines = f.readlines()
             f.close()
             natoms = self.mol.GetNumAtoms()
@@ -536,8 +541,7 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
 
         tmolfile = '$coord\n'
         for at, c in zip(self.get_atom_symbols(ghosts=False), self.get_coordinates(ghosts=False)):
-            tmolfile += '%20.14f %20.14f %20.14f %-8s \n' \
-                        % (c[0] * ratio, c[1] * ratio, c[2] * ratio, at.lower())
+            tmolfile += f'{c[0] * ratio:20.14f} {c[1] * ratio:20.14f} {c[2] * ratio:20.14f} {at.lower():<8} \n'
         tmolfile += '$end\n'
         return tmolfile
 
@@ -632,14 +636,17 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
         @param residx: The internal index of the residue.
         @type  residx: int
 
+        @param chaininfo: cache of residue chain information (used for performance improvement)
+        @type chaininfo: returned by L{self.get_chain_info()}
+
         @exampleuse:
         >>> mol = RDMolecule('1PBE3.pdb', inputformat='pdb')
-        >>> print mol.get_chain_of_residue(2)
+        >>> print(mol.get_chain_of_residue(2))
         A
         >>> mol = RDMolecule('an.pdb', inputformat='pdb')
-        >>> print mol.get_chain_of_residue(0)
+        >>> print(mol.get_chain_of_residue(0))
         A
-        >>> print mol.get_chain_of_residue(1)
+        >>> print(mol.get_chain_of_residue(1))
         B
         """
         if chaininfo is None:
@@ -647,9 +654,9 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
         else:
             chains, chain_offsets = chaininfo
 
-        chain_offsets_sorted = sorted(chain_offsets.items(), key=lambda x: x[1])
+        chain_offsets_sorted = sorted(list(chain_offsets.items()), key=lambda x: x[1])
         for i, (chain_id, offset) in enumerate(chain_offsets_sorted[:-1]):
-            if residx >= offset and (residx < chain_offsets_sorted[i+1][1]):
+            if residx >= offset and (residx < chain_offsets_sorted[i + 1][1]):
                 return str(chain_id)
 
         return str(chain_offsets_sorted[-1][0])
@@ -672,6 +679,18 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
             By default, they are in Angstrom.
         @type atomicunits: bool
 
+        @param ghosts: Whether to add the atoms as ghosts.
+        @type ghosts: bool
+
+        @param bond_to:
+            If present, the index of the atom to which the new atoms are bonded.
+            The corresponding bonds will be created and residue information will
+            be copied to the new atoms.
+        @type bond_to: None or int
+
+        @param return_new_indices: If True, return the indices of the added atoms.
+        @type return_new_indices: bool
+
         @note:
             The atomic symbols C{atoms} can be obtained from another molecule
             using L{get_atom_symbols}, the coordinates using L{get_coordinates}
@@ -685,7 +704,7 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
             ...           [-0.89430, 3.96159, 2.68087],
             ...           [-0.43479, 4.75018, 3.07278]]
             >>> mol.add_atoms(atoms, coords)
-            >>> print mol.print_coordinates()
+            >>> print(mol.print_coordinates())
             1)     H       -0.21489        3.43542        2.17104
             2)     H       -0.89430        3.96159        2.68087
             3)     O       -0.43479        4.75018        3.07278
@@ -697,7 +716,7 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
             ...           [-0.89430, 3.96159, 2.68087],
             ...           [-0.43479, 4.75018, 3.07278]]
             >>> mol.add_atoms(atoms, coords)
-            >>> print mol.print_coordinates()
+            >>> print(mol.print_coordinates())
             1)     H       -0.21489        3.43542        2.17104
             2)     H       -0.89430        3.96159        2.68087
             3)     O       -0.43479        4.75018        3.07278
@@ -713,10 +732,10 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
                 for j in range(3):
                     coords[i][j] = coords[i][j] * Bohr_in_Angstrom
         e = Chem.EditableMol(self.mol)
-        if isinstance(atoms[0], numbers.Number):
-            new_atoms_indices = [e.AddAtom(Chem.Atom(int(a))) for a in atoms]
+        if isinstance(atoms[0], str):
+            new_atoms_indices = [e.AddAtom(Chem.Atom(a.split('.')[0])) for a in atoms]
         else:
-            new_atoms_indices = [e.AddAtom(Chem.Atom(a)) for a in atoms]
+            new_atoms_indices = [e.AddAtom(Chem.Atom(int(a))) for a in atoms]
 
         if bond_to is not None:
             for ai in new_atoms_indices:
@@ -729,12 +748,12 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
             for ai in new_atoms_indices:
                 at = self.mol.GetAtomWithIdx(ai)
                 if rinfo is not None:
-                    at.SetMonomerInfo(Chem.AtomPDBResidueInfo('%3s ' % at.GetSymbol(),
+                    at.SetMonomerInfo(Chem.AtomPDBResidueInfo(f'{at.GetSymbol():>3} ',
                                                               residueName=rinfo.GetResidueName(),
                                                               residueNumber=rinfo.GetResidueNumber(),
                                                               chainId=rinfo.GetChainId()))
                 else:
-                    at.SetMonomerInfo(Chem.AtomPDBResidueInfo('%3s ' % at.GetSymbol()))
+                    at.SetMonomerInfo(Chem.AtomPDBResidueInfo(f'{at.GetSymbol():>3} '))
 
         if self.mol.GetNumConformers() == 0:
             c = Chem.Conformer()
@@ -767,7 +786,7 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
         @type  ghosts: bool
 
         @returns: the coordinates, in an nx3 array
-        @rtype:   array of floats
+        @rtype:   list of float[3]
 
         @exampleuse:
 
@@ -780,7 +799,7 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
         """
 
         if atoms is None:
-            atoms = range(1, self.mol.GetNumAtoms() + 1)
+            atoms = list(range(1, self.mol.GetNumAtoms() + 1))
             if not ghosts:
                 atoms = [i for i in atoms if not self.is_ghost[i - 1]]
 
@@ -869,7 +888,7 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
         """
 
         if atoms is None:
-            atoms = range(1, self.mol.GetNumAtoms() + 1)
+            atoms = list(range(1, self.mol.GetNumAtoms() + 1))
             if not ghosts:
                 atoms = [i for i in atoms if not self.is_ghost[i - 1]]
 
@@ -914,7 +933,7 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
         """
 
         if atoms is None:
-            atoms = range(1, self.mol.GetNumAtoms() + 1)
+            atoms = list(range(1, self.mol.GetNumAtoms() + 1))
             if not ghosts:
                 atoms = [i for i in atoms if not self.is_ghost[i - 1]]
 
@@ -958,7 +977,7 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
         printsum = False
 
         if atoms is None:
-            atoms = range(1, self.mol.GetNumAtoms() + 1)
+            atoms = list(range(1, self.mol.GetNumAtoms() + 1))
             printsum = True
 
         for coord, atomNum in zip(self.get_coordinates(atoms=atoms),
@@ -1035,7 +1054,7 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
         @exampleuse:
 
             >>> an = RDMolecule('an.xyz')
-            >>> print an.print_coordinates()
+            >>> print(an.print_coordinates())
             1)     C        2.40366        0.63303       -0.29209
             2)     C        1.77188        1.66625        0.53174
             3)     N        1.27005        2.49581        1.19175
@@ -1043,7 +1062,7 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
             5)     H        1.92918        0.59583       -1.28199
             6)     H        3.47247        0.85113       -0.42037
             >>> mol = an.get_fragment([1,2,6])
-            >>> print mol.print_coordinates()
+            >>> print(mol.print_coordinates())
             1)     C        2.40366        0.63303       -0.29209
             2)     C        1.77188        1.66625        0.53174
             3)     H        3.47247        0.85113       -0.42037
@@ -1115,26 +1134,26 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
 
             >>> an = RDMolecule('an.pdb', 'pdb')
             >>> l = an.get_residues(restype='LIG')
-            >>> print [r.get_nuclear_dipole_moment() for r in l]
+            >>> print([r.get_nuclear_dipole_moment() for r in l])
             [array([ 42.75316384,  35.51551279, -19.00308591])]
             >>> l = an.get_residues(chain='A')
-            >>> print [r.get_nuclear_dipole_moment() for r in l]
+            >>> print([r.get_nuclear_dipole_moment() for r in l])
             [array([ 42.75316384,  35.51551279, -19.00308591])]
             >>> l = an.get_residues(resnum=1, chain='B')
-            >>> print [r.get_nuclear_dipole_moment() for r in l]
+            >>> print([r.get_nuclear_dipole_moment() for r in l])
             [array([-26.18593491,  49.01382649,  24.45683550 ])]
 
         @exampleuse:
 
             >>> diala = RDMolecule('dialanine.xyz', 'xyz')
             >>> allala = diala.get_residues(restype='ALA')
-            >>> print [f.get_number_of_atoms() for f in allala]
+            >>> print([f.get_number_of_atoms() for f in allala])
             [11, 12]
             >>> ala1 = diala.get_residues(restype='ALA', resnum=1)
-            >>> print [f.get_number_of_atoms() for f in ala1]
+            >>> print([f.get_number_of_atoms() for f in ala1])
             [11]
             >>> ala2 = diala.get_residues(restype='ALA', resnum=2)
-            >>> print [f.get_number_of_atoms() for f in ala2]
+            >>> print([f.get_number_of_atoms() for f in ala2])
             [12]
 
         @exampleuse:
@@ -1167,7 +1186,7 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
         @exampleuse:
 
             >>> an = RDMolecule('an.pdb', 'pdb')
-            >>> print an.get_atom_resinfo(10)
+            >>> print(an.get_atom_resinfo(10))
             ('B', 'TIP', 2)
         """
         res = self.mol.GetAtomWithIdx(atom - 1).GetPDBResidueInfo()
@@ -1187,11 +1206,11 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
 
         @exampleuse
             >>> dian = RDMolecule('dialanine.xyz')
-            >>> print dian.get_chain_info()
+            >>> print(dian.get_chain_info())
             ({'A': [(1, 'ALA'), (2, 'ALA')]}, {'A': 0})
             >>> dian.write('dialanine.pdb', 'pdb')
             >>> an = RDMolecule('an.pdb', 'pdb')
-            >>> print an.get_chain_info()
+            >>> print(an.get_chain_info())
             ({'A': [(1, 'LIG')], 'B': [(1, 'TIP'), (2, 'TIP'), (3, 'TIP'), (4, 'TIP'),
                                        (5, 'TIP'), (6, 'TIP'), (7, 'TIP')]}, {'A': 0, 'B': 1})
         """
@@ -1203,11 +1222,11 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
             if (res_num, res_name) not in chains[chain_id]:
                 chains[chain_id].append((res_num, res_name))
 
-        for v in chains.values():
+        for v in list(chains.values()):
             v.sort()
 
         chain_offsets = {}
-        kk = chains.keys()
+        kk = list(chains.keys())
         kk.sort()
         last_offset = 0
         for k in kk:
@@ -1226,11 +1245,11 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
         @exampleuse:
 
             >>> dian = RDMolecule('dialanine.xyz')
-            >>> print dian.get_residx_of_atoms()
+            >>> print(dian.get_residx_of_atoms())
             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
             >>> dian.write('dialanine.pdb', 'pdb')
             >>> an = RDMolecule('an.pdb', 'pdb')
-            >>> print an.get_residx_of_atoms()
+            >>> print(an.get_residx_of_atoms())
             [0, 0, 0, 0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 5, 5, 5, 6, 6, 6, 7, 7, 7]
 
         """
@@ -1240,7 +1259,7 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
             ci = chaininfo
 
         if atoms is None:
-            atoms = range(1, self.get_number_of_atoms() + 1)
+            atoms = list(range(1, self.get_number_of_atoms() + 1))
 
         res_list = []
         for at in atoms:
@@ -1257,20 +1276,20 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
 
         @exampleuse:
             >>> dian = RDMolecule('dialanine.xyz')
-            >>> print dian.get_resnums_of_atoms()
+            >>> print(dian.get_resnums_of_atoms())
             [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2]
             >>> an = RDMolecule('an.pdb', 'pdb')
-            >>> print an.get_resnums_of_atoms()
+            >>> print(an.get_resnums_of_atoms())
             [1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 5, 5, 5, 6, 6, 6, 7, 7, 7]
             >>> mol = RDMolecule('1PBE3.pdb', inputformat='pdb')
-            >>> print mol.get_resnums_of_atoms()
+            >>> print(mol.get_resnums_of_atoms())
             [21, 21, 21, 21, 21, 21, 21, 21, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22,
             23, 23, 23, 23, 23, 23, 23, 23, 23]
-            >>> print mol.get_resnums_of_atoms(atoms=[1,8,9,18,19,27])
+            >>> print(mol.get_resnums_of_atoms(atoms=[1,8,9,18,19,27]))
             [21, 21, 22, 22, 23, 23]
         """
         if atoms is None:
-            atoms = range(1, self.get_number_of_atoms() + 1)
+            atoms = list(range(1, self.get_number_of_atoms() + 1))
 
         res_list = []
         for at in atoms:
@@ -1284,14 +1303,14 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
 
         @exampleuse:
         >>> mol = RDMolecule('1PBE3.pdb', inputformat='pdb')
-        >>> print mol.get_resnums()
+        >>> print(mol.get_resnums())
         [21, 22, 23]
         >>> mol = RDMolecule('an.pdb', inputformat='pdb')
-        >>> print mol.get_resnums()
+        >>> print(mol.get_resnums())
         [1, 1, 2, 3, 4, 5, 6, 7]
-        >>> print mol.get_resnums(chain='A')
+        >>> print(mol.get_resnums(chain='A'))
         [1]
-        >>> print mol.get_resnums(chain='B')
+        >>> print(mol.get_resnums(chain='B'))
         [1, 2, 3, 4, 5, 6, 7]
         """
         return [res_num for (chain_id, res_name, res_num) in self.residue_iter()
@@ -1315,31 +1334,31 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
 
             >>> an = RDMolecule('an.pdb', 'pdb')
             >>> an.delete_residue(restype='TIP')
-            >>> print an.print_coordinates()
-            1)        C        0.83000000        0.66100000       -0.44400000    
-            2)        N        0.00000000        0.00000000        0.00000000    
-            3)        C        1.87800000        1.55900000       -0.81900000    
-            4)        H        1.78500000        2.40300000       -0.13500000    
-            5)        H        1.76200000        1.94900000       -1.83000000    
-            6)        H        2.82900000        1.12200000       -0.51300000    
+            >>> print(an.print_coordinates())
+            1)        C        0.83000000        0.66100000       -0.44400000
+            2)        N        0.00000000        0.00000000        0.00000000
+            3)        C        1.87800000        1.55900000       -0.81900000
+            4)        H        1.78500000        2.40300000       -0.13500000
+            5)        H        1.76200000        1.94900000       -1.83000000
+            6)        H        2.82900000        1.12200000       -0.51300000
             >>> an = RDMolecule('an.pdb', 'pdb')
             >>> an.delete_residue(chain='B')
-            >>> print an.print_coordinates()
-            1)        C        0.83000000        0.66100000       -0.44400000    
-            2)        N        0.00000000        0.00000000        0.00000000    
-            3)        C        1.87800000        1.55900000       -0.81900000    
-            4)        H        1.78500000        2.40300000       -0.13500000    
-            5)        H        1.76200000        1.94900000       -1.83000000    
-            6)        H        2.82900000        1.12200000       -0.51300000    
+            >>> print(an.print_coordinates())
+            1)        C        0.83000000        0.66100000       -0.44400000
+            2)        N        0.00000000        0.00000000        0.00000000
+            3)        C        1.87800000        1.55900000       -0.81900000
+            4)        H        1.78500000        2.40300000       -0.13500000
+            5)        H        1.76200000        1.94900000       -1.83000000
+            6)        H        2.82900000        1.12200000       -0.51300000
             >>> an = RDMolecule('an.pdb', 'pdb')
             >>> an.delete_residue(resnums=range(1,8), chain='B')
-            >>> print an.print_coordinates()
-            1)        C        0.83000000        0.66100000       -0.44400000    
-            2)        N        0.00000000        0.00000000        0.00000000    
-            3)        C        1.87800000        1.55900000       -0.81900000    
-            4)        H        1.78500000        2.40300000       -0.13500000    
-            5)        H        1.76200000        1.94900000       -1.83000000    
-            6)        H        2.82900000        1.12200000       -0.51300000    
+            >>> print(an.print_coordinates())
+            1)        C        0.83000000        0.66100000       -0.44400000
+            2)        N        0.00000000        0.00000000        0.00000000
+            3)        C        1.87800000        1.55900000       -0.81900000
+            4)        H        1.78500000        2.40300000       -0.13500000
+            5)        H        1.76200000        1.94900000       -1.83000000
+            6)        H        2.82900000        1.12200000       -0.51300000
 
         """
         atomlist = []
@@ -1354,22 +1373,22 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
     def get_restype_resnums(self, restype):
         """
         Get the residue numbers for a certain residue type.
-  
+
         Use that to obtain the residues for which to set charges, e.g., for all GLU.
-  
+
         @param restype: the type of the residue
         @type restype:  str
-  
-        @returns: A list of tuples (chain, residue number) belonging to restype. 
-  
+
+        @returns: A list of tuples (chain, residue number) belonging to restype.
+
         @exampleuse:
-  
+
             >>> an = RDMolecule('an.pdb', 'pdb')
-            >>> print an.get_restype_resnums('LIG')
+            >>> print(an.get_restype_resnums('LIG'))
             [('A', 1)]
-            >>> print an.get_restype_resnums('TIP')
+            >>> print(an.get_restype_resnums('TIP'))
             [('B', 1), ('B', 2), ('B', 3), ('B', 4), ('B', 5), ('B', 6), ('B', 7)]
-  
+
         """
         reslist = []
         for chain_id, resname, resnum in self.residue_iter():
@@ -1384,9 +1403,9 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
         @exampleuse:
 
             >>> an = RDMolecule('an.pdb', 'pdb')
-            >>> print an.get_residx_from_resinfo('A', 'LIG', 1)
+            >>> print(an.get_residx_from_resinfo('A', 'LIG', 1))
             0
-            >>> print an.get_residx_from_resinfo('B', 'TIP', 1)
+            >>> print(an.get_residx_from_resinfo('B', 'TIP', 1))
             1
 
         """
@@ -1400,23 +1419,26 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
     def get_restype_residx(self, restype, chaininfo=None):
         """
         Get the residue indicess for a certain residue type.
-  
+
         Use that to obtain the residues for which to set charges, e.g., for all GLU.
-  
+
         @param restype: the type of the residue
         @type restype:  str
-  
+
+        @param chaininfo: cache of residue chain information (used for performance improvement)
+        @type chaininfo: returned by L{self.get_chain_info()}
+
         @returns: A list of residue indices belonging to restype.
-            Indices start at 0 and run over all chains. 
-  
+            Indices start at 0 and run over all chains.
+
         @exampleuse:
-  
+
             >>> an = RDMolecule('an.pdb', 'pdb')
-            >>> print an.get_restype_residx('LIG')
+            >>> print(an.get_restype_residx('LIG'))
             [0]
-            >>> print an.get_restype_residx('TIP')
+            >>> print(an.get_restype_residx('TIP'))
             [1, 2, 3, 4, 5, 6, 7]
-  
+
         """
         if chaininfo is None:
             ci = self.get_chain_info()
@@ -1445,7 +1467,7 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
 
         >>> an = RDMolecule('an.xyz')
         >>> an.delete_atoms([1,5])
-        >>> print an
+        >>> print(an)
         Cartesian coordinates:
         1)     C        1.77188        1.66625        0.53174
         2)     N        1.27005        2.49581        1.19175
@@ -1469,20 +1491,20 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
         @exampleuse:
 
         >>> an = RDMolecule('an.pdb', 'pdb')
-        >>> print len(an.get_all_bonds())
+        >>> print(len(an.get_all_bonds()))
         19
         >>> diala = RDMolecule('dialanine.xyz', 'xyz')
         >>> bonds = diala.get_all_bonds()
-        >>> print len(bonds)       
+        >>> print(len(bonds))
         22
         >>> for b in bonds:
         ...     b.sort()
         >>> bonds.sort()
-        >>> print bonds[:12] 
+        >>> print(bonds[:12])
         [[1, 2], [1, 3], [1, 8], [4, 5], [4, 6], [4, 7], [4, 8], [8, 9], [8, 10], [9, 11], [9, 14], [12, 13]]
-        >>> print bonds[12:] 
+        >>> print(bonds[12:])
         [[12, 14], [12, 16], [12, 20], [13, 15], [13, 18], [14, 17], [18, 19], [20, 21], [20, 22], [20, 23]]
- 
+
         """
         bond_list = []
 
@@ -1504,7 +1526,7 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
         @exampleuse:
 
             >>> m = RDMolecule('an.pdb', 'pdb')
-            >>> print sorted(m.find_adjacent_hydrogens([1,3,10]))
+            >>> print(sorted(m.find_adjacent_hydrogens([1,3,10])))
             [4, 5, 6, 11, 12]
 
         """
@@ -1518,7 +1540,7 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
         @type  atoms: list of ints
 
         @param atnum: only include adjacent atoms with this atomic number
-        @type  atoms: int
+        @type  atnum: int
 
         @returns: the list of the numbers of the adjacent atoms
         @rtype:   list of ints
@@ -1562,18 +1584,18 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
 
         >>> an = RDMolecule('an.pdb', 'pdb')
         >>> an.set_residue('WAT', 999, 'C', atoms=range(7,10))
-        >>> print an.get_residues('C', 'WAT', 999)[0]
-          Cartesian coordinates: 
-            1)        O       -1.46800000        2.60500000        1.37700000    
-            2)        H       -0.95200000        3.29800000        0.96500000    
-            3)        H       -1.16100000        1.79900000        0.96100000    
+        >>> print(an.get_residues('C', 'WAT', 999)[0])
+          Cartesian coordinates:
+            1)        O       -1.46800000        2.60500000        1.37700000
+            2)        H       -0.95200000        3.29800000        0.96500000
+            3)        H       -1.16100000        1.79900000        0.96100000
         <BLANKLINE>
         >>> an.write('an-modres.pdb', 'pdb')
-        
+
         """
 
         if not atoms:
-            atoms = range(1, self.mol.GetNumAtoms() + 1)
+            atoms = list(range(1, self.mol.GetNumAtoms() + 1))
         if chain is None:
             chain = ""
 
@@ -1582,7 +1604,7 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
             if a.GetPDBResidueInfo() is not None:
                 atomname = a.GetPDBResidueInfo().GetName()
             else:
-                atomname = '%3s ' % a.GetSymbol()
+                atomname = f'{a.GetSymbol():>3} '
             a.SetMonomerInfo(Chem.AtomPDBResidueInfo(atomname,
                                                      residueName=restype,
                                                      residueNumber=resnum,
@@ -1598,9 +1620,9 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
         @exampleuse:
 
         >>> an = RDMolecule('an.pdb', 'pdb')
-        >>> print len(an.separate())
+        >>> print(len(an.separate()))
         8
-        
+
         """
         rdfrags = Chem.GetMolFrags(self.mol, asMols=True, sanitizeFrags=False)
         return [RDMolecule().set_RDMol(m) for m in rdfrags]
@@ -1616,13 +1638,13 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
 
         >>> h2o = RDMolecule('h2o.xyz')
         >>> h2o.translate([-1,2,1])
-        >>> print h2o
-          Cartesian coordinates: 
-            1)        H       -1.21489000        5.43542000        3.17104000    
-            2)        O       -1.89430000        5.96159000        3.68087000    
-            3)        H       -1.43479000        6.75018000        4.07278000    
+        >>> print(h2o)
+          Cartesian coordinates:
+            1)        H       -1.21489000        5.43542000        3.17104000
+            2)        O       -1.89430000        5.96159000        3.68087000
+            3)        H       -1.43479000        6.75018000        4.07278000
         <BLANKLINE>
-        
+
         """
         c = self.mol.GetConformer()
         for atom in range(self.mol.GetNumAtoms()):
@@ -1680,11 +1702,11 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
         >>> pdb = RDMolecule('an.pdb', 'pdb')
         >>> mols = pdb.get_residues(restype = 'TIP')
         >>> rotmat,transvec = mols[0].align(mols[1],range(1,4))
-        >>> print round(rotmat,6)
+        >>> print(round(rotmat,6))
         [[ 0.40120700  0.55936000   0.72536100]
          [-0.47720900 -0.54829300  0.68676500]
          [ 0.78186000  -0.62168400  0.04695200]]
-        >>> print round(transvec,5)
+        >>> print(round(transvec,5))
         [ 0.53705000 -2.72789000   2.34056000]
 
         """
@@ -1804,7 +1826,7 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
             Simple printing of the coordinates:
 
             >>> mol = RDMolecule('h2o.xyz')
-            >>> print mol.print_coordinates()
+            >>> print(mol.print_coordinates())
             1)     H       -0.21489        3.43542        2.17104
             2)     O       -0.89430        3.96159        2.68087
             3)     H       -0.43479        4.75018        3.07278
@@ -1813,14 +1835,14 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
             Printing of selected atoms:
 
             >>> mol = RDMolecule('h2o.xyz')
-            >>> print mol.print_coordinates(atoms=[2])
+            >>> print(mol.print_coordinates(atoms=[2]))
             2)     O       -0.89430        3.96159        2.68087
 
         @exampleuse:
             Printing without atom numbering:
 
             >>> mol = RDMolecule('h2o.xyz')
-            >>> print mol.print_coordinates(index=False)
+            >>> print(mol.print_coordinates(index=False))
             H       -0.21489        3.43542        2.17104
             O       -0.89430        3.96159        2.68087
             H       -0.43479        4.75018        3.07278
@@ -1829,7 +1851,7 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
             Printing with a suffix:
 
             >>> mol = RDMolecule('h2o.xyz')
-            >>> print mol.print_coordinates(index=False, suffix='f=frag1')
+            >>> print(mol.print_coordinates(index=False, suffix='f=frag1'))
             H       -0.21489        3.43542        2.17104    f=frag1
             O       -0.89430        3.96159        2.68087    f=frag1
             H       -0.43479        4.75018        3.07278    f=frag1
@@ -1841,7 +1863,7 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
 
         lines = ""
         if atoms is None:
-            atoms = range(1, self.mol.GetNumAtoms() + 1)
+            atoms = list(range(1, self.mol.GetNumAtoms() + 1))
 
         coords = self.get_coordinates(atoms)
         symbs = self.get_atom_symbols(atoms, prefix_ghosts=True)
@@ -1851,9 +1873,9 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
             c = coords[i]
 
             if index:
-                line = "  %3i) %8s %14.5f %14.5f %14.5f" % (atoms[i], symb, c[0], c[1], c[2])
+                line = f"  {atoms[i]:3d}) {symb:>8} {c[0]:14.5f} {c[1]:14.5f} {c[2]:14.5f}"
             else:
-                line = "  %8s %14.5f %14.5f %14.5f" % (symb, c[0], c[1], c[2])
+                line = f"  {symb:>8} {c[0]:14.5f} {c[1]:14.5f} {c[2]:14.5f}"
 
             line += "    " + suffix + "\n"
             lines += line
@@ -1870,77 +1892,8 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
         c = self.mol.GetConformer()
         for a in self.mol.GetAtoms():
             p = c.GetAtomPosition(a.GetIdx())
-            xyz += '%-3s %14.5f %14.5f %14.5f\n' % (a.GetSymbol(), p.x, p.y, p.z)
+            xyz += f'{a.GetSymbol():<3} {p.x:14.5f} {p.y:14.5f} {p.z:14.5f}\n'
         return xyz
-
-    def get_geovar_atoms_block(self, geovar):
-        """
-        Print the coordinates for use in the ATOMS block of ADF, using geovars.
-
-        @param geovar: The atoms for which geovars should be used.
-        @type geovar: list
-
-        @exampleuse:
-            Printing of the atoms using geovars:
-
-            >>> mol = RDMolecule('h2o.xyz')
-            >>> print mol.get_geovar_atoms_block([1,3])
-            H         atom1x         atom1y         atom1z
-            O    -0.89430000     3.96159000     2.68087000
-            H         atom3x         atom3y         atom3z
-        """
-
-        c = self.mol.GetConformer()
-        AtomsBlock = ""
-        for i, atom in enumerate(self.mol.GetAtoms()):
-            symb = atom.GetSymbol()
-            if self.is_ghost[i]:
-                symb = "Gh." + symb
-            if i + 1 in geovar:
-                varname = "atom" + str(i + 1)
-                line = "  %5s " % symb
-                line += "%14s " % (varname + "x")
-                line += "%14s " % (varname + "y")
-                line += "%14s \n" % (varname + "z")
-            else:
-                p = c.GetAtomPosition(i)
-                line = "  %5s %14.5f %14.5f %14.5f \n" % \
-                       (symb, p.x, p.y, p.z)
-            AtomsBlock += line
-
-        return AtomsBlock
-
-    def get_geovar_block(self, geovar):
-        """
-        Print the GEOVAR block of ADF using the coordinates of the molecule.
-
-        @param geovar: The atoms for which geovars should be used.
-        @type geovar: list
-
-        @exampleuse:
-            Printing of the atoms using geovars:
-
-            >>> mol = RDMolecule('h2o.xyz')
-            >>> print mol.get_geovar_block([1,3])
-            GEOVAR
-              atom1x         -0.21489000
-              atom1y          3.43542000
-              atom1z          2.17104000
-              atom3x         -0.43479000
-              atom3y          4.75018000
-              atom3z          3.07278000
-            END
-        """
-
-        c = self.mol.GetConformer()
-        block = " GEOVAR\n"
-        for i in geovar:
-            p = c.GetAtomPosition(i - 1)
-            block += "   atom" + str(i) + "x   %14.5f \n" % p.x
-            block += "   atom" + str(i) + "y   %14.5f \n" % p.y
-            block += "   atom" + str(i) + "z   %14.5f \n" % p.z
-        block += " END\n\n"
-        return block
 
     def get_dalton_molfile(self, basis):
         """
@@ -1953,11 +1906,11 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
             Printing of the Dalton molecule file:
 
             >>> mol = RDMolecule('h2o.xyz')
-            >>> print mol.get_dalton_molfile('STO-3G')
+            >>> print(mol.get_dalton_molfile('STO-3G'))
             BASIS
             STO-3G
             This Dalton molecule file was generated by PyADF
-             Homepage: http://www.pyadf.org
+             Homepage: https://www.pyadf.org
             Angstrom Nosymmetry Atomtypes=2
             Charge=1.00000000 Atoms=2
             H1         -0.21489000        3.43542000        2.17104000
@@ -1969,25 +1922,24 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
         molfile = 'BASIS\n'
         molfile += basis + '\n'
         molfile += 'This Dalton molecule file was generated by PyADF\n'
-        molfile += ' Homepage: http://www.pyadf.org\n'
+        molfile += ' Homepage: https://www.pyadf.org\n'
 
         # determine number of atomtypes
         atsyms = self.get_atom_symbols()
-        atyps = set(atsyms)
+        atyps = list(dict.fromkeys(atsyms))
         num_atomtypes = len(atyps)
 
         # FIXME: hardcoding NO SYMMETRY here
-        molfile += 'Angstrom Nosymmetry Atomtypes=%d\n' % num_atomtypes
+        molfile += f'Angstrom Nosymmetry Atomtypes={num_atomtypes:d}\n'
 
         for atyp in atyps:
 
             atoms = [i + 1 for i, at in enumerate(atsyms) if at == atyp]
             coords = self.get_coordinates(atoms)
 
-            molfile += "Charge=%.1f Atoms=%d\n" % (pse.get_atomic_number(atyp), len(coords))
+            molfile += f"Charge={pse.get_atomic_number(atyp):.1f} Atoms={len(coords):d}\n"
             for i, a in enumerate(coords):
-                line = "%-4s %14.5f %14.5f %14.5f \n" % \
-                       (atyp + str(i + 1), a[0], a[1], a[2])
+                line = f"{atyp + str(i + 1):<4} {a[0]:14.5f} {a[1]:14.5f} {a[2]:14.5f} \n"
                 molfile += line
 
         return molfile
@@ -2044,7 +1996,7 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
         @exampleuse:
 
             >>> mol = RDMolecule('h2o.xyz')
-            >>> print mol.get_cube_header()
+            >>> print(mol.get_cube_header())
                 1    0.00000000   -0.40608300    6.49200300    4.10267100
                 8    0.00000000   -1.68998200    7.48632000    5.06611000
                 1    0.00000000   -0.82163400    8.97653900    5.80671300
@@ -2060,10 +2012,10 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
         for at in self.mol.GetAtoms():
             i = at.GetIdx()
             if not self.is_ghost[i]:
-                header += "%5d%12.6f%12.6f%12.6f%12.6f\n" % (at.GetAtomicNum(), 0.0,
-                                                             coords[i][0] / Bohr_in_Angstrom,
-                                                             coords[i][1] / Bohr_in_Angstrom,
-                                                             coords[i][2] / Bohr_in_Angstrom)
+                header += f"{at.GetAtomicNum():5d}{0.0:12.6f}" + \
+                          f"{coords[i][0] / Bohr_in_Angstrom:12.6f}" + \
+                          f"{coords[i][1] / Bohr_in_Angstrom:12.6f}" + \
+                          f"{coords[i][2] / Bohr_in_Angstrom:12.6f}\n"
 
         return header
 
@@ -2075,9 +2027,10 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
 
         @rtype: bool
         """
-        return self.TotalSpinMultiplicity != None
+        return self.TotalSpinMultiplicity is not None
 
-    def get_checksum(self, representation='xyz'):
+    @property
+    def checksum(self, representation='xyz'):
         """
         Get a hexadecimal 128-bit md5 hash of the molecule.
 
@@ -2094,8 +2047,6 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
         @date:                 Aug. 2011
 
         """
-
-        import os
         import tempfile
         import hashlib
 
@@ -2114,29 +2065,20 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
         m = hashlib.md5()
         emptyhash = m.hexdigest()
 
-        tmp = tempfile.NamedTemporaryFile()
-        tmp.file.close()
-
-        # The file is empty now. Note  that we only call the `file' attribute's
-        # `close()' method.  Saying `tmp.close()' would  immediately unlink the
-        # pysical file which is not what we want.
-
-        self.write(tmp.name, outputformat=representation)
-
-        with open(tmp.name, 'r') as infile:
-            for line in infile:
-                m.update(line)
+        with tempfile.NamedTemporaryFile() as tmp:
+            self.write(tmp.name, outputformat=representation)
+            m.update(tmp.read())
 
         molhash = m.hexdigest()
         if molhash == emptyhash:
-            raise PyAdfError("""Error while trying to compute the md5 hash of
-            the molecule. Hash equals empty-string hash.""")
+            raise PyAdfError("Error while trying to compute the md5 hash of the molecule. "
+                             "Hash equals empty-string hash.")
 
         return molhash
 
 
+# noinspection PyUnusedLocal
 def _setUp_doctest(test):
-    # pylint: disable-msg=W0613
 
     import os
 
@@ -2162,9 +2104,9 @@ def _setUp_doctest(test):
     an.write('an.xyz')
 
     f = open('an.pdb', 'w')
-    f.write("""REMARK DATE:19-Oct-06  15:59:22       created by user: bulo                     
+    f.write("""REMARK DATE:19-Oct-06  15:59:22       created by user: bulo
 ATOM      1  C   LIG A   1       0.830   0.661  -0.444  1.00  0.00      MOL  C
-ATOM      2  N   LIG A   1       0.000   0.000   0.000  1.00  0.00      MOL  N 
+ATOM      2  N   LIG A   1       0.000   0.000   0.000  1.00  0.00      MOL  N
 ATOM      3  C   LIG A   1       1.878   1.559  -0.819  1.00  0.00      MOL  C
 ATOM      4  H   LIG A   1       1.785   2.403  -0.135  1.00  0.00      MOL  H
 ATOM      5  H   LIG A   1       1.762   1.949  -1.830  1.00  0.00      MOL  H
@@ -2194,9 +2136,9 @@ ATOM     27  H2  TIP3B   7      -4.316  -0.345  -1.533  1.00  0.00      WAT  H
     f.close()
 
     f = open('an_bla.pdb', 'w')
-    f.write("""REMARK DATE:19-Oct-06  15:59:22       created by user: bulo                     
+    f.write("""REMARK DATE:19-Oct-06  15:59:22       created by user: bulo
 ATOM      1  C   LIG B   0       0.830   0.661  -0.444  1.00  0.00      MOL  C
-ATOM      2  N   LIG B   0       0.000   0.000   0.000  1.00  0.00      MOL  N 
+ATOM      2  N   LIG B   0       0.000   0.000   0.000  1.00  0.00      MOL  N
 ATOM      3  C   LIG B   0       1.878   1.559  -0.819  1.00  0.00      MOL  C
 ATOM      4  H   LIG B   0       1.785   2.403  -0.135  1.00  0.00      MOL  H
 ATOM      5  H   LIG B   0       1.762   1.949  -1.830  1.00  0.00      MOL  H
@@ -2226,9 +2168,9 @@ ATOM     27  H2  TIP3A  13      -4.316  -0.345  -1.533  1.00  0.00      WAT  H
     f.close()
 
     f = open('anNOH.pdb', 'w')
-    f.write("""REMARK DATE:19-Oct-06  15:59:22       created by user: bulo                     
+    f.write("""REMARK DATE:19-Oct-06  15:59:22       created by user: bulo
 ATOM      1  C   LIG A   1       0.830   0.661  -0.444  1.00  0.00      MOL  C
-ATOM      2  N   LIG A   1       0.000   0.000   0.000  1.00  0.00      MOL  N 
+ATOM      2  N   LIG A   1       0.000   0.000   0.000  1.00  0.00      MOL  N
 ATOM      3  C   LIG A   1       1.878   1.559  -0.819  1.00  0.00      MOL  C
 ATOM      7  OH2 TIP3B   1      -1.468   2.605   1.377  1.00  0.00      WAT  O
 ATOM     10  OH2 TIP3B   2       2.404  -2.510  -0.362  1.00  0.00      WAT  O
@@ -2237,35 +2179,35 @@ ATOM     13  OH2 TIP3B   3      -3.228  -1.615   1.185  1.00  0.00      WAT  O
     f.close()
 
     f = open('1PBE3.pdb', 'w')
-    f.write("""HEADER    OXIDOREDUCTASE                          06-JUL-94   1PBE              
-ATOM    137  N   LEU A  21       9.727  97.836  71.643  1.00 13.50           N  
-ATOM    138  CA  LEU A  21       9.876  97.777  73.087  1.00 16.20           C  
-ATOM    139  C   LEU A  21       9.339  99.042  73.792  1.00 15.11           C  
-ATOM    140  O   LEU A  21       8.737  99.002  74.868  1.00 19.11           O  
-ATOM    141  CB  LEU A  21      11.310  97.465  73.467  1.00 12.96           C  
-ATOM    142  CG  LEU A  21      11.992  96.143  73.219  1.00 12.45           C  
-ATOM    143  CD1 LEU A  21      13.462  96.207  73.626  1.00  8.78           C  
-ATOM    144  CD2 LEU A  21      11.347  95.047  74.103  1.00 14.87           C  
-ATOM    145  N   HIS A  22       9.591 100.173  73.211  1.00 19.90           N  
-ATOM    146  CA  HIS A  22       9.197 101.467  73.810  1.00 19.34           C  
-ATOM    147  C   HIS A  22       7.695 101.476  73.920  1.00 21.09           C  
-ATOM    148  O   HIS A  22       7.230 101.695  75.019  1.00 21.48           O  
-ATOM    149  CB  HIS A  22       9.707 102.673  72.988  1.00 25.03           C  
-ATOM    150  CG  HIS A  22       9.358 103.940  73.722  1.00 24.50           C  
-ATOM    151  ND1 HIS A  22      10.074 104.467  74.745  1.00 25.57           N  
-ATOM    152  CD2 HIS A  22       8.301 104.772  73.489  1.00 25.55           C  
-ATOM    153  CE1 HIS A  22       9.477 105.595  75.128  1.00 35.00           C  
-ATOM    154  NE2 HIS A  22       8.405 105.813  74.387  1.00 23.11           N  
-ATOM    155  N   LYS A  23       7.052 101.224  72.799  1.00 20.55           N  
-ATOM    156  CA  LYS A  23       5.598 101.149  72.693  1.00 25.19           C  
-ATOM    157  C   LYS A  23       4.980 100.123  73.659  1.00 25.76           C  
-ATOM    158  O   LYS A  23       3.789 100.278  73.997  1.00 27.71           O  
-ATOM    159  CB  LYS A  23       5.126 100.827  71.289  1.00 26.67           C  
-ATOM    160  CG  LYS A  23       5.560 101.692  70.134  1.00 39.91           C  
-ATOM    161  CD  LYS A  23       4.704 102.867  69.790  1.00 58.31           C  
-ATOM    162  CE  LYS A  23       3.224 102.586  69.671  1.00 71.72           C  
-ATOM    163  NZ  LYS A  23       2.915 101.249  69.098  1.00 72.06           N  
-END                                                                             
+    f.write("""HEADER    OXIDOREDUCTASE                          06-JUL-94   1PBE
+ATOM    137  N   LEU A  21       9.727  97.836  71.643  1.00 13.50           N
+ATOM    138  CA  LEU A  21       9.876  97.777  73.087  1.00 16.20           C
+ATOM    139  C   LEU A  21       9.339  99.042  73.792  1.00 15.11           C
+ATOM    140  O   LEU A  21       8.737  99.002  74.868  1.00 19.11           O
+ATOM    141  CB  LEU A  21      11.310  97.465  73.467  1.00 12.96           C
+ATOM    142  CG  LEU A  21      11.992  96.143  73.219  1.00 12.45           C
+ATOM    143  CD1 LEU A  21      13.462  96.207  73.626  1.00  8.78           C
+ATOM    144  CD2 LEU A  21      11.347  95.047  74.103  1.00 14.87           C
+ATOM    145  N   HIS A  22       9.591 100.173  73.211  1.00 19.90           N
+ATOM    146  CA  HIS A  22       9.197 101.467  73.810  1.00 19.34           C
+ATOM    147  C   HIS A  22       7.695 101.476  73.920  1.00 21.09           C
+ATOM    148  O   HIS A  22       7.230 101.695  75.019  1.00 21.48           O
+ATOM    149  CB  HIS A  22       9.707 102.673  72.988  1.00 25.03           C
+ATOM    150  CG  HIS A  22       9.358 103.940  73.722  1.00 24.50           C
+ATOM    151  ND1 HIS A  22      10.074 104.467  74.745  1.00 25.57           N
+ATOM    152  CD2 HIS A  22       8.301 104.772  73.489  1.00 25.55           C
+ATOM    153  CE1 HIS A  22       9.477 105.595  75.128  1.00 35.00           C
+ATOM    154  NE2 HIS A  22       8.405 105.813  74.387  1.00 23.11           N
+ATOM    155  N   LYS A  23       7.052 101.224  72.799  1.00 20.55           N
+ATOM    156  CA  LYS A  23       5.598 101.149  72.693  1.00 25.19           C
+ATOM    157  C   LYS A  23       4.980 100.123  73.659  1.00 25.76           C
+ATOM    158  O   LYS A  23       3.789 100.278  73.997  1.00 27.71           O
+ATOM    159  CB  LYS A  23       5.126 100.827  71.289  1.00 26.67           C
+ATOM    160  CG  LYS A  23       5.560 101.692  70.134  1.00 39.91           C
+ATOM    161  CD  LYS A  23       4.704 102.867  69.790  1.00 58.31           C
+ATOM    162  CE  LYS A  23       3.224 102.586  69.671  1.00 71.72           C
+ATOM    163  NZ  LYS A  23       2.915 101.249  69.098  1.00 72.06           N
+END
 """)
     f.close()
 
@@ -2299,6 +2241,7 @@ H       2.30387296      -4.48773848      -1.41554000
     f.close()
 
 
+# noinspection PyUnusedLocal
 def _tearDown_doctest(test):
     # pylint: disable-msg=W0613
 

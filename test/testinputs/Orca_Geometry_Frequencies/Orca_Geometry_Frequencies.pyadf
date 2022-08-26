@@ -1,0 +1,25 @@
+import os
+from pyadf import *
+if 'pyadfenv' not in globals():
+    from pyadf.Initialization import *
+
+h2o = molecule(os.path.join(pyadfenv.outdir, 'bad_water.xyz'))
+
+# BP86 frequencies without geometry optimization
+
+settings = OrcaSettings()
+
+settings.set_method('DFT')
+settings.set_functional('BP86')
+settings.set_basis('cc-pVDZ')
+settings.set_ri(False)
+results = OrcaOptFrequenciesJob(h2o, settings=settings).run()
+
+freqs = results.get_frequencies()
+ints = results.get_intensities()
+
+freqs_ref = [[1627.03], [3639.08], [3744.77]]
+ints_ref = [[48.50190956], [1.30926971], [15.03571642]]
+
+testobj.assertAlmostEqual(freqs,freqs_ref, 4)
+testobj.assertAlmostEqual(ints,ints_ref, 4)

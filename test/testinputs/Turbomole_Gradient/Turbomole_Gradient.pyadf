@@ -1,6 +1,11 @@
+import os
+from pyadf import *
+if 'pyadfenv' not in globals():
+    from pyadf.Initialization import *
+
 _verbose_level = 5
 
-h2o = molecule (os.path.join(pyadfenv.outdir, 'H2O.xyz'))
+h2o = molecule(os.path.join(pyadfenv.outdir, 'H2O.xyz'))
 
 # BP86 single point calculation
 
@@ -13,11 +18,11 @@ results = TurbomoleGradientJob(h2o, method='dft', settings=settings).run()
 
 grad = results.get_gradient_vector()
 
-print "Gradient:", grad
+print("Gradient:", grad)
 
-testobj.assertAlmostEqualVectors(grad, [ 0.00789531, -0.0177805, -0.0134407,
-                                        -0.00730576,  0.0016098,  0.0028811,
-                                        -0.00062206,  0.0161463,  0.0105593], 5)
+testobj.assertAlmostEqualVectors(grad, [0.00787206, -0.01779968, -0.01344721,
+                                        -0.00725577, 0.00162172, 0.00287625,
+                                        -0.00064882, 0.01615354, 0.01057074], 5)
 
 # BP86 single point calculation (RI)
 
@@ -30,8 +35,8 @@ results = TurbomoleGradientJob(h2o, method='dft', settings=settings).run()
 
 grad = results.get_gradient_vector()
 
-print "Gradient:", grad
+print("Gradient:", grad)
 
-testobj.assertAlmostEqualVectors(grad, [ 0.00791034, -0.0177773, -0.0134424,
-                                        -0.00733814, 0.00159879,  0.0028822,
-                                        -0.00060474, 0.01615413, 0.01056002], 5)
+testobj.assertAlmostEqualVectors(grad, [0.00787639, -0.01780116, -0.01344924,
+                                        -0.00726607, 0.00161574, 0.00287496,
+                                        -0.00064287, 0.01616098, 0.01057406], 5)

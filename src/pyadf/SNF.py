@@ -1,12 +1,10 @@
-# -*- coding: utf-8 -*-
-
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2021 by Christoph R. Jacob, Tobias Bergmann,
-# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Thomas Dresselhaus,
-# Andre S. P. Gomes, Andreas Goetz, Michal Handzlik, Karin Kiewisch,
-# Moritz Klammler, Lars Ridder, Jetze Sikkema, Lucas Visscher, and
-# Mario Wolter.
+# Copyright (C) 2006-2022 by Christoph R. Jacob, Tobias Bergmann,
+# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Maria Chekmeneva,
+# Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz, 
+# Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder, 
+# Jetze Sikkema, Lucas Visscher, Johannes Vornweg and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -19,7 +17,7 @@
 #    GNU General Public License for more details.
 #
 #    You should have received a copy of the GNU General Public License
-#    along with PyADF.  If not, see <http://www.gnu.org/licenses/>.
+#    along with PyADF.  If not, see <https://www.gnu.org/licenses/>.
 """
 Support for I{SNF} computations using I{Turbomole} (other programs may be added).
 
@@ -38,8 +36,8 @@ moderately difficult task.
 
 import os
 
-from Errors import PyAdfError
-from Turbomole import TurbomoleJob, TurbomoleResults, \
+from .Errors import PyAdfError
+from .Turbomole import TurbomoleJob, TurbomoleResults, \
     TurbomoleSinglePointResults, TurbomoleGeometryOptimizationResults
 
 
@@ -63,15 +61,13 @@ class SNFJob(TurbomoleJob):
         @param deuterium: list
         """
 
-        import hashlib
-
         # A SNF computation  makes no sense if we don't  start from a converged
         # geometry computed with the same tool (i.e. Turbomole).
 
         if not isinstance(converged_results, TurbomoleGeometryOptimizationResults):
             if isinstance(converged_results, TurbomoleSinglePointResults):
-                print "WARNING: SNF is not started with a converged Turbomole geometry optimization."
-                print "         This might be correct, but be sure that you know what you are doing."
+                print("WARNING: SNF is not started with a converged Turbomole geometry optimization.")
+                print("         This might be correct, but be sure that you know what you are doing.")
             else:
                 raise PyAdfError("SNF job requires a converged Turbomole calculation")
 
@@ -81,20 +77,12 @@ class SNFJob(TurbomoleJob):
 
         self.converged_predecessor = converged_results
 
-        super(SNFJob, self).__init__(self.converged_predecessor.get_molecule())
+        super().__init__(self.converged_predecessor.get_molecule())
 
         self.settings = self.converged_predecessor.job.settings
         self.deuterium = deuterium
 
         self.jobtype = "SNF / Turbomole first-order vibration job"
-
-        # We compose our checksum from the one of our converged predecessor and
-        # our job type.
-
-        md5 = hashlib.md5()
-        md5.update(self.converged_predecessor.get_checksum())
-        md5.update(self.jobtype)
-        self.checksum = md5.hexdigest()
 
     def set_restart(self, restart):
         """
@@ -106,15 +94,24 @@ class SNFJob(TurbomoleJob):
         """
         raise NotImplementedError()  # FIX THIS! (or maybe not - who needs that?)
 
-    def get_checksum(self):
+    @property
+    def checksum(self):
         """
         Get a quasi unique checksum for this job.
 
         @returns: Quasi unique checksum.
         @rtype:   L{str}
-        
         """
-        return self.checksum
+        import hashlib
+
+        # We compose our checksum from the one of our converged predecessor and
+        # our job type.
+
+        md5 = hashlib.md5()
+        md5.update(self.converged_predecessor.checksum.encode('utf-8'))
+        md5.update(self.jobtype.encode('utf-8'))
+
+        return md5.hexdigest()
 
     def before_run(self):
 
@@ -123,20 +120,22 @@ class SNFJob(TurbomoleJob):
 
         Copies the needed files from the coverged geometry optimization into
         the current working directory and run I{snfdefine}.
-        
+
         @raises PyAdfError: If I{snfdefine} quit in error.
 
         """
 
         import shutil
         from subprocess import Popen, PIPE
-        from JobRunner import DefaultJobRunner
+        from .JobRunner import DefaultJobRunner
 
         # First we copy  the files we need from  our converged predecessor into
         # our working directory. Since the results object's method always makes
         # temporary files, we simply move them via high level OS operations.
 
-        filenames = ['coord', 'control', 'basis', 'auxbasis', 'mos']
+        filenames = ['coord', 'control', 'basis', 'mos']
+        if self.settings.ri:
+            filenames.append('auxbasis')
         for filename in filenames:
             tempfilename = self.converged_predecessor.get_temp_result_filename(filename)
             shutil.move(tempfilename, filename)
@@ -153,11 +152,11 @@ class SNFJob(TurbomoleJob):
         if self.deuterium is not None:
             snfdefine_input.append('iso')
             for atom in self.deuterium:
-                snfdefine_input.append('%s' %(atom))
+                snfdefine_input.append(f'{atom}')
                 snfdefine_input.append('2')
             snfdefine_input.append('')
 
-        for i in xrange(5):
+        for i in range(5):
             snfdefine_input.append('')
         snfdefine_input.append('8')  # sets scfconv to 8 as requested by SNFdefine
         snfdefine_input.append('m4')  # sets gridzize to m4 as requested by SNFdefine
@@ -173,7 +172,9 @@ class SNFJob(TurbomoleJob):
             sub = Popen(['snfdefine'], stdin=PIPE, stdout=PIPE, stderr=PIPE, env=env)
 
             # Pass it the input and wait for it to finish.
-            snfdefine_stdout, snfdefine_stderr = sub.communicate(input=snfdefine_stdin)
+            snfdefine_stdout, snfdefine_stderr = sub.communicate(input=snfdefine_stdin.encode('utf-8'))
+            snfdefine_stdout = snfdefine_stdout.decode('Latin-1')
+            snfdefine_stderr = snfdefine_stderr.decode('Latin-1')
         except OSError:
             raise PyAdfError("""Couldn't start a `snfdefine' subprocess. Have
                              you even installed it?""")
@@ -191,8 +192,41 @@ class SNFJob(TurbomoleJob):
 
     def get_runscript(self, nproc=1):
 
-        # this will probably fail if only one core is available
-        runscript = 'mpirun -np %i snfdc \n' % nproc
+        runscript = 'if [ -n "$SNF_PATH" ]; then\n'
+        runscript += "    SNFDCBIN=$SNF_PATH/bin/snfdc\n"
+        runscript += "else\n"
+        runscript += "    SNFDCBIN=`which snfdc`\n"
+        runscript += "fi\n\n"
+
+        # SNF cannot handle TMPDIR path if it is too long, no idea why
+        # As a workaround, set a scratch dir via SNF_SCRATCHDIR
+        runscript += 'if [ -n "$SNF_SCRATCH" ]; then\n'
+        runscript += "    SNFTMPDIR=$SNF_SCRATCH\n"
+        runscript += "else\n"
+        runscript += "    SNFTMPDIR=$PWD/scratch\n"
+        runscript += "fi\n\n"
+
+        runscript += "mkdir scratch\n"
+        runscript += "mkdir log\n\n"
+
+        runscript += "cat >DCINPUT <<eor \n"
+        runscript += "DCPATH $SNFDCBIN \n"
+        runscript += "MYDIR $PWD \n"
+        runscript += "PREFIX TMP$USER% \n"
+        runscript += "TMPDIR $SNFTMPDIR \n"
+        runscript += "LOGDIR $PWD/log \n"
+        runscript += "PROGDIR $TURBOBIN \n"
+        runscript += "eor\n"
+
+        runscript += "cat DCINPUT \n"
+
+        runscript += 'if [ -n "$OPAL_PREFIX" ]; then\n'
+        runscript += f'    mpirun --prefix $OPAL_PREFIX -np {nproc + 1:d} --oversubscribe $SNFDCBIN \n'
+        runscript += "else\n"
+        runscript += f'    mpirun -np {nproc + 1:d} --oversubscribe $SNFDCBIN \n'
+        runscript += "fi\n\n"
+
+        runscript += "rm -rf scratch\n\n"
 
         return runscript
 
@@ -208,7 +242,7 @@ class SNFJob(TurbomoleJob):
         # This is preferably done here  rather than in the runscript because it
         # needs some utilities that may not be available on a cluster.
 
-        from JobRunner import DefaultJobRunner
+        from .JobRunner import DefaultJobRunner
         from subprocess import Popen, PIPE
 
         env = DefaultJobRunner().get_environ_for_local_command(SNFJob)
@@ -217,11 +251,11 @@ class SNFJob(TurbomoleJob):
             sub = Popen(['snf'], stdout=PIPE, stderr=PIPE, env=env)
             sub.communicate()
             if sub.returncode != 0:
-                print "Warning: `snf' (the post processing script) quit in error but I don't care."
+                print("Warning: `snf' (the post processing script) quit in error but I don't care.")
         except OSError:
-            print "Failed to run `snf'. Have you even installed it?"
+            print("Failed to run `snf'. Have you even installed it?")
 
-        super(SNFJob, self).after_run()
+        super().after_run()
 
     def create_results_instance(self):
         """
@@ -242,9 +276,9 @@ class SNFJob(TurbomoleJob):
         puristic.
 
         """
-        print ("  Using settings from converged structure from job "
-               + str(self.converged_predecessor.fileid) + ".")
-        print "  I'm an SNF job. I have nothing like an own will. Do you?"
+        print("  Using settings from converged structure from job "
+              + str(self.converged_predecessor.fileid) + ".")
+        print("  I'm an SNF job. I have nothing like an own will. Do you?")
 
 
 class SNFResults(TurbomoleResults):
@@ -252,7 +286,7 @@ class SNFResults(TurbomoleResults):
     Results of a I{SNF} computation (using I{Turbomole}).
 
     @group Retrieval of specific results: get_eigenvectors,
-                                          get_carthesian_modes, 
+                                          get_carthesian_modes,
                                           get_wave_numbers
     @group Access to result files:        _read_snf_output
 
@@ -267,7 +301,7 @@ class SNFResults(TurbomoleResults):
 
         """
 
-        super(SNFResults, self).__init__(j=j)
+        super().__init__(j=j)
         self.vibs = None
 
     def get_wave_numbers(self):
@@ -300,7 +334,7 @@ class SNFResults(TurbomoleResults):
 
     def _read_snf_output(self, readagain=False):
         """
-        Read in the I{SNF} results from the output file. 
+        Read in the I{SNF} results from the output file.
 
         The read values are stored in attributes. This speeds up further
         retrievals of results.
@@ -356,7 +390,7 @@ class SNFResults(TurbomoleResults):
 
                 self.vibs = vibs
             finally:
-                for key, value in temp_copies.iteritems():
+                for key, value in temp_copies.items():
                     try:
                         os.remove(value)
                     except OSError:

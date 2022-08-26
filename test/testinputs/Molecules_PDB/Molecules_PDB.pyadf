@@ -1,3 +1,7 @@
+import os
+from pyadf import *
+if 'pyadfenv' not in globals():
+    from pyadf.Initialization import *
 
 filename = os.path.join(pyadfenv.outdir, 'an.pdb')
 m = molecule(filename, 'pdb')
@@ -7,14 +11,13 @@ m = molecule(filename, 'pdb')
 
 mols = m.separate()
 
-print mols[0]
+print(mols[0])
 
 an_out = molecule(os.path.join(pyadfenv.outdir, 'an_out.xyz'))
 testobj.assertAlmostEqualMolecules(mols[0], an_out)
 
-for i, s in enumerate(mols[1:6]) :
-    print s
+for i, s in enumerate(mols[1:6]):
+    print(s)
 
-    s_out = molecule(os.path.join(pyadfenv.outdir, 's_%i.xyz'%i))
+    s_out = molecule(os.path.join(pyadfenv.outdir, f's_{i:d}.xyz'))
     testobj.assertAlmostEqualMolecules(s, s_out)
-

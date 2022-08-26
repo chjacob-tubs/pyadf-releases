@@ -1,12 +1,10 @@
-# -*- coding: utf-8 -*-
-
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2021 by Christoph R. Jacob, Tobias Bergmann,
-# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Thomas Dresselhaus,
-# Andre S. P. Gomes, Andreas Goetz, Michal Handzlik, Karin Kiewisch,
-# Moritz Klammler, Lars Ridder, Jetze Sikkema, Lucas Visscher, and
-# Mario Wolter.
+# Copyright (C) 2006-2022 by Christoph R. Jacob, Tobias Bergmann,
+# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Maria Chekmeneva,
+# Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz, 
+# Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder, 
+# Jetze Sikkema, Lucas Visscher, Johannes Vornweg and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -19,7 +17,7 @@
 #    GNU General Public License for more details.
 #
 #    You should have received a copy of the GNU General Public License
-#    along with PyADF.  If not, see <http://www.gnu.org/licenses/>.
+#    along with PyADF.  If not, see <https://www.gnu.org/licenses/>.
 
 import xcfun
 
@@ -27,7 +25,7 @@ from ..Errors import PyAdfError
 from ..Plot.GridFunctions import GridFunctionFactory
 
 
-class EmbedXCFunSettings(object):
+class EmbedXCFunSettings:
     """
     Class that holds the settings for Embed calculations using xcfun.
     """
@@ -63,29 +61,28 @@ class EmbedXCFunSettings(object):
 
     @staticmethod
     def show_xcfun_info():
-        print "Using the XCFun library, version ", xcfun.xcfun_version()
-        print xcfun.xcfun_splash()
+        print("Using the XCFun library, version ", xcfun.xcfun_version())
+        print(xcfun.xcfun_splash())
 
     @staticmethod
     def embed_xcfun_splash():
-        print "\nEmbed_xcfun: a module to calculate FDE embedding potentials" \
-              "with density functionals\n"
+        print("\nEmbed_xcfun: a module to calculate FDE embedding potentials with density functionals\n")
         EmbedXCFunSettings.show_xcfun_info()
 
     def show_functionals(self):
 
-        print "\nCurrently defined kinetic energy functional:"
-        for (name, weight) in self.nad_kin.iteritems():
-            print "%15s with weight %4f" % (name, weight)
+        print("\nCurrently defined kinetic energy functional:")
+        for (name, weight) in self.nad_kin.items():
+            print(f"{name:>15} with weight {weight:4f}")
 
-        print "\nCurrently defined exchange-correlation functional:"
-        for (name, weight) in self.nad_xc.iteritems():
-            print "%15s with weight %4f" % (name, weight)
+        print("\nCurrently defined exchange-correlation functional:")
+        for (name, weight) in self.nad_xc.items():
+            print(f"{name:>15} with weight {weight:4f}")
 
-        print "\n"
+        print("\n")
 
 
-class EmbedXCFunEvaluator(object):
+class EmbedXCFunEvaluator:
     """
     class to calculate the embedding potential over a grid of points with the functionals
     setup in the embed_xcfun_settings
@@ -136,14 +133,14 @@ class EmbedXCFunEvaluator(object):
 
         import hashlib
         m = hashlib.md5()
-        m.update("Potential calculated in EmbedXCFunEvaluator._get_TA_difference :\n")
-        m.update(density_t.get_checksum())
-        m.update(density_a.get_checksum())
-        m.update("with functional:\n")
-        m.update(repr(fun))
-        m.update("order: %i\n" % order)
+        m.update(b"Potential calculated in EmbedXCFunEvaluator._get_TA_difference :\n")
+        m.update(density_t.checksum.encode('utf-8'))
+        m.update(density_a.checksum.encode('utf-8'))
+        m.update(b"with functional:\n")
+        m.update(repr(fun).encode('utf-8'))
+        m.update(f"order: {order:d}\n".encode('utf-8'))
 
-        gf = GridFunctionFactory.newGridFunction(density_t.grid, diff_ta, m.digest(), 'potential')
+        gf = GridFunctionFactory.newGridFunction(density_t.grid, diff_ta, m.hexdigest(), 'potential')
 
         return gf
 
@@ -195,7 +192,7 @@ class EmbedXCFunEvaluator(object):
         import numpy
         grid = density_t.grid
 
-        energy_nad = numpy.dot(grid.get_weights(), (en_dens_t[:] - en_dens_a[:] - en_dens_b[:]))
+        energy_nad = numpy.dot(grid.weights, (en_dens_t[:] - en_dens_a[:] - en_dens_b[:]))
 
         return energy_nad
 
@@ -206,6 +203,6 @@ class EmbedXCFunEvaluator(object):
 
         grid = density_a.grid
 
-        en_elet_a = grid.get_weights() * density_a[0].values * (nucpot_b.get_values() + 0.5 * coulomb_b.get_values())
-        en_elet_b = grid.get_weights() * density_b[0].values * (nucpot_a.get_values() + 0.5 * coulomb_a.get_values())
+        en_elet_a = grid.weights * density_a[0].values * (nucpot_b.get_values() + 0.5 * coulomb_b.get_values())
+        en_elet_b = grid.weights * density_b[0].values * (nucpot_a.get_values() + 0.5 * coulomb_a.get_values())
         return nad_kin + nad_xc + en_elet_a.sum() + en_elet_b.sum()

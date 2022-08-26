@@ -1,12 +1,10 @@
-# -*- coding: utf-8 -*-
-
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2021 by Christoph R. Jacob, Tobias Bergmann,
-# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Thomas Dresselhaus,
-# Andre S. P. Gomes, Andreas Goetz, Michal Handzlik, Karin Kiewisch,
-# Moritz Klammler, Lars Ridder, Jetze Sikkema, Lucas Visscher, and
-# Mario Wolter.
+# Copyright (C) 2006-2022 by Christoph R. Jacob, Tobias Bergmann,
+# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Maria Chekmeneva,
+# Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz, 
+# Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder, 
+# Jetze Sikkema, Lucas Visscher, Johannes Vornweg and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -19,7 +17,7 @@
 #    GNU General Public License for more details.
 #
 #    You should have received a copy of the GNU General Public License
-#    along with PyADF.  If not, see <http://www.gnu.org/licenses/>.
+#    along with PyADF.  If not, see <https://www.gnu.org/licenses/>.
 """
  Job and results for ADF FDE calculations.
  This module is derived from ADF_3FDE.
@@ -31,14 +29,16 @@
 
 """
 
-from Errors import PyAdfError
 
-from BaseJob import metajob, results
-from ADFFragments import fragmentlist, adffragmentsjob
-from Plot.Grids import cubegrid
+from .Errors import PyAdfError
+
+from .BaseJob import metajob, results
+from .ADFFragments import fragmentlist, adffragmentsjob
+from .Plot.Grids import cubegrid
+from functools import reduce
 
 
-class adffdesettings(object):
+class adffdesettings:
     """
     Class for settings of L{adffdejob}.
     """
@@ -83,7 +83,7 @@ class adffderesults(results):
     """
 
     def __init__(self, job, frags=None):
-        results.__init__(self, job)
+        super().__init__(job)
         self._frags = frags
 
     def set_fragmentlist(self, frags):
@@ -128,7 +128,7 @@ class adffdejob(metajob):
         @type  fde: dictionary
 
         """
-        metajob.__init__(self)
+        super().__init__()
 
         if isinstance(frags, list):
             self._frags = fragmentlist(frags)
@@ -183,11 +183,12 @@ class adffdejob(metajob):
         """
         import copy
 
+        frags_new = None
         frags_old = copy.deepcopy(self._frags)
         for i in range(self._cycles):
 
-            print "-" * 50
-            print "Beginning FDE cycle (parallel FT)", i
+            print("-" * 50)
+            print("Beginning FDE cycle (parallel FT)", i)
 
             frags_new = copy.deepcopy(frags_old)
 
@@ -235,8 +236,8 @@ class adffdejob(metajob):
         frags_new = copy.deepcopy(self._frags)
         for i in range(self._cycles):
 
-            print "-" * 50
-            print "Beginning FDE cycle (normal FT)", i
+            print("-" * 50)
+            print("Beginning FDE cycle (normal FT)", i)
 
             if self._adffdesettings is not None:
                 self._settings.set_lshift(self._adffdesettings.vshift)

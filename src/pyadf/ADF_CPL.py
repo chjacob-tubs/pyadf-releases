@@ -1,12 +1,10 @@
-# -*- coding: utf-8 -*-
-
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2021 by Christoph R. Jacob, Tobias Bergmann,
-# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Thomas Dresselhaus,
-# Andre S. P. Gomes, Andreas Goetz, Michal Handzlik, Karin Kiewisch,
-# Moritz Klammler, Lars Ridder, Jetze Sikkema, Lucas Visscher, and
-# Mario Wolter.
+# Copyright (C) 2006-2022 by Christoph R. Jacob, Tobias Bergmann,
+# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Maria Chekmeneva,
+# Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz, 
+# Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder, 
+# Jetze Sikkema, Lucas Visscher, Johannes Vornweg and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -19,7 +17,7 @@
 #    GNU General Public License for more details.
 #
 #    You should have received a copy of the GNU General Public License
-#    along with PyADF.  If not, see <http://www.gnu.org/licenses/>.
+#    along with PyADF.  If not, see <https://www.gnu.org/licenses/>.
 """
  Job and results for ADF CPL calculations.
 
@@ -35,11 +33,11 @@
  @undocumented: operatorname
 """
 
-from Errors import PyAdfError
-from ADFBase import adfjob, adfresults
+from .Errors import PyAdfError
+from .ADFBase import scmjob, scmresults
 
 
-class cplsettings(object):
+class cplsettings:
     """
     Class for the settings for an ADF CPL job.
 
@@ -268,15 +266,15 @@ class cplsettings(object):
                      'dso': 'Diamagnetic Spin-Orbit',
                      'pso': 'Paramagnetic Spin-Orbit'}
 
-        print '   Nuclear spin-spin coupling constants calculation:'
-        print '   (nuclei in INPUT ORDER)\n'
-        print '   >> Perturbing nuclei <<'
-        print mol.print_coordinates(pnuc)
-        print '   >> Responding nuclei <<'
-        print mol.print_coordinates(rnuc)
-        print '   Operators included in the calculation:'
+        print('   Nuclear spin-spin coupling constants calculation:')
+        print('   (nuclei in INPUT ORDER)\n')
+        print('   >> Perturbing nuclei <<')
+        print(mol.print_coordinates(pnuc))
+        print('   >> Responding nuclei <<')
+        print(mol.print_coordinates(rnuc))
+        print('   Operators included in the calculation:')
         for op in self.operators:
-            print '   - ' + operators[op]
+            print('   - ' + operators[op])
 
     def get_settings_block(self):
         """
@@ -317,14 +315,14 @@ class cplsettings(object):
                     line += ' ' + str(nuc)
                 settings_block += line + '\n'
         settings_block += ' SCF\n   iterations ' + str(
-            self.iterations) + '\n   converge %.1e\n' % self.converge + 'END\n'
+            self.iterations) + f'\n   converge {self.converge:.1e}\n' + 'END\n'
         if self.contributions is not None:
             settings_block += ' Contributions ' + self.contributions + '\n'
 
         return settings_block
 
 
-class adfcplresults(adfresults):
+class adfcplresults(scmresults):
     """
     Class for the results of an ADF CPL job.
 
@@ -340,7 +338,7 @@ class adfcplresults(adfresults):
         """
         Consructor for adfcplresults.
         """
-        adfresults.__init__(self, j)
+        super().__init__(j)
 
     def read_couplings(self, unit=None):
         """
@@ -360,13 +358,13 @@ class adfcplresults(adfresults):
         elif unit not in ('J', 'K'):
             raise PyAdfError('Wrong unit specified for reading nuclear spin-spin couplings in read_couplings')
 
-        section = 'NMR Coupling %s const InputOrder' % unit
+        section = f'NMR Coupling {unit} const InputOrder'
         clist = self.get_result_from_tape('Properties', section, 21)
 
         # Alternatively we can use amsreport to extract data
         # Note: Then we need to convert the return value to
         # alternative: from os import popen
-        # alternative: command = 'amsreport %s nmr-j-coupling-constant' % self.get_tape_filename(21)
+        # alternative: command = f'amsreport {self.get_tape_filename(21)} nmr-j-coupling-constant'
         # alternative: f = popen(command)
         # alternative: clist = f.read().replace('\n','').split(' ')
         # alternative: f.close()
@@ -452,7 +450,7 @@ class adfcplresults(adfresults):
         return coupls
 
 
-class adfcpljob(adfjob):
+class adfcpljob(scmjob):
     """
     Class for ADF spin-spin coupling jobs (using the CPL program).
 
@@ -489,7 +487,7 @@ class adfcpljob(adfjob):
         elif settings is None:
             raise PyAdfError('No settings (cplsettings) provided in adfcpljob')
 
-        adfjob.__init__(self)
+        super().__init__()
 
         self.adfresults = adfres
 
@@ -510,14 +508,14 @@ class adfcpljob(adfjob):
     def create_results_instance(self):
         return adfcplresults(self)
 
+    # noinspection PyMethodOverriding
     def get_runscript(self, nproc=1):
-        # pylint: disable-msg=W0221
-        return adfjob.get_runscript(self, nproc=nproc, program='cpl')
+        return super().get_runscript(nproc=nproc, program='cpl')
 
     def get_input(self):
         cplinput = ''
         for opt in self.options:
-            cplinput += opt + '\n'
+            cplinput += str(opt) + '\n'
         cplinput += 'NMRCoupling \n'
         cplinput += self.settings.get_settings_block()
         cplinput += 'End \n'
@@ -525,7 +523,7 @@ class adfcpljob(adfjob):
             cplinput += 'GGA\n'
 
         if self._checksum_only:
-            cplinput += self.adfresults.get_checksum()
+            cplinput += self.adfresults.checksum
 
         return cplinput
 
@@ -533,23 +531,23 @@ class adfcpljob(adfjob):
         return "CPL job"
 
     def print_jobinfo(self):
-        print ' ' + 50 * '-'
-        print ' Running ' + self.print_jobtype()
-        print
-        print '   SCF taken from ADF job ', self.adfresults.fileid, ' (results id)'
-        print
+        print(' ' + 50 * '-')
+        print(' Running ' + self.print_jobtype())
+        print()
+        print('   SCF taken from ADF job ', self.adfresults.fileid, ' (results id)')
+        print()
         self.settings.print_settings(self.adfresults.get_molecule())
-        print
-        print '   Options :'
+        print()
+        print('   Options :')
         for opt in self.options:
-            print opt
-        print
+            print(opt)
+        print()
 
     def before_run(self):
-        self.adfresults.get_tapes_copy()
+        self.adfresults.copy_tape(tape=21, name="TAPE21")
 
 
-class couplings(object):
+class couplings:
     """
     Class for storing results of ADF spin-spin calculations.
 
@@ -597,7 +595,7 @@ class couplings(object):
 
     def compute_sd(self):
         if (self.fcsd is None) or (self.fc is None):
-            print 'Cannot compute sd: fcsd or fc missing!'
+            print('Cannot compute sd: fcsd or fc missing!')
         else:
             self.sd = self.fcsd - self.fc
 
@@ -607,7 +605,7 @@ class couplings(object):
         (Requires that fc+sd, dso and pso terms have been computed before)
         """
         if (self.fcsd is None) or (self.dso is None) or (self.pso is None):
-            print 'Cannot compute total: fcsd or dso or pso missing!'
+            print('Cannot compute total: fcsd or dso or pso missing!')
         else:
             self.total = self.fcsd + self.dso + self.pso
 
@@ -629,7 +627,7 @@ class couplings(object):
         @type operators: list of str
         """
         if (operators is None) or (operators == []):
-            print 'Cannot set coupling, operator list empty'
+            print('Cannot set coupling, operator list empty')
         if ('fc' in operators) and ('sd' in operators) and ('dso' in operators) and ('pso' in operators):
             self.set_total(coupling)
         elif ('fc' in operators) and ('sd' in operators):
@@ -643,7 +641,7 @@ class couplings(object):
         elif 'pso' in operators:
             self.set_pso(coupling)
         else:
-            print 'Unsupported operator list in set_coupling!'
+            print('Unsupported operator list in set_coupling!')
 
     def get_coupling(self, operators=None):
         """
@@ -658,7 +656,7 @@ class couplings(object):
         @type operators: list of str
         """
         if (operators is None) or (operators == []):
-            print 'Cannot get coupling, operator list empty'
+            print('Cannot get coupling, operator list empty')
         if ('fc' in operators) and ('sd' in operators) and ('dso' in operators) and ('pso' in operators):
             return self.get_total()
         elif ('fc' in operators) and ('sd' in operators):
@@ -672,7 +670,7 @@ class couplings(object):
         elif 'pso' in operators:
             return self.get_pso()
         else:
-            print 'Unsupported operator list in get_coupling!'
+            print('Unsupported operator list in get_coupling!')
 
     def set_fcsd(self, fcsd=None):
         self.fcsd = fcsd

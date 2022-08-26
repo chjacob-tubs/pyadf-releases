@@ -1,3 +1,8 @@
+import os
+from pyadf import *
+if 'pyadfenv' not in globals():
+    from pyadf.Initialization import *
+
 import numpy as np
 
 mol = molecule(os.path.join(pyadfenv.outdir, 'water.xyz'))
@@ -5,6 +10,9 @@ mol = molecule(os.path.join(pyadfenv.outdir, 'water.xyz'))
 # first, we do a Turbomole geometry optimization
 
 settings = TurbomoleGeometryOptimizationSettings(verbose_level=2)
+settings.set_dft_grid('m4')
+settings.set_scfconv(8)
+settings.set_convergence_criterion(5)
 
 # default settings: RI-DFT/BP
 settings.set_basis_set('def2-SVP')
@@ -14,7 +22,7 @@ res = TurbomoleGeometryOptimizationJob(mol, method='dft', settings=settings).run
 opt_mol = res.get_molecule()
 
 opt_energy = res.get_energy()
-print "Final Total Energy: ", opt_energy
+print("Final Total Energy: ", opt_energy)
 
 if 'unittesting' in pyadfenv.options:
     testobj.assertAlmostEqual(opt_energy, -76.363581, 5)
@@ -30,12 +38,13 @@ ints = snf_res.get_ir_ints()
 
 modes_mw = snf_res.get_vibs().modes.modes_mw
 
-print "Vibrational frequencies [cm-1]: ", freqs
-print "IR intensities: ", ints
+print("Vibrational frequencies [cm-1]: ", freqs)
+print("IR intensities: ", ints)
+print("Normal Modes: ", modes_mw)
 
 if 'unittesting' in pyadfenv.options:
     testobj.assertAlmostEqual(freqs, [1613.27574, 3689.14364, 3785.06862], 2)
-    testobj.assertAlmostEqual(ints, [48.190892,  2.747460, 21.618405], 2)
+    testobj.assertAlmostEqual(ints, [48.219271,  2.620527, 21.009906], 2)
 
     modes_mw_orig = np.array([[0.2198698, 0.0, 0.15552986, -0.68017938, 0.0, 0.03266997,
                                -0.19573982, 0.0, -0.65225941],

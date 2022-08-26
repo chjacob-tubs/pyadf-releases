@@ -1,12 +1,10 @@
-# -*- coding: utf-8 -*-
-
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2021 by Christoph R. Jacob, Tobias Bergmann,
-# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Thomas Dresselhaus,
-# Andre S. P. Gomes, Andreas Goetz, Michal Handzlik, Karin Kiewisch,
-# Moritz Klammler, Lars Ridder, Jetze Sikkema, Lucas Visscher, and
-# Mario Wolter.
+# Copyright (C) 2006-2022 by Christoph R. Jacob, Tobias Bergmann,
+# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Maria Chekmeneva,
+# Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz, 
+# Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder, 
+# Jetze Sikkema, Lucas Visscher, Johannes Vornweg and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -19,7 +17,7 @@
 #    GNU General Public License for more details.
 #
 #    You should have received a copy of the GNU General Public License
-#    along with PyADF.  If not, see <http://www.gnu.org/licenses/>.
+#    along with PyADF.  If not, see <https://www.gnu.org/licenses/>.
 """
  Defines the L{molecule} class.
 
@@ -37,23 +35,22 @@
 """
 
 from .. import PatternsLib
+from ..Errors import PyAdfError
 
-import OBFreeMolecule
+from . import OBFreeMolecule
 
 try:
-    import OBMolecule
+    from . import OBMolecule
 except ImportError:
     OBMolecule = None
 
 try:
-    import RDMolecule
+    from . import RDMolecule
 except ImportError:
     RDMolecule = None
 
 
-class MoleculeFactory(object):
-    __metaclass__ = PatternsLib.Singleton
-
+class MoleculeFactory(metaclass=PatternsLib.Singleton):
     def __init__(self):
         if OBMolecule is None:
             self.molclass = "obfree"
@@ -69,9 +66,15 @@ class MoleculeFactory(object):
 
     def makeMolecule(self, *args, **kwargs):
         if self.molclass == "openbabel":
-            return OBMolecule.OBMolecule(*args, **kwargs)
+            if OBMolecule is None:
+                raise PyAdfError("Error: Could not import OBMolecule")
+            else:
+                return OBMolecule.OBMolecule(*args, **kwargs)
         elif self.molclass == "rdkit":
-            return RDMolecule.RDMolecule(*args, **kwargs)
+            if RDMolecule is None:
+                raise PyAdfError("Error: Could not import RDMolecule")
+            else:
+                return RDMolecule.RDMolecule(*args, **kwargs)
         else:
             return OBFreeMolecule.OBFreeMolecule(*args, **kwargs)
 

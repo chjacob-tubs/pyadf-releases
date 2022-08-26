@@ -1,10 +1,10 @@
-# -*- coding: utf-8 -*-
-
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2014 by Christoph R. Jacob, S. Maya Beyhan,
-# Rosa E. Bulo, Andre S. P. Gomes, Andreas Goetz, Michal Handzlik,
-# Karin Kiewisch, Moritz Klammler, Jetze Sikkema, and Lucas Visscher
+# Copyright (C) 2006-2022 by Christoph R. Jacob, Tobias Bergmann,
+# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Maria Chekmeneva,
+# Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz, 
+# Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder, 
+# Jetze Sikkema, Lucas Visscher, Johannes Vornweg and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -17,7 +17,7 @@
 #    GNU General Public License for more details.
 #
 #    You should have received a copy of the GNU General Public License
-#    along with PyADF.  If not, see <http://www.gnu.org/licenses/>.
+#    along with PyADF.  If not, see <https://www.gnu.org/licenses/>.
 """
  The basics needed for Quantum Espresso calculations
 
@@ -31,10 +31,12 @@
  @group Results:
     QEResults, QESinglePointResults
 """
+
+
 from abc import abstractmethod
 
-from Errors import PyAdfError
-from BaseJob import results, job
+from .Errors import PyAdfError
+from .BaseJob import results, job
 import re
 
 
@@ -47,7 +49,7 @@ class QEResults(results):
         """
         Constructor for QEResults.
         """
-        results.__init__(self, j)
+        super().__init__(j)
 
     def get_data_filename(self):
         """
@@ -97,7 +99,7 @@ class QESinglePointResults(QEResults):
         """
         Constructor for QESinglePointResults.
         """
-        QEResults.__init__(self, j)
+        super().__init__(j)
 
     def get_molecule(self):
         """
@@ -141,7 +143,7 @@ class QESinglePointResults(QEResults):
         return energy
 
 
-class QESettings(object):
+class QESettings:
     """
     Settings for a Quantum Espresso calculation.
     """
@@ -264,7 +266,7 @@ class QESettings(object):
     def set_control(self, options):
         self.control.update(options)
 
-        if self.runtype is 'pw' or self.runtype is 'fdepw':
+        if self.runtype == 'pw' or self.runtype == 'fdepw':
             if not (self.control['calculation'] in ['scf', 'relax', 'nscf']):
                 raise PyAdfError('Unknown calculation type for PW')
 
@@ -272,17 +274,17 @@ class QESettings(object):
         self.system.update(options)
 
         for k in ['cell_dim', 'cell_abc']:
-            if k in self.system.keys():
+            if k in list(self.system.keys()):
                 dimension = 0
                 for e in self.system[k]:
-                    if e is not 0:
+                    if e != 0:
                         dimension += 1
-                if dimension is 0:
+                if dimension == 0:
                     del self.system[k]
 
-        if 'cell_dim' in self.system.keys() and 'cell_abc' in self.system.keys():
+        if 'cell_dim' in list(self.system.keys()) and 'cell_abc' in list(self.system.keys()):
             raise PyAdfError('Both cell_dim and cell_abc specified')
-        if 'cell_dim' not in self.system.keys() and 'cell_abc' not in self.system.keys():
+        if 'cell_dim' not in list(self.system.keys()) and 'cell_abc' not in list(self.system.keys()):
             raise PyAdfError('Neither cell_dim nor cell_abc specified')
 
     def set_electrons(self, options):
@@ -303,7 +305,7 @@ class QESettings(object):
 
         @param functional:
             A string identifying the functional.
-            if None is specified, the functional is chosen according to the 
+            if None is specified, the functional is chosen according to the
             pseudopotentials defined for each atom
         @type functional: str
         """
@@ -314,7 +316,7 @@ class QESettings(object):
 
     @staticmethod
     def iter_not_none(d):
-        return ((k, v) for k, v in d.items() if v is not None)
+        return ((k, v) for k, v in list(d.items()) if v is not None)
 
     def get_control_block(self):
         block = " &control\n"
@@ -322,9 +324,9 @@ class QESettings(object):
             if opt == 'calculation' and val not in ['scf', 'relax', 'nscf', 'band', 'cp']:
                 raise PyAdfError('Unknown method in Quantum Espresso job')
             if isinstance(val, str):
-                block += "    %s='%s'\n" % (opt, val)
+                block += f"    {opt}='{val}'\n"
             else:
-                block += "    %s=%s\n" % (opt, val)
+                block += f"    {opt}={val}\n"
         block += " /\n"
         return block
 
@@ -339,7 +341,7 @@ class QESettings(object):
             if opt == 'cell_dim':
                 dimension = 1
                 for e in val:
-                    if e is not 0 and e is not None:
+                    if e != 0 and e is not None:
                         block += '    celldm(' + str(dimension) + ')=' + str(e) + '\n'
                     dimension += 1
             elif opt == 'cell_abc':
@@ -347,25 +349,25 @@ class QESettings(object):
                 dimension = 0
                 for e in val:
                     dimension += 1
-                    if e is not 0 and e is not None:
+                    if e != 0 and e is not None:
                         block += "    " + labels[dimension - 1] + '=' + str(e) + '\n'
-                block += "    %s=%s\n" % (opt, val)
+                block += f"    {opt}={val}\n"
             else:
-                block += "    %s=%s\n" % (opt, val)
+                block += f"    {opt}={val}\n"
         block += " /\n"
         return block
 
     def get_electrons_block(self):
         block = " &electrons\n"
         for opt, val in self.iter_not_none(self.electrons):
-            block += "    %s=%s\n" % (opt, val)
+            block += f"    {opt}={val}\n"
         block += " /\n"
         return block
 
     def get_ions_block(self):
         block = ""
         for opt, val in self.iter_not_none(self.ions):
-            block += "    %s=%s\n" % (opt, val)
+            block += f"    {opt}={val}\n"
         if len(block) > 0:
             block = " &ions\n" + block + " /\n"
         return block
@@ -373,14 +375,14 @@ class QESettings(object):
     def get_cell_block(self):
         block = ""
         for opt, val in self.iter_not_none(self.cell):
-            block += "    %s=%s\n" % (opt, val)
+            block += f"    {opt}={val}\n"
         if len(block) > 0:
             block = " &cell\n" + block + " /\n"
         return block
 
     def get_kpoints_block(self):
         block = "\nK_POINTS " + self.kpoints['type'] + "\n"
-        if self.kpoints['type'] is 'automatic':
+        if self.kpoints['type'] == 'automatic':
             for k in self.kpoints['nk']:
                 block += str(k) + "  "
             for k in self.kpoints['sk']:
@@ -420,7 +422,7 @@ class QEJob(job):
         """
         Constructor for Quantum Espresso jobs.
         """
-        job.__init__(self)
+        super().__init__()
         self.runtype = runtype
 
     def create_results_instance(self):
@@ -435,11 +437,12 @@ class QEJob(job):
         """
         return ""
 
-    def get_checksum(self):
+    @property
+    def checksum(self):
         import hashlib
         m = hashlib.md5()
-        m.update(self.get_qefile())
-        return m.digest()
+        m.update(self.get_qefile().encode('utf-8'))
+        return m.hexdigest()
 
     def get_runscript(self, nproc=1):
         runscript = "#!/bin/bash \n\n"
@@ -450,16 +453,16 @@ class QEJob(job):
         runscript += "cat qe.in \n"
         runscript += "echo \n"
         runscript += "touch qe.out \n"
-        if self.runtype is "pw":
+        if self.runtype == "pw":
             runscript += 'if [ -f "$QEBINDIR/fdepw.x" ]; then\n'
-            runscript += "    mpirun -np %i $QEBINDIR/pw.x -in qe \n" % nproc
+            runscript += f"    mpirun -np {nproc:d} $QEBINDIR/pw.x -in qe \n"
             runscript += "else\n"
-            runscript += "    mpirun -np %i $QEBINDIR/pw.x -in qe.in \n" % nproc
+            runscript += f"    mpirun -np {nproc:d} $QEBINDIR/pw.x -in qe.in \n"
             runscript += "fi\n"
-        elif self.runtype is "pp":
-            runscript += "mpirun -np %i $QEBINDIR/pp.x -in qe.in \n" % nproc
-        elif self.runtype is "fdepw":
-            runscript += "mpirun -np %i $QEBINDIR/fdepw.x -in qe \n" % nproc
+        elif self.runtype == "pp":
+            runscript += f"mpirun -np {nproc:d} $QEBINDIR/pp.x -in qe.in \n"
+        elif self.runtype == "fdepw":
+            runscript += f"mpirun -np {nproc:d} $QEBINDIR/fdepw.x -in qe \n"
         else:
             raise PyAdfError('Unsupported calculation detected when creating runscript')
         runscript += "retcode=$?\n"
@@ -481,7 +484,7 @@ class QEJob(job):
     def check_success(self, outfile, errfile):
         # check that Quantum Espresso terminated normally
         if self.runtype in ("pw", "pwscf"):
-            with open(outfile) as f:
+            with open(outfile, encoding='utf-8') as f:
                 line = f.readlines()[-2]
             return "JOB DONE." in line
         else:
@@ -511,7 +514,7 @@ class QESinglePointJob(QEJob):
         @param pseudo:
             A dictionary specifying the pseudopotentials to use
             (e.g. C{pseudo={'O':'blyp-mt.UPF', 'H' : 'blyp-vbc.UPF'}}).
-        @type pseudo: dict
+        @type pseudo: str or dict
 
         @param settings: The settings for the QE job. Currently not used.
         @type  settings: L{QESettings}
@@ -521,13 +524,13 @@ class QESinglePointJob(QEJob):
             These will each be included directly in the Quantum Espresso input file.
             this will be handy to add the following optional input blocks
 
-            CELL_PARAMETERS 
+            CELL_PARAMETERS
             OCCUPATIONS
-            CONSTRAINTS 
+            CONSTRAINTS
             ATOMIC_FORCES
         @type options: list of str
         """
-        QEJob.__init__(self, runtype=settings.runtype)
+        super().__init__(runtype=settings.runtype)
 
         self.mol = mol
 
@@ -584,11 +587,11 @@ class QESinglePointJob(QEJob):
          O 16.0d0 O.blyp-mt.UPF
          H 1.00d0 H.blyp-vbc.UPF
         """
-        from Utils import PeriodicTable as PT
+        from .Utils import PeriodicTable as PT
 
         block = "\nATOMIC_SPECIES\n"
         for atom in set(self.mol.get_atom_symbols()):
-            block += " %s %10.5f %s\n" % (atom, PT.get_mass(atom), self.atomic_pseudos[atom])
+            block += f" {atom} {PT.get_mass(atom):10.5f} {self.atomic_pseudos[atom]}\n"
 
         block += "\n"
         return block
@@ -636,29 +639,29 @@ class QESinglePointJob(QEJob):
 
     def print_molecule(self):
 
-        print "   Molecule"
-        print "   ========"
-        print
-        print self.get_molecule()
-        print
+        print("   Molecule")
+        print("   ========")
+        print()
+        print(self.get_molecule())
+        print()
 
     def print_settings(self):
 
-        print "   Settings"
-        print "   ========"
-        print
-        print "   Pseudopotentials: ", str(self.atomic_pseudos)
-        print
-        print self.settings
-        print
+        print("   Settings")
+        print("   ========")
+        print()
+        print("   Pseudopotentials: ", str(self.atomic_pseudos))
+        print()
+        print(self.settings)
+        print()
 
     def print_extras(self):
         pass
 
     def print_jobinfo(self):
-        print " " + 50 * "-"
-        print " Running " + self.print_jobtype()
-        print
+        print(" " + 50 * "-")
+        print(" Running " + self.print_jobtype())
+        print()
 
         self.print_molecule()
 

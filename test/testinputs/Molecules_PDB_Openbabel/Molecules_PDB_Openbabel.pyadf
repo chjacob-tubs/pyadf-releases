@@ -1,3 +1,8 @@
+import os
+from pyadf import *
+if 'pyadfenv' not in globals():
+    from pyadf.Initialization import *
+
 ##########################################################
 # 1) Test reading of different residues from PDB file
 
@@ -7,7 +12,7 @@ m = molecule(filename, 'pdb')
 # get the acetonitrile molecule (labeled 'LIG')
 an = m.get_residues(restype='LIG')[0]
 
-print an
+print(an)
 
 an_out = molecule(os.path.join(pyadfenv.outdir, 'an_out.xyz'))
 testobj.assertAlmostEqualMolecules(an, an_out)
@@ -16,9 +21,9 @@ testobj.assertAlmostEqualMolecules(an, an_out)
 solvent = m.get_residues(restype='TIP')
 
 for i, s in enumerate(solvent[0:5]):
-    print s
+    print(s)
 
-    s_out = molecule(os.path.join(pyadfenv.outdir, 's_%i.xyz' % i))
+    s_out = molecule(os.path.join(pyadfenv.outdir, f's_{i:d}.xyz'))
     testobj.assertAlmostEqualMolecules(s, s_out)
 
 ##########################################################
@@ -26,15 +31,15 @@ for i, s in enumerate(solvent[0:5]):
 
 mols = m.separate()
 
-print mols[0]
+print(mols[0])
 
 an_out = molecule(os.path.join(pyadfenv.outdir, 'an_out.xyz'))
 testobj.assertAlmostEqualMolecules(mols[0], an_out)
 
-for i, s in enumerate(mols[1:6]) :
-    print s
+for i, s in enumerate(mols[1:6]):
+    print(s)
 
-    s_out = molecule(os.path.join(pyadfenv.outdir, 's_%i.xyz'%i))
+    s_out = molecule(os.path.join(pyadfenv.outdir, f's_{i:d}.xyz'))
     testobj.assertAlmostEqualMolecules(s, s_out)
 
 ############################################################
@@ -62,6 +67,3 @@ m.write(os.path.join(pyadfenv.outdir, 'bla.xyz'), 'xyz')
 m_mod = molecule(os.path.join(pyadfenv.outdir, '1X3O_mod.xyz'))
 
 testobj.assertAlmostEqualMolecules(m, m_mod)
-
-
-

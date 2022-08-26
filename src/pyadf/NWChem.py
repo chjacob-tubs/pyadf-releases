@@ -1,12 +1,10 @@
-# -*- coding: utf-8 -*-
-
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2021 by Christoph R. Jacob, Tobias Bergmann,
-# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Thomas Dresselhaus,
-# Andre S. P. Gomes, Andreas Goetz, Michal Handzlik, Karin Kiewisch,
-# Moritz Klammler, Lars Ridder, Jetze Sikkema, Lucas Visscher, and
-# Mario Wolter.
+# Copyright (C) 2006-2022 by Christoph R. Jacob, Tobias Bergmann,
+# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Maria Chekmeneva,
+# Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz, 
+# Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder, 
+# Jetze Sikkema, Lucas Visscher, Johannes Vornweg and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -19,7 +17,7 @@
 #    GNU General Public License for more details.
 #
 #    You should have received a copy of the GNU General Public License
-#    along with PyADF.  If not, see <http://www.gnu.org/licenses/>.
+#    along with PyADF.  If not, see <https://www.gnu.org/licenses/>.
 """
  The basics needed for NWChem calculations
 
@@ -34,8 +32,10 @@
     nwchemresults, nwchemsinglepointresults
 """
 
-from Errors import PyAdfError
-from BaseJob import results, job
+from .Errors import PyAdfError
+from .BaseJob import results, job
+from .DensityEvaluator import GTODensityEvaluatorMixin
+
 import os
 import re
 
@@ -49,10 +49,11 @@ class nwchemresults(results):
         """
         Constructor for nwchemresults.
         """
-        results.__init__(self, j)
+        super().__init__(j=j)
+        self.resultstype = 'NWChem results'
 
 
-class nwchemsinglepointresults(nwchemresults):
+class nwchemsinglepointresults(nwchemresults, GTODensityEvaluatorMixin):
     """
     Class for results of an NWChem single point calculation.
 
@@ -67,7 +68,7 @@ class nwchemsinglepointresults(nwchemresults):
         """
         Constructor for nwchemsinglepointresults.
         """
-        nwchemresults.__init__(self, j)
+        super().__init__(j=j)
 
     def get_molecule(self):
         """
@@ -76,9 +77,23 @@ class nwchemsinglepointresults(nwchemresults):
         @returns: The molecular geometry.
         @rtype:   L{molecule}
 
-        @note: currently not implemented
         """
-        pass
+        return self.job.mol
+
+    def read_molden_file(self):
+        """
+        Returns Molden results file as a string.
+        """
+
+        try:
+            molden_filename = self.files.get_results_filename(self.fileid, tape=41)
+        except PyAdfError:
+            raise PyAdfError("NWChem Molden file not found")
+
+        with open(molden_filename, encoding='utf-8') as f:
+            content = f.read()
+
+        return content
 
     def get_dipole_vector(self):
         """
@@ -119,11 +134,15 @@ class nwchemsinglepointresults(nwchemresults):
 
         energy = 0.0
 
-        if not (self.job.settings.scf_method.upper() in ['HF', 'DFT']):
-            raise PyAdfError('Energy only implemented for HF and DFT')
-
         output = self.get_output()
         en_re = re.compile(r"^ +Total (SCF|DFT) energy = *(?P<energy>-?\d+\.\d+)")
+        if self.job.settings.method.upper() == 'CCSD':
+            en_re = re.compile(r"^ Total CCSD energy: *(?P<energy>-?\d+\.\d+)")
+        elif self.job.settings.method.upper() == 'CCSD(T)':
+            en_re = re.compile(r"^ Total CCSD\(T\) energy: *(?P<energy>-?\d+\.\d+)")
+        elif self.job.settings.method.upper() == 'CCSD+T(CCSD)':
+            en_re = re.compile(r"^ Total CCSD\+T\(CCSD\) energy: *(?P<energy>-?\d+\.\d+)")
+
         for line in output:
             m = en_re.match(line)
             if m:
@@ -131,14 +150,17 @@ class nwchemsinglepointresults(nwchemresults):
                 break
         return energy
 
-    def _get_fdein(self):
+    def get_total_energy(self):
+        return self.get_energy()
+
+    @property
+    def fdein(self):
+        """
+        The results of the ADF FDE calculation from that the embedding potential was imported.
+
+        @type: L{adffragmentsresults}
+        """
         return self.job.fdein
-
-    fdein = property(_get_fdein, None, None, """
-    The results of the ADF FDE calculation from that the embedding potential was imported.
-
-    @type: L{adffragmentsresults}
-    """)
 
 
 class nwchemjob(job):
@@ -157,8 +179,7 @@ class nwchemjob(job):
         """
         Constructor for NWChem jobs.
         """
-        job.__init__(self)
-        self._checksum_only = False
+        super().__init__()
 
     def create_results_instance(self):
         return nwchemresults(self)
@@ -172,15 +193,13 @@ class nwchemjob(job):
         """
         return ""
 
-    def get_checksum(self):
+    @property
+    def checksum(self):
         import hashlib
         m = hashlib.md5()
 
-        self._checksum_only = True
-        m.update(self.get_nwchemfile())
-        self._checksum_only = False
-
-        return m.digest()
+        m.update(self.get_nwchemfile().encode('utf-8'))
+        return m.hexdigest()
 
     def get_runscript(self, nproc=1):
         runscript = ""
@@ -190,7 +209,7 @@ class nwchemjob(job):
         runscript += "eor\n"
         runscript += "cat NWCHEM.INP \n"
 
-        runscript += "mpirun -np %i $NWCHEMBIN/nwchem NWCHEM.INP >NWCHEM.OUT \n" % nproc
+        runscript += f"mpirun -np {nproc:d} $NWCHEMBIN/nwchem NWCHEM.INP >NWCHEM.OUT \n"
         runscript += "retcode=$?\n"
 
         runscript += "if [[ -f NWCHEM.OUT ]]; then \n"
@@ -204,6 +223,9 @@ class nwchemjob(job):
 
         return runscript
 
+    def result_filenames(self):
+        return ['NWCHEM.db', 'NWCHEM.gridpts.0', 'NWCHEM.molden']
+
     def check_success(self, outfile, errfile):
         # check that NWChem terminated normally
         if not (os.path.exists('NWCHEM.OUT') or os.path.exists('NWCHEM.out')):
@@ -211,7 +233,7 @@ class nwchemjob(job):
         return True
 
 
-class nwchemsettings(object):
+class nwchemsettings:
     """
     Settings for a NWChem calculation.
 
@@ -231,7 +253,7 @@ class nwchemsettings(object):
 
         All arguments are optional, leaving out an argument will choose default settings.
 
-        @param method: the computational method, see L{set_scf_method}
+        @param method: the computational method, see L{set_method}
         @type method: str
         @param functional:
             exchange-correlation functional for DFT calculations, see L{set_functional}
@@ -243,19 +265,20 @@ class nwchemsettings(object):
         @param memory: the maximum total memory to use (in MB)
         @type  memory: integer
         """
-        self.scf_method = None
-        self.functional = None
+        self.method = None
+        self._functional = None
         self.dftgrid = None
         self.properties = None
         self.memory = None
 
-        self.set_scf_method(method)
-        self.set_functional(functional)
+        self.set_method(method)
+        if self.method == 'DFT':
+            self.set_functional(functional)
         self.set_dftgrid(dftgrid)
         self.set_properties(properties)
         self.set_memory(memory)
 
-    def set_scf_method(self, method):
+    def set_method(self, method):
         """
         Select the computational method.
 
@@ -264,7 +287,14 @@ class nwchemsettings(object):
         @param method: string identifying the selected method
         @type  method: str
         """
-        self.scf_method = method
+        self.method = method
+
+    @property
+    def functional(self):
+        if self.method == 'DFT':
+            return self._functional
+        else:
+            return None
 
     def set_functional(self, functional):
         """
@@ -275,10 +305,13 @@ class nwchemsettings(object):
             See Dalton manual for available options.
         @type functional: str
         """
-        self.functional = functional
+        if self.method == 'DFT':
+            self._functional = functional
+        else:
+            raise PyAdfError('Functional can only be set for DFT calculations')
 
-        if self.functional.upper() == 'LDA':
-            self.functional = 'slater vwn_5'
+        if self._functional.upper() == 'LDA':
+            self._functional = 'slater vwn_5'
 
     def set_dftgrid(self, dftgrid):
         """
@@ -305,31 +338,36 @@ class nwchemsettings(object):
         self.memory = memory
 
     def get_scftask_block(self):
-        if self.scf_method.upper() == 'HF':
+        if self.method.upper() == 'HF':
             block = "task scf"
-        elif self.scf_method.upper() == 'DFT':
+        elif self.method.upper() == 'DFT':
             block = "task dft"
+        elif self.method.upper() == 'CCSD':
+            block = "task ccsd"
+        elif self.method.upper() == 'CCSD(T)':
+            block = "task ccsd(t)"
+        elif self.method.upper() == 'CCSD+T(CCSD)':
+            block = "task ccsd+t(ccsd)"
         else:
             raise PyAdfError('Unknown method in NWChem job')
         block += ' energy'
-        if self.properties is not None:
-            block += ' property'
+        block += ' property'
         block += '\n'
         return block
 
     def get_properties_block(self):
+        block = 'property\n'
+        block += '   MOLDENFILE \n'
+        block += '   molden_norm janpa\n'
         if self.properties is not None:
-            block = 'property\n'
             for p in self.properties:
-                block += p + '\n'
-            block += 'end\n'
-        else:
-            block = ''
+                block += '   ' + p + '\n'
+        block += 'end\n'
         return block
 
     def get_memory_block(self):
         if self.memory is not None:
-            block = 'MEMORY total %i mb \n' % self.memory
+            block = f'MEMORY total {self.memory:d} mb \n'
         else:
             block = ''
         return block
@@ -397,7 +435,7 @@ class nwchemsinglepointjob(nwchemjob):
             These will each be included directly in the NWChem input file.
         @type options: list of str
         """
-        nwchemjob.__init__(self)
+        super().__init__()
 
         self.mol = mol
         self.basis = basis
@@ -424,13 +462,30 @@ class nwchemsinglepointjob(nwchemjob):
     def create_results_instance(self):
         return nwchemsinglepointresults(self)
 
+    @property
+    def checksum(self):
+        import hashlib
+        m = hashlib.md5()
+
+        m.update(self.get_nwchemfile().encode('utf-8'))
+
+        if self.restart is not None:
+            m.update(b'Restarted from NWChem job \n')
+            m.update(self.restart.checksum.encode('utf-8'))
+
+        if self.fdein is not None:
+            m.update(b'Embedding potential imported from ADF job \n')
+            m.update(self.fdein.checksum.encode('utf-8'))
+
+        return m.hexdigest()
+
     # FIXME: restart with NWChem not implemented
     def set_restart(self, restart):
         """
         Set restart file. (NOT IMPLEMENTED)
 
         @param restart: results object of previous Dalton calculation
-        @type  restart: L{nwchemsinglepointresults}
+        @type  restart: L{nwchemsinglepointresults} or None
 
         @Note: restarts with NWChem are not implemented!
         """
@@ -475,6 +530,14 @@ class nwchemsinglepointjob(nwchemjob):
         block += 'end\n'
         return block
 
+    @staticmethod
+    def get_cc_block():
+        block = "ccsd\n"
+        block += "   freeze atomic\n"
+        block += '   maxiter 100\n'
+        block += 'end\n'
+        return block
+
     def get_options_block(self):
         block = ""
         for opt in self._options:
@@ -493,8 +556,10 @@ class nwchemsinglepointjob(nwchemjob):
         nwchemfile += self.get_nwchem_block()
         nwchemfile += self.get_molecule_block()
         nwchemfile += self.get_basis_block()
-        if self.settings.scf_method.upper() == 'DFT':
+        if self.settings.method.upper() == 'DFT':
             nwchemfile += self.get_dft_block()
+        elif self.settings.method.upper().startswith('CCSD'):
+            nwchemfile += self.get_cc_block()
         else:
             nwchemfile += self.get_scf_block()
 
@@ -513,39 +578,39 @@ class nwchemsinglepointjob(nwchemjob):
         return "NWChem single point job"
 
     def before_run(self):
-        nwchemjob.before_run(self)
+        super().before_run()
         if self.fdein is not None:
             self.fdein.export_embedding_data('EMBPOT', 'FRZDNS')
 
     def after_run(self):
-        nwchemjob.after_run(self)
+        super().after_run()
         if self.fdein is not None:
             os.remove('EMBPOT')
             os.remove('FRZDNS')
 
     def print_molecule(self):
 
-        print "   Molecule"
-        print "   ========"
-        print
-        print self.get_molecule()
-        print
+        print("   Molecule")
+        print("   ========")
+        print()
+        print(self.get_molecule())
+        print()
 
     def print_settings(self):
 
-        print "   Settings"
-        print "   ========"
-        print
-        print self.settings
-        print
+        print("   Settings")
+        print("   ========")
+        print()
+        print(self.settings)
+        print()
 
     def print_extras(self):
         pass
 
     def print_jobinfo(self):
-        print " " + 50 * "-"
-        print " Running " + self.print_jobtype()
-        print
+        print(" " + 50 * "-")
+        print(" Running " + self.print_jobtype())
+        print()
 
         self.print_molecule()
 

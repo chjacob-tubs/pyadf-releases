@@ -1,0 +1,35 @@
+import os
+from pyadf import *
+if 'pyadfenv' not in globals():
+    from pyadf.Initialization import *
+
+
+def check_results_bp86(energ, dip_vect, dip_magn):
+    testobj.assertAlmostEqual(energ, -75.96912460252, 6)
+    testobj.assertAlmostEqual(dip_magn, 0.316063, 5)
+    testobj.assertAlmostEqual(dip_vect[0], 0.0, 4)
+    testobj.assertAlmostEqual(dip_vect[1], 0.0, 4)
+    testobj.assertAlmostEqual(dip_vect[2], -0.316063, 4)
+
+
+h2o = molecule(os.path.join(pyadfenv.outdir, 'H2O.xyz'))
+
+# Positively charged water / doublet
+h2o.set_charge(1)
+h2o.set_spin(1)
+
+# BP86 single point calculation
+settings = TurbomoleSinglePointSettings(verbose_level=5)
+settings.set_basis_set('cc-pVDZ')
+settings.set_dft_functional('b-p')
+settings.set_ri(True)
+settings.set_dft_grid('m4')
+settings.set_dispersion_correction('dft-d3')
+settings.set_scfiterlimit(500)
+results = TurbomoleSinglePointJob(h2o, method='dft', settings=settings).run()
+
+energy = results.get_energy()
+dipole_vect = results.get_dipole_vector()
+dipole_magn = results.get_dipole_magnitude()
+
+check_results_bp86(energy, dipole_vect, dipole_magn)

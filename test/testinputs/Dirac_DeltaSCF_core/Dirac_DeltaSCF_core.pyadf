@@ -1,4 +1,9 @@
-dirac_basis='STO-3G'
+import os
+from pyadf import *
+if 'pyadfenv' not in globals():
+    from pyadf.Initialization import *
+
+dirac_basis = 'STO-3G'
 
 m_mol = molecule(os.path.join(pyadfenv.outdir, 'cl.xyz'))
 m_mol.set_spin(0)
@@ -10,26 +15,32 @@ dirac_settings = diracsettings(method='HF', hamiltonian='DCG', properties=['dipo
 anion_res = diracsinglepointjob(m_mol, basis=dirac_basis, settings=dirac_settings).run()
 anion_energy_lvcorr = anion_res.get_energy()
 
-# neutral. for the open shell we need to provide additional, hand-crafted input blocks, to the standard inputs created with diracsinglepointjob
-scf_subblock_dict = {'.CLOSED SHELL' : '4 12', '.OPEN SHELL' : ['1', '1/2,0'], '.OPENFAC' : '1.0', '.OVLSEL' : '', '.NODYNSEL' : ''}
+# neutral. for the open shell we need to provide additional, hand-crafted input blocks,
+# to the standard inputs created with diracsinglepointjob
+scf_subblock_dict = {'.CLOSED SHELL': '4 12', '.OPEN SHELL': ['1', '1/2,0'], '.OPENFAC': '1.0', '.OVLSEL': '',
+                     '.NODYNSEL': ''}
 
 # k-edge, we put the 1s as the highest orbital to make it open shell
-wf_dict = {'.REORDER' : ['2,3,1', '1..6'] }
-dirac_settings = diracsettings(method='HF', hamiltonian='DCG', properties=['dipole'], scf_subblock=scf_subblock_dict, wf_options=wf_dict, uncontracted=True)
+wf_dict = {'.REORDER': ['2,3,1', '1..6']}
+dirac_settings = diracsettings(method='HF', hamiltonian='DCG', properties=['dipole'], scf_subblock=scf_subblock_dict,
+                               wf_options=wf_dict, uncontracted=True)
 
-# for the delta scf calculation we need to use the anion orbitals as starting point, for this we create a job, set its restart and then run it
-job = diracsinglepointjob( m_mol, basis=dirac_basis, settings=dirac_settings )
+# for the delta scf calculation we need to use the anion orbitals as starting point,
+# for this we create a job, set its restart and then run it
+job = diracsinglepointjob(m_mol, basis=dirac_basis, settings=dirac_settings)
 job.set_restart(anion_res)
 
 cl_kedge_res = job.run()
 cl_kedge_energy_lvcorr = cl_kedge_res.get_energy()
 
 # l1-edge, we put the 2s as the highest orbital to make it open shell 
-wf_dict = {'.REORDER' : ['1,3,2', '1..6'] }
-dirac_settings = diracsettings(method='HF', hamiltonian='DCG', properties=['dipole'], scf_subblock=scf_subblock_dict, wf_options=wf_dict, uncontracted=True)
+wf_dict = {'.REORDER': ['1,3,2', '1..6']}
+dirac_settings = diracsettings(method='HF', hamiltonian='DCG', properties=['dipole'], scf_subblock=scf_subblock_dict,
+                               wf_options=wf_dict, uncontracted=True)
 
-# for the delta scf calculation we need to use the anion orbitals as starting point, for this we create a job, set its restart and then run it
-job = diracsinglepointjob( m_mol, basis=dirac_basis, settings=dirac_settings )
+# for the delta scf calculation we need to use the anion orbitals as starting point,
+# for this we create a job, set its restart and then run it
+job = diracsinglepointjob(m_mol, basis=dirac_basis, settings=dirac_settings)
 job.set_restart(anion_res)
 
 cl_l1edge_res = job.run()
@@ -37,15 +48,15 @@ cl_l1edge_energy_lvcorr = cl_l1edge_res.get_energy()
 
 # print results
 au_to_ev = 27.211324570273
-print "DeltaSCF core ionization energies with the DCG Hamiltonian, uncontracted ",dirac_basis
-print " - approximating the (SS|SS) integrals"
-print "   E(Cl-)                    in a.u.: ",anion_energy_lvcorr
-print "   E(Cl, K-edge ionization)  in a.u.: ",cl_kedge_energy_lvcorr
-print "   E(Cl, L1-edge ionization) in a.u.: ",cl_l1edge_energy_lvcorr
-kedge_ionization_au  = cl_kedge_energy_lvcorr  - anion_energy_lvcorr
+print("DeltaSCF core ionization energies with the DCG Hamiltonian, uncontracted ", dirac_basis)
+print(" - approximating the (SS|SS) integrals")
+print("   E(Cl-)                    in a.u.: ", anion_energy_lvcorr)
+print("   E(Cl, K-edge ionization)  in a.u.: ", cl_kedge_energy_lvcorr)
+print("   E(Cl, L1-edge ionization) in a.u.: ", cl_l1edge_energy_lvcorr)
+kedge_ionization_au = cl_kedge_energy_lvcorr - anion_energy_lvcorr
 l1edge_ionization_au = cl_l1edge_energy_lvcorr - anion_energy_lvcorr
-print "   Cl K-edge DeltaSCF energy  in a.u.: ",kedge_ionization_au, " in eV : ",kedge_ionization_au*au_to_ev
-print "   Cl L1-edge DeltaSCF energy in a.u.: ",l1edge_ionization_au, " in eV : ",l1edge_ionization_au*au_to_ev
+print("   Cl K-edge DeltaSCF energy  in a.u.: ", kedge_ionization_au, " in eV : ", kedge_ionization_au * au_to_ev)
+print("   Cl L1-edge DeltaSCF energy in a.u.: ", l1edge_ionization_au, " in eV : ", l1edge_ionization_au * au_to_ev)
 
 testobj.assertAlmostEqual(anion_energy_lvcorr, -456.354889706)
 testobj.assertAlmostEqual(cl_kedge_energy_lvcorr, -354.012116502, 6)

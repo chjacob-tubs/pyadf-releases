@@ -1,3 +1,8 @@
+import os
+from pyadf import *
+if 'pyadfenv' not in globals():
+    from pyadf.Initialization import *
+
 ###################################################################
 #
 # PyADF test ADFPlot
@@ -13,18 +18,19 @@
 #
 ###################################################################
 
-from pyadf.Utils import Bohr_in_Angstrom, au_in_Debye
+from pyadf.Utils import au_in_Debye
 
 #################################################
 # single point calculation on water molecule
 #################################################
 
-h2o = molecule (os.path.join(pyadfenv.outdir, 'H2O.xyz'))
+h2o = molecule(os.path.join(pyadfenv.outdir, 'H2O.xyz'))
 
 settings = adfsettings()
-settings.set_save_tapes([21,10])
+settings.set_save_tapes([21, 10])
 
-results = adfsinglepointjob( h2o, 'SZ', settings=settings).run()
+results = adfsinglepointjob(h2o, 'SZ', settings=settings).run()
+
 
 #########################################################################
 # utility function for numerical calculation of dipole moment
@@ -33,19 +39,20 @@ results = adfsinglepointjob( h2o, 'SZ', settings=settings).run()
 #            m    - the molecule (needed for the nuclear contribution)
 #########################################################################
 
-def calc_dipole (dens, m):
+def calc_dipole(dd, m):
     import numpy
 
-    dipole_e = dens.get_electronic_dipole_moment_grid()
+    dipole_e = dd.get_electronic_dipole_moment_grid()
     dipole_n = m.get_nuclear_dipole_moment()
 
     return numpy.array(dipole_e) + numpy.array(dipole_n)
+
 
 ###############################################################
 # First, we use a "cube gird" (evenly spaced Carthesian grid)
 ###############################################################
 
-print " Using cube grid with spacing 0.1"
+print(" Using cube grid with spacing 0.1")
 
 # get the density (Plot.densfresults)
 dens = results.get_density(spacing=0.1)
@@ -62,18 +69,20 @@ cube_int = dens.integral()
 # calculate dipole moment numerically and analytically
 # (numerical integration is not very accurate, because 
 #  the grid is not suited for this, see below) 
-cube_num_dipole = calc_dipole(dens, results.get_molecule())*au_in_Debye
-analyt_dipole   = results.get_dipole_vector()*au_in_Debye
+cube_num_dipole = calc_dipole(dens, results.get_molecule()) * au_in_Debye
+analyt_dipole = results.get_dipole_vector() * au_in_Debye
 
-print "     Integral of the density: %12.3f" % cube_int 
-print "     Dipole moment [numint] (Debye): [%12.4f, %12.4f, %12.4f]" % (cube_num_dipole[0], cube_num_dipole[1], cube_num_dipole[2])
-print "     Dipole moment [analyt] (Debye): [%12.4f, %12.4f, %12.4f]" % (analyt_dipole[0], analyt_dipole[1], analyt_dipole[2])
+print(f"     Integral of the density: {cube_int:12.3f}")
+print("     Dipole moment [numint] (Debye): [{:12.4f}, {:12.4f}, {:12.4f}]"
+      .format(cube_num_dipole[0], cube_num_dipole[1], cube_num_dipole[2]))
+print("     Dipole moment [analyt] (Debye): [{:12.4f}, {:12.4f}, {:12.4f}]"
+      .format(analyt_dipole[0], analyt_dipole[1], analyt_dipole[2]))
 
-if 'unittesting' in pyadfenv.options :
-    testobj.assertAlmostEqual(cube_int, 9.9862, 3)
-    testobj.assertAlmostEqual(cube_num_dipole[0],  0.0,       4)
-    testobj.assertAlmostEqual(cube_num_dipole[1],  0.0,       4)
-    testobj.assertAlmostEqual(cube_num_dipole[2], -1.7581622, 4)
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(cube_int, 10.40575, 3)
+    testobj.assertAlmostEqual(cube_num_dipole[0], 0.0, 4)
+    testobj.assertAlmostEqual(cube_num_dipole[1], 0.0, 4)
+    testobj.assertAlmostEqual(cube_num_dipole[2], 1.7748748, 4)
 
 # test the squared density gradient
 
@@ -89,7 +98,7 @@ lapl.get_cubfile(os.path.join(pyadfenv.outdir, 'H2O-Lap.cub'))
 # Now, we use ADF's numerical integration  grid
 #####################################################
 
-print " Using ADF grid"
+print(" Using ADF grid")
 
 # get density (now on ADF grid)
 dens = results.get_density(grid=adfgrid(results))
@@ -98,18 +107,19 @@ dens = results.get_density(grid=adfgrid(results))
 dens.get_xyzvfile(os.path.join(pyadfenv.outdir, 'H2O.xyzv'))
 
 # integral of the density
-adf_int        = dens.integral()
+adf_int = dens.integral()
 
 # now, the dipole moment calculated by numerical integration is accurate
-adf_num_dipole = calc_dipole(dens, results.get_molecule())*au_in_Debye
+adf_num_dipole = calc_dipole(dens, results.get_molecule()) * au_in_Debye
 
-print "     Integral of the density %12.4f" % adf_int
-print "     Dipole moment [numint] (Debye): [%12.4f, %12.4f, %12.4f]" % (adf_num_dipole[0], adf_num_dipole[1], adf_num_dipole[2])
-print "     Dipole moment [analyt] (Debye): [%12.4f, %12.4f, %12.4f]" % (analyt_dipole[0], analyt_dipole[1], analyt_dipole[2])
+print(f"     Integral of the density {adf_int:12.4f}")
+print("     Dipole moment [numint] (Debye): [{:12.4f}, {:12.4f}, {:12.4f}]"
+      .format(adf_num_dipole[0], adf_num_dipole[1], adf_num_dipole[2]))
+print("     Dipole moment [analyt] (Debye): [{:12.4f}, {:12.4f}, {:12.4f}]"
+      .format(analyt_dipole[0], analyt_dipole[1], analyt_dipole[2]))
 
-if 'unittesting' in pyadfenv.options :
-    testobj.assertAlmostEqual(adf_int, 10.0, 4)
-    testobj.assertAlmostEqual(adf_num_dipole[0], analyt_dipole[0], 4)
-    testobj.assertAlmostEqual(adf_num_dipole[1], analyt_dipole[1], 4)
-    testobj.assertAlmostEqual(adf_num_dipole[2], analyt_dipole[2], 4)
-
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(adf_int, 10.0, 3)
+    testobj.assertAlmostEqual(adf_num_dipole[0], analyt_dipole[0], 3)
+    testobj.assertAlmostEqual(adf_num_dipole[1], analyt_dipole[1], 3)
+    testobj.assertAlmostEqual(adf_num_dipole[2], analyt_dipole[2], 3)

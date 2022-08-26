@@ -1,45 +1,49 @@
+import os
+from pyadf import *
+if 'pyadfenv' not in globals():
+    from pyadf.Initialization import *
 
-m = molecule (os.path.join(pyadfenv.outdir, 'Ce_H2O.pdb'), inputformat='pdb')
+m = molecule(os.path.join(pyadfenv.outdir, 'Ce_H2O.pdb'), inputformat='pdb')
 
-lan = molecule (os.path.join(pyadfenv.outdir, 'Ce.xyz')) 
+lan = molecule(os.path.join(pyadfenv.outdir, 'Ce.xyz'))
 lan.set_charge(3)
 
-print "Lanthanide"
-print lan.print_coordinates()
+print("Lanthanide")
+print(lan.print_coordinates())
 
-solvent = molecule (os.path.join(pyadfenv.outdir, 'H2O.xyz'))
+solvent = molecule(os.path.join(pyadfenv.outdir, 'H2O.xyz'))
 
-print "Solvent"
-print "New fragment"
-print solvent.print_coordinates()
+print("Solvent")
+print("New fragment")
+print(solvent.print_coordinates())
 
-set = adfsettings()
-set.set_save_tapes([21,10])
-set.set_functional('PW91')
-set.set_ZORA(True)
-set.set_mixing(0.03)
+sett = adfsettings()
+sett.set_save_tapes([21, 10])
+sett.set_functional('PW91')
+sett.set_ZORA(True)
+sett.set_mixing(0.03)
 
-lan_core = {'Ce':'4d'}
-sol_core = {'O':'1s'}
+lan_core = {'Ce': '4d'}
+sol_core = {'O': '1s'}
 
-rlan = adfsinglepointjob( lan, 'TZ2P', core=lan_core, settings=set).run()
-rsolvent = adfsinglepointjob( solvent, 'TZ2P', core=sol_core, settings=set, options=['NOSYM']).run()
+rlan = adfsinglepointjob(lan, 'TZ2P', core=lan_core, settings=sett).run()
+rsolvent = adfsinglepointjob(solvent, 'TZ2P', core=sol_core, settings=sett, options=['NOSYM']).run()
 
 lan.set_spin(1)
-set.set_unrestricted(True)
-pc = 1./7.
-set.set_occupations (' A 8 %18.14f %18.14f %18.14f %18.14f %18.14f %18.14f %18.14f// 8' % \
-	(pc,pc,pc,pc,pc,pc,pc))
+sett.set_unrestricted(True)
+pc = 1. / 7.
+sett.set_occupations(' A 8 %18.14f %18.14f %18.14f %18.14f %18.14f %18.14f %18.14f// 8' %
+                     (pc, pc, pc, pc, pc, pc, pc))
 
-frags = [fragment(rlan, lan, occ=[['S',1,1],['P',3,3],['F',1,0]]),fragment(rsolvent,solvent)]
-results = adffragmentsjob( frags, 'TZ2P', options=['NOSYM'], settings=set).run ()
+frags = [fragment(rlan, lan, occ=[['S', 1, 1], ['P', 3, 3], ['F', 1, 0]]), fragment(rsolvent, solvent)]
+results = adffragmentsjob(frags, 'TZ2P', options=['NOSYM'], settings=sett).run()
 
 dipole = results.get_dipole_vector()
-print dipole
+print(dipole)
 
 s2 = results.get_s2()
-print s2
+print(s2)
 
-if 'unittesting' in pyadfenv.options :
+if 'unittesting' in pyadfenv.options:
     testobj.assertAlmostEqual([-0.86762269, -0.38991088, 2.57971921], dipole)
     testobj.assertAlmostEqual(s2, 0.77363, 4)

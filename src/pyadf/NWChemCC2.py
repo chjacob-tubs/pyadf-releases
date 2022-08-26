@@ -1,12 +1,10 @@
-# -*- coding: utf-8 -*-
-
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2021 by Christoph R. Jacob, Tobias Bergmann,
-# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Thomas Dresselhaus,
-# Andre S. P. Gomes, Andreas Goetz, Michal Handzlik, Karin Kiewisch,
-# Moritz Klammler, Lars Ridder, Jetze Sikkema, Lucas Visscher, and
-# Mario Wolter.
+# Copyright (C) 2006-2022 by Christoph R. Jacob, Tobias Bergmann,
+# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Maria Chekmeneva,
+# Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz, 
+# Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder, 
+# Jetze Sikkema, Lucas Visscher, Johannes Vornweg and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -19,7 +17,7 @@
 #    GNU General Public License for more details.
 #
 #    You should have received a copy of the GNU General Public License
-#    along with PyADF.  If not, see <http://www.gnu.org/licenses/>.
+#    along with PyADF.  If not, see <https://www.gnu.org/licenses/>.
 """
  NWChem CC2 excitation energy calculations
 
@@ -35,7 +33,7 @@
     nwchemCC2results
 """
 
-from NWChem import nwchemsinglepointjob, nwchemsinglepointresults, nwchemsettings
+from .NWChem import nwchemsinglepointjob, nwchemsinglepointresults, nwchemsettings
 
 import re
 
@@ -54,7 +52,7 @@ class nwchemCC2results(nwchemsinglepointresults):
         """
         Constructor for nwchemCC2results.
         """
-        nwchemsinglepointresults.__init__(self, j)
+        super().__init__(j)
 
     def get_excitation_energies(self):
         """
@@ -85,6 +83,7 @@ class nwchemCC2results(nwchemsinglepointresults):
 
         return exens
 
+    # noinspection PyMethodMayBeStatic
     def get_oscillator_strengths(self):
         """
         Returns the CC2 excitation energies (in eV).
@@ -120,7 +119,7 @@ class nwchemCC2settings(nwchemsettings):
         @param freeze_virt: number of virtual orbitals to freeze, see L{set_freeze}.
         @type  freeze_virt: int
         """
-        nwchemsettings.__init__(self, method='HF')
+        super().__init__(method='HF')
 
         self.cc_method = 'CC2'
         self.nexci = None
@@ -156,9 +155,9 @@ class nwchemCC2settings(nwchemsettings):
         Returns a human-readable description of the settings.
         """
         s = "  Method: CC2 \n\n"
-        s += "  Number of excitations: %i \n" % self.nexci
-        s += "  Number of frozen occupied orbitals: %i \n" % self.freeze_occ
-        s += "  Number of frozen virtual orbitals:  %i \n" % self.freeze_virt
+        s += f"  Number of excitations: {self.nexci:d} \n"
+        s += f"  Number of frozen occupied orbitals: {self.freeze_occ:d} \n"
+        s += f"  Number of frozen virtual orbitals:  {self.freeze_virt:d} \n"
         return s
 
 
@@ -209,17 +208,14 @@ class nwchemCC2job(nwchemsinglepointjob):
         else:
             self.settings = settings
 
-        nwchemsinglepointjob.__init__(self, mol, basis, fdein=fdein,
-                                      settings=self.settings, options=options)
+        super().__init__(mol, basis, fdein=fdein, settings=self.settings, options=options)
 
-    def _get_nexci(self):
+    @property
+    def nexci(self):
+        """
+        The number of excitations that were calculated.
+        """
         return self.settings.nexci
-
-    nexci = property(_get_nexci, None, None, """
-    The number of excitations that were calculated.
-
-    @type: int
-    """)
 
     def create_results_instance(self):
         return nwchemCC2results(self)
@@ -230,21 +226,22 @@ class nwchemCC2job(nwchemsinglepointjob):
         block += " CC2\n"
         block += " dipole\n"
         block += " nofock\n"
-        block += " nroots %i \n" % self.settings.nexci
-        block += " freeze core %i \n" % self.settings.freeze_occ
-        block += " freeze virtual %i \n" % self.settings.freeze_virt
+        block += f" nroots {self.settings.nexci:d} \n"
+        block += f" freeze core {self.settings.freeze_occ:d} \n"
+        block += f" freeze virtual {self.settings.freeze_virt:d} \n"
         block += "end\n"
         return block
 
     def get_scftask_block(self):
         return ""
 
+    # noinspection PyMethodMayBeStatic
     def get_tcetask_block(self):
         block = "task tce energy\n"
         return block
 
     def get_other_blocks(self):
-        blocks = nwchemsinglepointjob.get_other_blocks(self)
+        blocks = super().get_other_blocks()
         blocks += self.get_tce_block()
         blocks += self.get_tcetask_block()
         return blocks

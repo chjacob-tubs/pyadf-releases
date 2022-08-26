@@ -1,3 +1,8 @@
+import os
+from pyadf import *
+if 'pyadfenv' not in globals():
+    from pyadf.Initialization import *
+
 import numpy
 import xcfun
 
@@ -12,7 +17,7 @@ mol_b.set_symmetry('NOSYM')
 mol = mol_a + mol_b
 
 settings = adfsettings(functional='BLYP')
-settings.set_save_tapes([21,10])
+settings.set_save_tapes([21, 10])
 
 blyp = xcfun.Functional({'BeckeX': 1.0, 'LYPC': 1.0})
 
@@ -26,16 +31,16 @@ agrid = adfgrid(res)
 res_a = adfsinglepointjob(mol_a, basis='TZP', core='Large', settings=settings).run()
 
 h2o_elpot = res_a.get_potential(agrid, pot='nuc') + res_a.get_potential(agrid, pot='coul')
-h2o_dens  = res_a.get_density(agrid, fit=False, order=2)
+h2o_dens = res_a.get_density(agrid, fit=False, order=2)
 
-xcpot_adf_a   = res_a.get_potential(agrid, pot='xc').values
+xcpot_adf_a = res_a.get_potential(agrid, pot='xc').values
 xcpot_xcfun_a = blyp.eval_potential_n(density=h2o_dens[0].values,
                                       densgrad=h2o_dens[1].values,
-                                      denshess=h2o_dens[2].values)[:,1]
+                                      denshess=h2o_dens[2].values)[:, 1]
 
 if 'unittesting' in pyadfenv.options:
     # compare ADF xc potential and XCFUN xc potential for water
-    xcpot_adf_a   = numpy.where(h2o_dens[0].values < 1e-8, 0.0, xcpot_adf_a)
+    xcpot_adf_a = numpy.where(h2o_dens[0].values < 1e-8, 0.0, xcpot_adf_a)
     xcpot_xcfun_a = numpy.where(h2o_dens[0].values < 1e-8, 0.0, xcpot_xcfun_a)
     testobj.assertAlmostEqual(xcpot_xcfun_a, xcpot_adf_a, places=6)
 
@@ -44,16 +49,16 @@ if 'unittesting' in pyadfenv.options:
 res_b = adfsinglepointjob(mol_b, basis='TZP', core='Large', settings=settings).run()
 
 nh3_elpot = res_b.get_potential(agrid, pot='nuc') + res_b.get_potential(agrid, pot='coul')
-nh3_dens  = res_b.get_density(agrid, fit=False, order=2)
+nh3_dens = res_b.get_density(agrid, fit=False, order=2)
 
-xcpot_adf_b   = res_b.get_potential(agrid, pot='xc').values
+xcpot_adf_b = res_b.get_potential(agrid, pot='xc').values
 xcpot_xcfun_b = blyp.eval_potential_n(density=nh3_dens[0].values,
                                       densgrad=nh3_dens[1].values,
-                                      denshess=nh3_dens[2].values)[:,1]
+                                      denshess=nh3_dens[2].values)[:, 1]
 
 if 'unittesting' in pyadfenv.options:
     # compare ADF xc potential and XCFUN xc potential for NH3
-    xcpot_adf_b   = numpy.where(nh3_dens[0].values < 1e-8, 0.0, xcpot_adf_b)
+    xcpot_adf_b = numpy.where(nh3_dens[0].values < 1e-8, 0.0, xcpot_adf_b)
     xcpot_xcfun_b = numpy.where(nh3_dens[0].values < 1e-8, 0.0, xcpot_xcfun_b)
     testobj.assertAlmostEqual(xcpot_xcfun_b, xcpot_adf_b, places=6)
 

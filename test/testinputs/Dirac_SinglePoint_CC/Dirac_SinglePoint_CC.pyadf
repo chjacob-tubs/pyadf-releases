@@ -1,0 +1,31 @@
+import os
+from pyadf import *
+if 'pyadfenv' not in globals():
+    from pyadf.Initialization import *
+
+
+h2o = molecule(os.path.join(pyadfenv.outdir, 'H2O.xyz'))
+
+
+# CCSD single point calculation
+
+settings = diracsettings(method='CCSD', hamiltonian='Levy', nucmod='point')
+results = diracsinglepointjob(h2o, 'cc-pVDZ', settings=settings).run()
+
+energy = results.get_total_energy()
+
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(energy, -76.235299249, 6)
+
+
+# CCSD(T) single point calculation
+
+settings = diracsettings(method='CCSD(T)', hamiltonian='Levy', nucmod='point')
+results = diracsinglepointjob(h2o, 'cc-pVDZ', settings=settings).run()
+
+energy = results.get_total_energy()
+
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(energy, -76.238490630, 6)
+
+

@@ -1,0 +1,57 @@
+import os
+from pyadf import *
+if 'pyadfenv' not in globals():
+    from pyadf.Initialization import *
+
+import numpy
+
+_verbose_level = 2
+
+
+def test_geooptcosmo(name, molec, ref_energy, ref_mol):
+    settings = TurbomoleGeometryOptimizationSettings(verbose_level=_verbose_level)
+
+    # default settings: RI-DFT/BP
+    settings.set_basis_set('def2-SVP')
+    settings.set_cosmo(True)
+    settings.set_cosmo_epsilon(77.49)
+    settings.set_cosmo_rsolv(1.93)
+    settings.set_cosmo_radii('r all b')
+
+    res = TurbomoleGeometryOptimizationJob(molec, method='dft', settings=settings).run()
+
+    opt_mol = res.get_molecule()
+    opt_mol.write(os.path.join(pyadfenv.outdir, name + '_opt.xyz'))
+
+    opt_energy = res.get_energy()
+    print("Final Total Energy: ", opt_energy)
+
+    opt_grad = res.get_gradient_vector()
+    print("Final Max Gradient: ", numpy.max(opt_grad))
+
+    if 'unittesting' in pyadfenv.options:
+        print(opt_mol.print_coordinates())
+        print(ref_mol.print_coordinates())
+
+        testobj.assertAlmostEqualMolecules(opt_mol, ref_mol)
+        testobj.assertAlmostEqual(opt_energy, ref_energy, 7)
+        testobj.assert_(numpy.max(opt_grad) < 1e-4)
+
+
+testmols = [
+    ['water', 0, -76.37412259053],
+    ['bad_water', 0, -76.37412201051],
+    ['hydrogen', 0, -1.172711935868],
+    ['trimethyl_oxonium', 1, -194.5949642414],
+    ['hydroxyl', -1, -75.8176955187],
+    ['phosphane' , 0, -343.077515442]
+]
+
+for testmol in testmols:
+    mol = molecule(os.path.join(pyadfenv.outdir, testmol[0] + '.xyz'))
+    mol.set_charge(testmol[1])
+
+    mol_ref = molecule(os.path.join(pyadfenv.outdir, testmol[0] + '_ref.xyz'))
+    mol_ref.set_charge(testmol[1])
+
+    test_geooptcosmo(testmol[0], mol, testmol[2], mol_ref)

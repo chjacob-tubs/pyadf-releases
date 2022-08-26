@@ -1,7 +1,11 @@
+import os
+from pyadf import *
+if 'pyadfenv' not in globals():
+    from pyadf.Initialization import *
 
-h2o = molecule (os.path.join(pyadfenv.outdir, 'H2O.xyz'))
+h2o = molecule(os.path.join(pyadfenv.outdir, 'H2O.xyz'))
 
-results = adfgeometryjob( h2o, 'SZ').run()
+results = adfgeometryjob(h2o, 'SZ').run()
 
 h2o_final = results.get_molecule()
 h2o_final.write(os.path.join(pyadfenv.outdir, 'H2O_final.xyz'))
@@ -9,6 +13,5 @@ h2o_final.write(os.path.join(pyadfenv.outdir, 'H2O_final.xyz'))
 ###################################################################
 
 if 'unittesting' in pyadfenv.options:
-    h2o_orig    = molecule (os.path.join(pyadfenv.outdir, 'H2O_orig.xyz'))
+    h2o_orig = molecule(os.path.join(pyadfenv.outdir, 'H2O_orig.xyz'))
     testobj.assertAlmostEqualMolecules(h2o_final, h2o_orig)
-

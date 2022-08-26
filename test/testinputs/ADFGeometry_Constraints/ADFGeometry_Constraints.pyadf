@@ -1,30 +1,25 @@
+import os
+from pyadf import *
+if 'pyadfenv' not in globals():
+    from pyadf.Initialization import *
 
-an = molecule (os.path.join(pyadfenv.outdir, 'an.xyz'))
+an = molecule(os.path.join(pyadfenv.outdir, 'an.xyz'))
 
 # optimize only H atoms
-results = adfgeometryjob( an, 'SZ', selected_atoms=[4,5,6]).run()
+results = adfgeometryjob(an, 'SZ', frozen_atoms=[1, 2, 3]).run()
 
 an_final1 = results.get_molecule()
 an_final1.write(os.path.join(pyadfenv.outdir, 'an_final1.xyz'))
 
 # optimize only H atoms
-results = adfgeometryjob( an, 'SZ', selected_atoms=['H']).run()
+results = adfgeometryjob(an, 'SZ', frozen_atoms=['C', 'N']).run()
 
 an_final2 = results.get_molecule()
 an_final2.write(os.path.join(pyadfenv.outdir, 'an_final2.xyz'))
 
 ###################################################################
 
-def check_results (testobj, an_final, an_orig):
-    
-    coords = an_final.get_coordinates ()
-    coords_orig = an_orig.get_coordinates ()
-
-    for i in range(3) :
-        for j in range(3) :
-            testobj.assertAlmostEqual (coords[i][j], coords_orig[i][j] , 3)
-
 if 'unittesting' in pyadfenv.options:
-    an_orig     = molecule (os.path.join(pyadfenv.outdir, 'an_orig.xyz'))
-    check_results(testobj, an_final1, an_orig)
-    check_results(testobj, an_final2, an_orig)
+    an_orig = molecule(os.path.join(pyadfenv.outdir, 'an_orig.xyz'))
+    testobj.assertAlmostEqualMolecules(an_final1, an_orig)
+    testobj.assertAlmostEqualMolecules(an_final2, an_orig)

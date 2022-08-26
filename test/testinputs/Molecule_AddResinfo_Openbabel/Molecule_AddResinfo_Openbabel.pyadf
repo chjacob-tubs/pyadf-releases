@@ -1,0 +1,28 @@
+import os
+from pyadf import *
+if 'pyadfenv' not in globals():
+    from pyadf.Initialization import *
+
+
+def print_molinfo(mol):
+    for ii in range(mol.get_number_of_atoms()):
+        ch, res, num = mol.get_atom_resinfo(ii + 1)
+        print(ch, res, num)
+
+
+mol1 = molecule(os.path.join(pyadfenv.outdir, '4alanine.pdb'), 'pdb')
+mol2 = molecule(os.path.join(pyadfenv.outdir, 'glycine.pdb'), 'pdb')
+m_tot = mol1 + mol2
+
+print(" *** Mol 1 *** ")
+print_molinfo(mol1)
+print(" *** Mol 2 *** ")
+print_molinfo(mol2)
+print(" *** Mol tot *** ")
+print_molinfo(m_tot)
+
+for i in range(m_tot.get_number_of_atoms()):
+    chainid, resname, resnum = m_tot.get_atom_resinfo(i + 1)
+    print(chainid, resname, resnum, not (chainid and resname and resnum))
+    if (chainid is None) or (resname is None) or (resnum is None):
+        raise PyAdfError('Addition did not work due to missing resinfo.')

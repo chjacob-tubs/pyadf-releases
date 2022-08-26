@@ -1,12 +1,10 @@
-# -*- coding: utf-8 -*-
-
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2021 by Christoph R. Jacob, Tobias Bergmann,
-# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Thomas Dresselhaus,
-# Andre S. P. Gomes, Andreas Goetz, Michal Handzlik, Karin Kiewisch,
-# Moritz Klammler, Lars Ridder, Jetze Sikkema, Lucas Visscher, and
-# Mario Wolter.
+# Copyright (C) 2006-2022 by Christoph R. Jacob, Tobias Bergmann,
+# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Maria Chekmeneva,
+# Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz, 
+# Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder, 
+# Jetze Sikkema, Lucas Visscher, Johannes Vornweg and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -19,7 +17,7 @@
 #    GNU General Public License for more details.
 #
 #    You should have received a copy of the GNU General Public License
-#    along with PyADF.  If not, see <http://www.gnu.org/licenses/>.
+#    along with PyADF.  If not, see <https://www.gnu.org/licenses/>.
 """
  Job and results for numerical differentiations with ADF
 
@@ -40,12 +38,13 @@
 
 """
 
-from Utils import Bohr_in_Angstrom
-from BaseJob import results, metajob
-from Errors import PyAdfError
+
+from .Utils import Bohr_in_Angstrom
+from .BaseJob import results, metajob
+from .Errors import PyAdfError
 
 
-class numdiffsettings(object):
+class numdiffsettings:
     """
     Class for the settings of a numerical differences job
 
@@ -110,7 +109,7 @@ class numgradsettings(numdiffsettings):
         @type partial: bool
 
         """
-        numdiffsettings.__init__(self, stepsize, atomicunits, method)
+        super().__init__(stepsize, atomicunits, method)
 
         # irrespective of the input, we will continue in atomic units
         # we will also extract the bond energy in atomic units
@@ -135,7 +134,7 @@ class numgradsettings(numdiffsettings):
         else:
             ssa = self.stepsize
             ssb = ssa / Bohr_in_Angstrom
-        string = " stepsize: %6.4f Angstrom (%6.4f Bohr)\n" % (ssa, ssb)
+        string = f" stepsize: {ssa:6.4f} Angstrom ({ssb:6.4f} Bohr)\n"
 
         if self.method == '3point':
             string += " using 3 point central differences formula\n"
@@ -155,7 +154,7 @@ class numdiffresults(results):
     """
 
     def __init__(self, job):
-        results.__init__(self, job)
+        super().__init__(job)
         self.settings = self.job.settings
         self.points = None
 
@@ -210,7 +209,7 @@ class numgradresults(numdiffresults):
     """
 
     def __init__(self, job):
-        numdiffresults.__init__(self, job)
+        super().__init__(job)
 
     def get_gradient(self, energyterm=None):
         """
@@ -250,7 +249,7 @@ class adfnumgradresults(numgradresults):
     """
 
     def __init__(self, job):
-        numgradresults.__init__(self, job)
+        super().__init__(job)
 
     def get_points(self, energyterm=None):
         """
@@ -289,7 +288,7 @@ class numdiffjob(metajob):
            Can be overriden by child classes
         @type settings: numdiffsettings
         """
-        metajob.__init__(self)
+        super().__init__()
 
         self.molecule = mol
 
@@ -337,7 +336,7 @@ class numgradjob(numdiffjob):
         @type settings: numgradsettings
 
         """
-        numdiffjob.__init__(self, mol, settings)
+        super().__init__(mol, settings)
 
         if not isinstance(atom, int):
             raise PyAdfError("non-integer atom number provided in numgradjob")
@@ -362,9 +361,9 @@ class numgradjob(numdiffjob):
         """
         atom_symbol = self.molecule.get_atom_symbols(atoms=[self.atom])[0]
         string = "\nNumerical gradient job\n\n"
-        string += " >> Atom %3i (%s), %s-coordinate <<\n" % (self.atom, atom_symbol, self.coordinate)
+        string += f" >> Atom {self.atom:3d} ({atom_symbol}), {self.coordinate}-coordinate <<\n"
         string += self.settings.get_info()
-        print string
+        print(string)
 
     def get_displacements(self):
         """
@@ -440,10 +439,10 @@ class adfnumgradjob(numgradjob):
         for the other parameters see class numgradjob
 
         """
-        import ADFSinglePoint
+        from . import ADFSinglePoint
         import copy
 
-        numgradjob.__init__(self, mol, atom, coordinate, settings)
+        super().__init__(mol, atom, coordinate, settings)
 
         if not isinstance(scfsettings, ADFSinglePoint.adfscfsettings):
             raise PyAdfError("scfsettings missing in numgradjob")
@@ -454,7 +453,7 @@ class adfnumgradjob(numgradjob):
     def create_job(self, mol):
         """
         """
-        from ADFSinglePoint import adfsinglepointjob
+        from .ADFSinglePoint import adfsinglepointjob
 
         s_scf = self.scfsettings
 
@@ -476,7 +475,7 @@ class adfnumgradjob(numgradjob):
 
         """
 
-        print "-" * 50
+        print("-" * 50)
         self.print_jobtype()
 
         # determine displacements
@@ -513,7 +512,7 @@ class adfnumgradsresults(results):
     """
 
     def __init__(self, job):
-        results.__init__(self, job)
+        super().__init__(job)
         self.settings = self.job.settings
 
     def get_gradients(self):
@@ -543,11 +542,11 @@ class adfnumgradsjob(metajob):
 
         @param settings:
             settings for the numerical gradients run
-        @type settings: numgradsettings
+        @type settings: numgradsettings or None
 
         @param scfsettings:
             settings for the ADF single point runs at the displaced geometries
-        @type scfsettings: scfsettings
+        @type scfsettings: scfsettings or None
 
         @param atoms:
             Atoms for which the gradient shall be computed
@@ -558,9 +557,9 @@ class adfnumgradsjob(metajob):
         @type coordinates: str or list of str
 
         """
-        import ADFSinglePoint
+        from . import ADFSinglePoint
 
-        metajob.__init__(self)
+        super().__init__()
 
         self.molecule = mol
 
@@ -605,7 +604,7 @@ class adfnumgradsjob(metajob):
         string = "\nNumerical gradient job\n\n"
         string += " Computing gradient for\n >>"
         for c in self.coordinates:
-            string += " %s," % c
+            string += f" {c},"
         string = string[:-1] + " coordinate <<\n"
         if self.atoms == 'all':
             string += " >> all atoms <<\n"
@@ -613,10 +612,10 @@ class adfnumgradsjob(metajob):
             string += " following atoms:\n"
             for at in self.atoms:
                 at_symbol = m.get_atom_symbols(atoms=[at])[0]
-                string += " >> %3i (%s) <<\n" % (at, at_symbol)
+                string += f" >> {at:3d} ({at_symbol}) <<\n"
         string += self.settings.get_info()
 
-        print string
+        print(string)
 
     def metarun(self):
         """
@@ -627,7 +626,7 @@ class adfnumgradsjob(metajob):
 
         mapping = {'x': 0, 'y': 1, 'z': 2}
 
-        print "-" * 50
+        print("-" * 50)
         self.print_jobtype()
 
         natoms = self.molecule.get_number_of_atoms()
@@ -635,7 +634,7 @@ class adfnumgradsjob(metajob):
         self.gradients = numpy.zeros((natoms, 3))
 
         if self.atoms == 'all':
-            atomlist = range(1, natoms + 1)
+            atomlist = list(range(1, natoms + 1))
         else:
             atomlist = self.atoms
 

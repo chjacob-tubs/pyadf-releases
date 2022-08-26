@@ -1,74 +1,77 @@
-import shutil
+import os
+from pyadf import *
+if 'pyadfenv' not in globals():
+    from pyadf.Initialization import *
 
-file_h2o_1 = os.path.join (pyadfenv.outdir, 'FDE-H2O-1.xyz')
-file_h2o_2 = os.path.join (pyadfenv.outdir, 'FDE-H2O-2.xyz')
-file_mol   = os.path.join (pyadfenv.outdir, 'FDE-mol.xyz')
+file_h2o_1 = os.path.join(pyadfenv.outdir, 'FDE-H2O-1.xyz')
+file_h2o_2 = os.path.join(pyadfenv.outdir, 'FDE-H2O-2.xyz')
+file_mol = os.path.join(pyadfenv.outdir, 'FDE-mol.xyz')
 
 m_h2o_1 = molecule(file_h2o_1)
 m_h2o_2 = molecule(file_h2o_2)
-m_mol   = molecule(file_mol)
+m_mol = molecule(file_mol)
 
 m_tot = m_mol + m_h2o_1 + m_h2o_2
 
-print m_tot.print_coordinates()
+print(m_tot.print_coordinates())
 
 # Prepare first water molecule
-r_h2o_1 = adfsinglepointjob( m_h2o_1, 'SZ', options=['NOSYMFIT']).run()
+r_h2o_1 = adfsinglepointjob(m_h2o_1, 'SZ', options=['NOSYMFIT']).run()
 
 # Prepare second water molecule
-r_h2o_2 = adfsinglepointjob( m_h2o_2, 'SZ', options=['NOSYMFIT']).run()
+r_h2o_2 = adfsinglepointjob(m_h2o_2, 'SZ', options=['NOSYMFIT']).run()
 
 # isolated water molecule
-r_mol = adfsinglepointjob( m_mol, 'DZP', options=['NOSYMFIT']).run()
+r_mol = adfsinglepointjob(m_mol, 'DZP', options=['NOSYMFIT']).run()
 
 dipole_vect = r_mol.get_dipole_vector()
-print "Dipole moment for isolated water molecule (ADF): ", dipole_vect
+print("Dipole moment for isolated water molecule (ADF): ", dipole_vect)
 
-if 'unittesting' in pyadfenv.options :
-    testobj.assertAlmostEqual(dipole_vect,  [0.0, 0.0, 0.731050], 4)
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(dipole_vect, [0.0, 0.0, 0.731050], 4)
 
 fdesettings = adfsettings()
 # save TAPE10 is needed for exporting the FDE potential
-fdesettings.set_save_tapes([21,10])
+fdesettings.set_save_tapes([21, 10])
 fdesettings.set_functional('BP86')
 fdesettings.set_integration(accint=4.0)
 
-frags = [fragment(r_h2o_1, [m_h2o_1], isfrozen=True, fdeoptions={'RELAX':""}),
-         fragment(r_h2o_2, [m_h2o_2], isfrozen=True, fdeoptions={'RELAX':""}),
-	 fragment(None,    [m_mol]  ) ]
+frags = [fragment(r_h2o_1, [m_h2o_1], isfrozen=True, fdeoptions={'RELAX': ""}),
+         fragment(r_h2o_2, [m_h2o_2], isfrozen=True, fdeoptions={'RELAX': ""}),
+         fragment(None, [m_mol])]
 
-fderes = adffragmentsjob( frags, basis="DZP", settings=fdesettings,
-                         options=['NOSYM'], fde={'RELAXCYCLES':2}).run()
+fderes = adffragmentsjob(frags, basis="DZP", settings=fdesettings,
+                         options=['NOSYM'], fde={'RELAXCYCLES': 2}).run()
 
 dipole_vect = fderes.get_dipole_vector()
-print "Dipole moment for FDE water molecule (ADF): ", dipole_vect
+print("Dipole moment for FDE water molecule (ADF): ", dipole_vect)
 
-if 'unittesting' in pyadfenv.options :
-    testobj.assertAlmostEqual(dipole_vect,  [0.0, 0.0, 0.775334], 4)
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(dipole_vect, [0.0, 0.0, 0.775334], 4)
 
 # Dalton without embedding
 settings = daltonsettings(method='DFT', functional='LDA')
-dalton_res = daltonsinglepointjob( m_mol, basis='cc-pVDZ', settings=settings ).run()
+dalton_res = daltonsinglepointjob(m_mol, basis='cc-pVDZ', settings=settings).run()
 
 energy = dalton_res.get_energy()
-print "LDA energy for isolated water molecule (Dalton): ", energy
+print("LDA energy for isolated water molecule (Dalton): ", energy)
 
 dipole_vect = dalton_res.get_dipole_vector()
-print "Dipole moment for isolated water molecule (Dalton): ", dipole_vect
+print("Dipole moment for isolated water molecule (Dalton): ", dipole_vect)
 
-if 'unittesting' in pyadfenv.options :
-    testobj.assertAlmostEqual(energy,  -75.8552958824, 6)
-    testobj.assertAlmostEqual(dipole_vect,  [0.0, 0.0, 0.774208], 4)
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(energy, -75.8552958824, 6)
+    testobj.assertAlmostEqual(dipole_vect, [0.0, 0.0, 0.774208], 4)
 
 # Dalton with embedding
-dalton_res = daltonsinglepointjob( m_mol, basis='cc-pVDZ', fdein=fderes, settings=settings ).run()
+dalton_res = daltonsinglepointjob(m_mol, basis='cc-pVDZ', fdein=fderes, settings=settings).run()
 
 energy = dalton_res.get_energy()
-print "LDA energy for FDE water molecule (Dalton): ", energy
+print("LDA energy for FDE water molecule (Dalton): ", energy)
 
 dipole_vect = dalton_res.get_dipole_vector()
-print "Dipole moment for FDE water molecule (Dalton): ", dipole_vect
+print("Dipole moment for FDE water molecule (Dalton): ", dipole_vect)
 
-if 'unittesting' in pyadfenv.options :
+if 'unittesting' in pyadfenv.options:
     testobj.assertAlmostEqual(energy, -75.5390740295, 6)
-    testobj.assertAlmostEqual(dipole_vect,  [0.0, 0.0, 0.840760], 4)
+    testobj.assertAlmostEqual(dipole_vect, [0.0, 0.0, 0.840760], 4)

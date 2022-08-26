@@ -1,5 +1,9 @@
+import os
+from pyadf import *
+if 'pyadfenv' not in globals():
+    from pyadf.Initialization import *
 
-o2 = molecule (os.path.join(pyadfenv.outdir, 'O2.xyz'))
+o2 = molecule(os.path.join(pyadfenv.outdir, 'O2.xyz'))
 o2.set_symmetry('NOSYM')
 o2.set_spin(2)
 
@@ -12,9 +16,9 @@ results = adfsinglepointjob(o2, 'SZ', settings=settings).run()
 bond_energy = results.get_bond_energy()
 s2 = results.get_s2()
 
-print "Total Bond Energy (BP/non-rel/unrestricted)", bond_energy
-print "S2 (BP/non-rel/unrestricted)", s2
-testobj.assertAlmostEqual(bond_energy, -0.3757432349, 7)
+print("Total Bond Energy (BP/non-rel/unrestricted)", bond_energy)
+print("S2 (BP/non-rel/unrestricted)", s2)
+testobj.assertAlmostEqual(bond_energy, -0.3757432349, 6)
 testobj.assertAlmostEqual(s2, 2.00043, 5)
 
 # ZORA
@@ -28,9 +32,9 @@ results = adfsinglepointjob(o2, 'ZORA/SZ', settings=ZORA_settings).run()
 bond_energy = results.get_bond_energy()
 s2 = results.get_s2()
 
-print "Total Bond Energy (BP/ZORA/unrestricted)", bond_energy
-print "S2 (BP/ZORA/unrestricted)", s2
-testobj.assertAlmostEqual(bond_energy, -0.3752044414, 7)
+print("Total Bond Energy (BP/ZORA/unrestricted)", bond_energy)
+print("S2 (BP/ZORA/unrestricted)", s2)
+testobj.assertAlmostEqual(bond_energy, -0.3752044414, 6)
 testobj.assertAlmostEqual(s2, 2.00043, 5)
 
 # ZORA / noncolinear
@@ -44,5 +48,5 @@ results = adfsinglepointjob(o2, 'ZORA/SZ', settings=ZORA_settings).run()
 
 bond_energy = results.get_bond_energy()
 
-print "Total Bond Energy (BP/ZORA/noncollinear)", bond_energy
-testobj.assertAlmostEqual(bond_energy, -0.37520580, 7)
+print("Total Bond Energy (BP/ZORA/noncollinear)", bond_energy)
+testobj.assertAlmostEqual(bond_energy, -0.37520580, 6)

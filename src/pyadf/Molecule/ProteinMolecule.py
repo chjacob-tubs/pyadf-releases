@@ -1,12 +1,10 @@
-# -*- coding: utf-8 -*-
-
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2021 by Christoph R. Jacob, Tobias Bergmann,
-# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Thomas Dresselhaus,
-# Andre S. P. Gomes, Andreas Goetz, Michal Handzlik, Karin Kiewisch,
-# Moritz Klammler, Lars Ridder, Jetze Sikkema, Lucas Visscher, and
-# Mario Wolter.
+# Copyright (C) 2006-2022 by Christoph R. Jacob, Tobias Bergmann,
+# S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Maria Chekmeneva,
+# Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz, 
+# Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder, 
+# Jetze Sikkema, Lucas Visscher, Johannes Vornweg and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -19,7 +17,7 @@
 #    GNU General Public License for more details.
 #
 #    You should have received a copy of the GNU General Public License
-#    along with PyADF.  If not, see <http://www.gnu.org/licenses/>.
+#    along with PyADF.  If not, see <https://www.gnu.org/licenses/>.
 """
  Defines the L{ProteinMoleculeMixin} class
  that adds protein-related functionality to the Molecule classes.
@@ -41,10 +39,10 @@ def normalize_vector(vec):
     return vec / np.linalg.norm(vec)
 
 
-class ProteinMoleculeMixin(object):
+class ProteinMoleculeMixin:
 
     def __init__(self):
-        super(ProteinMoleculeMixin, self).__init__()
+        super().__init__()
 
     def add_hydrogens_to_sp3_atom(self, atom, bonddist, valence=4):
         coords = np.array(self.get_coordinates([atom])[0])
@@ -269,6 +267,7 @@ class ProteinMoleculeMixin(object):
 
         return orientation
 
+    # noinspection PyShadowingBuiltins
     def get_backbone_torsions(self, format='turbomole'):
         """
         gives back a list oft phi and psi torsions of peptides and proteins
@@ -290,7 +289,7 @@ class ProteinMoleculeMixin(object):
             tors_list.append(phi)
 
         if format == 'turbomole':
-            tors_list = ['f tors %i %i %i %i' % tors for tors in tors_list]
+            tors_list = ['f tors {:d} {:d} {:d} {:d}'.format(*tors) for tors in tors_list]
 
         return tors_list
 

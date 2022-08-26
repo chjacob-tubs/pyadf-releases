@@ -1,17 +1,20 @@
-h2o = molecule (os.path.join(pyadfenv.outdir, 'H2O.xyz'))
+import os
+from pyadf import *
 
-results = daltonCC2job( h2o, 'STO-6G').run()
+if 'pyadfenv' not in globals():
+    from pyadf.Initialization import *
 
-exens = results.get_excitation_energies ()
-oscs  = results.get_oscillator_strengths ()
+h2o = molecule(os.path.join(pyadfenv.outdir, 'H2O.xyz'))
 
-testobj.assertAlmostEqual(exens[0], 11.55898, 3) 
-testobj.assertAlmostEqual(exens[1], 14.00155, 3) 
-testobj.assertAlmostEqual(exens[2], 15.26079, 3) 
+results = daltonCC2job(h2o, 'STO-6G').run()
 
-testobj.assertAlmostEqual(oscs[0], 0.003,   3) 
-testobj.assertAlmostEqual(oscs[1], 3.4e-06, 3) 
-testobj.assertAlmostEqual(oscs[2], 0.06456, 3) 
+exens = results.get_excitation_energies()
+oscs = results.get_oscillator_strengths()
 
- 
-      
+testobj.assertAlmostEqual(exens[0], 11.55898, 3)
+testobj.assertAlmostEqual(exens[1], 14.00155, 3)
+testobj.assertAlmostEqual(exens[2], 15.26079, 3)
+
+testobj.assertAlmostEqual(oscs[0], 0.003, 3)
+testobj.assertAlmostEqual(oscs[1], 3.4e-06, 3)
+testobj.assertAlmostEqual(oscs[2], 0.06456, 3)

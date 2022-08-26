@@ -1,0 +1,22 @@
+import os
+from pyadf import *
+if 'pyadfenv' not in globals():
+    from pyadf.Initialization import *
+
+mol = molecule(os.path.join(pyadfenv.outdir, 'H2O.xyz'))
+
+mol_pc = molecule(os.path.join(pyadfenv.outdir, 'H2O_pc.pdb'), 'pdb')
+
+settings = TurbomoleSinglePointSettings(verbose_level=2)
+
+# default settings: RI-DFT/BP
+settings.set_basis_set('def2-SVP')
+settings.add_point_charges(mol_pc.get_tip3p_pointcharges())
+
+res = TurbomoleSinglePointJob(mol, method='dft', settings=settings).run()
+
+energy = res.get_energy()
+print("Total Energy: ", energy)
+
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(energy, -76.37797567198, 5)

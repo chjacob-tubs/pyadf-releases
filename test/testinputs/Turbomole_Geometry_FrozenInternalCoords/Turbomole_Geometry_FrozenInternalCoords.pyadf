@@ -1,0 +1,27 @@
+import os
+from pyadf import *
+if 'pyadfenv' not in globals():
+    from pyadf.Initialization import *
+
+mol = molecule(os.path.join(pyadfenv.outdir, 'bad_water.xyz'))
+
+settings = TurbomoleGeometryOptimizationSettings(verbose_level=2)
+
+# default settings: RI-DFT/BP
+settings.set_basis_set('def2-SVP')
+
+settings.add_internal_coordinates(['f bend 1 2 3'])
+
+res = TurbomoleGeometryOptimizationJob(mol, method='dft', settings=settings).run()
+
+opt_mol = res.get_molecule()
+opt_mol.write(os.path.join(pyadfenv.outdir, 'bad_water_opt.xyz'))
+
+opt_energy = res.get_energy()
+print("Final Total Energy: ", opt_energy)
+
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(opt_energy, -76.3287921185, 5)
+
+    ref_mol = molecule(os.path.join(pyadfenv.outdir, 'bad_water_ref.xyz'))
+    testobj.assertAlmostEqualMolecules(opt_mol, ref_mol)
