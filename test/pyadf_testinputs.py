@@ -160,8 +160,12 @@ def make_testinputs_suite(tests="all", testnames=None, dalton=True, adf=True, di
                 use_test = ('espresso' in testname.lower())
             elif tests == 'molcas':
                 use_test = ('molcas' in testname.lower())
+            elif tests == 'turbomole' and not openbabel:
+                use_test = (('turbomole' in testname.lower()) and not ('openbabel' in testname.lower()))
             elif tests == 'turbomole':
                 use_test = (('turbomole' in testname.lower()) or ('snf' in testname.lower()))
+            elif tests == 'orca' and not openbabel:
+                use_test = (('orca' in testname.lower()) and not ('openbabel' in testname.lower()))
             elif tests == 'orca':
                 use_test = ('orca' in testname.lower())
             elif tests == 'openbabel':

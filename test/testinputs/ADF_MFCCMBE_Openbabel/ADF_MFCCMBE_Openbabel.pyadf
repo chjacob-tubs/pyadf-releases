@@ -28,13 +28,13 @@ frags.partition_protein(helix_mol, caps=caps, fragsize=1)
 mfcc_res = adfmfccjob(frags, settings=settings, core=core, basis=basis, options=options).run()
 toten_mfcc = mfcc_res.get_total_energy()
 
-mfccmbe_onlyff_res = adfmfccmbejob(frags, jobfunc=calculate_mol, caps=caps, onlyffterms=True, cutoff=cutoff).run()
-toten_mfccmbe_ff = mfccmbe_onlyff_res.get_total_energy()
+mfccmbe_onlyff_res = mfccmbe2job(frags, jobfunc=calculate_mol, caps=caps, onlyffterms=True, cutoff=cutoff).run()
+toten_mfccmbe_ff = mfccmbe_onlyff_res.get_total_interaction_energy()
 
-mfccmbe_res = adfmfccmbejob(frags, jobfunc=calculate_mol, caps=caps, cutoff=cutoff).run()
-toten_mfccmbe = mfccmbe_res.get_total_energy()
+mfccmbe_res = mfccmbe2job(frags, jobfunc=calculate_mol, caps=caps, cutoff=cutoff).run()
+toten_mfccmbe = mfccmbe_res.get_total_interaction_energy()
 
 if 'unittesting' in pyadfenv.options:
-    testobj.assertAlmostEqual(toten_mfcc, -987.5392375930032, 6)
+    testobj.assertAlmostEqual(toten_mfcc, -987.5392390904123, 6)
     testobj.assertAlmostEqual(toten_mfccmbe_ff, -0.015961041139121335, 6)
     testobj.assertAlmostEqual(toten_mfccmbe, -0.00903268940368207, 6)

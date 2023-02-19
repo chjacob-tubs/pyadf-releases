@@ -48,5 +48,5 @@ s2 = results.get_s2()
 print(s2)
 
 if 'unittesting' in pyadfenv.options:
-    testobj.assertAlmostEqual([-0.86762269, -0.38991088, 2.57971921], dipole)
+    testobj.assertAlmostEqual([-0.86762282, -0.38991088, 2.57971968], dipole, 6)
     testobj.assertAlmostEqual(s2, 0.77363, 4)

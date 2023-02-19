@@ -1,0 +1,121 @@
+import os
+from pyadf import *
+if 'pyadfenv' not in globals():
+    from pyadf.Initialization import *
+
+h2o = molecule(os.path.join(pyadfenv.outdir, 'H2O.xyz'))
+
+# GGA-DFT (PBE) single point calculation - no RI
+
+settings = OrcaSettings(method='DFT', functional='PBE', basis='cc-pVDZ', ri=False)
+results = OrcaSinglePointJob(h2o, settings=settings).run()
+
+energy = results.get_energy()
+testobj.assertAlmostEqual(energy, -76.332447551266, 6)
+
+# GGA-DFT (PBE) single point calculation - RI
+
+settings = OrcaSettings(method='DFT', functional='PBE', basis='cc-pVDZ', ri=True)
+results = OrcaSinglePointJob(h2o, settings=settings).run()
+
+energy = results.get_energy()
+testobj.assertAlmostEqual(energy, -76.332523971409, 6)
+
+# GGA-DFT (PBE) single point calculation - default = RI
+
+settings = OrcaSettings(method='DFT', functional='PBE', basis='cc-pVDZ', ri=None)
+results = OrcaSinglePointJob(h2o, settings=settings).run()
+
+energy = results.get_energy()
+testobj.assertAlmostEqual(energy, -76.332523971409, 6)
+
+# HF single point calculation - no RI
+
+settings = OrcaSettings(method='HF', basis='cc-pVDZ', ri=False)
+results = OrcaSinglePointJob(h2o, settings=settings).run()
+
+energy = results.get_energy()
+testobj.assertAlmostEqual(energy, -76.021573309892, 6)
+
+# HF single point calculation - default = no RI
+
+settings = OrcaSettings(method='HF', basis='cc-pVDZ', ri=None)
+results = OrcaSinglePointJob(h2o, settings=settings).run()
+
+energy = results.get_energy()
+testobj.assertAlmostEqual(energy, -76.021573309892, 6)
+
+# HF single point calculation - RIJDX = RIJ + exact X
+
+settings = OrcaSettings(method='HF', basis='cc-pVDZ', ri='RIJDX')
+results = OrcaSinglePointJob(h2o, settings=settings).run()
+
+energy = results.get_energy()
+testobj.assertAlmostEqual(energy, -76.02166754756, 6)
+
+# HF single point calculation - RIJK = RIJ + RIK
+
+settings = OrcaSettings(method='HF', basis='cc-pVDZ', ri='RIJK')
+settings.set_extra_keywords('cc-pVTZ/JK', append=True)
+results = OrcaSinglePointJob(h2o, settings=settings).run()
+
+energy = results.get_energy()
+testobj.assertAlmostEqual(energy, -76.02157057809, 6)
+
+# HF single point calculation - RIJCOSX = RIJ + COS-X
+
+settings = OrcaSettings(method='HF', basis='cc-pVDZ', ri='RIJCOSX')
+results = OrcaSinglePointJob(h2o, settings=settings).run()
+
+energy = results.get_energy()
+testobj.assertAlmostEqual(energy, -76.021618346691, 6)
+
+
+# Hybrid DFT (PBE0) single point calculation - no RI
+
+settings = OrcaSettings(method='DFT', functional='PBE0', basis='cc-pVDZ', ri=False)
+results = OrcaSinglePointJob(h2o, settings=settings).run()
+
+energy = results.get_energy()
+testobj.assertAlmostEqual(energy, -76.336270037138, 6)
+
+# Hybrid DFT (PBE0) single point calculation - RI=True -> fails
+#
+# settings = OrcaSettings(method='PBE0', basis='cc-pVDZ', ri=True)
+# results = OrcaSinglePointJob(h2o, settings=settings).run()
+#
+# energy = results.get_energy()
+# testobj.assertAlmostEqual(energy, -76.336270037138, 6)
+
+# Hybrid DFT (PBE0) single point calculation - RIJDX = RIJ + exact X
+
+settings = OrcaSettings(method='DFT', functional='PBE0', basis='cc-pVDZ', ri='RIJDX')
+results = OrcaSinglePointJob(h2o, settings=settings).run()
+
+energy = results.get_energy()
+testobj.assertAlmostEqual(energy, -76.336350705129, 6)
+
+# Hybrid DFT (PBE0) single point calculation - RIJK = RIJ + RIK
+
+settings = OrcaSettings(method='DFT', functional='PBE0', basis='cc-pVDZ', ri='RIJK')
+settings.set_extra_keywords('cc-pVTZ/JK', append=True)
+results = OrcaSinglePointJob(h2o, settings=settings).run()
+
+energy = results.get_energy()
+testobj.assertAlmostEqual(energy, -76.336284010898, 6)
+
+# Hybrid DFT (PBE0) single point calculation - RIJCOSX = RIJ + COS-X
+
+settings = OrcaSettings(method='DFT', functional='PBE0', basis='cc-pVDZ', ri='RIJCOSX')
+results = OrcaSinglePointJob(h2o, settings=settings).run()
+
+energy = results.get_energy()
+testobj.assertAlmostEqual(energy, -76.336353066429, 6)
+
+# Hybrid DFT (PBE0) single point calculation - default = RIJCOSX
+
+settings = OrcaSettings(method='DFT', functional='PBE0', basis='cc-pVDZ', ri=None)
+results = OrcaSinglePointJob(h2o, settings=settings).run()
+
+energy = results.get_energy()
+testobj.assertAlmostEqual(energy, -76.336353066429, 6)

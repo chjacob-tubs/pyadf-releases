@@ -1,0 +1,33 @@
+import os
+from pyadf import *
+
+if 'pyadfenv' not in globals():
+    from pyadf.Initialization import *
+
+mol = molecule(os.path.join(pyadfenv.outdir, 'ch2o.xyz'))
+mol.set_charge(0)
+
+settings = OrcaSettings(method='DFT', ri=True, basis='def2-SVP', functional='BP86')
+tddft_settings = OrcaTDDFTSettings(nroots=5, maxdim=2, tda=True)
+
+# excited state geometry optimization
+results = OrcaExStateGeoOptJob(mol, settings=settings, tddft= tddft_settings, iroot=1).run()
+
+mol_opt = results.get_molecule()
+mol_opt.write(os.path.join(pyadfenv.outdir, 'ch2o_opt.xyz'))
+
+mol_ref = molecule(os.path.join(pyadfenv.outdir, 'ch2o_ref.xyz'))
+
+testobj.assertAlmostEqualMolecules(mol_opt, mol_ref)
+
+# excited state frequency calculation
+results = OrcaExStateFrequenciesJob(mol_opt, settings=settings, tddft= tddft_settings, iroot=1).run()
+
+freqs = results.get_frequencies()
+ints = results.get_ir_intensities()
+
+freqs_ref = [-561.32, 835.25, 1233.46, 1321.35, 2967.2, 3115.42]
+ints_ref = [0.0, 6.75615076, 11.74076105, 42.74017954, 39.43118421, 49.44372951]
+
+testobj.assertAlmostEqual(freqs, freqs_ref, 3)
+testobj.assertAlmostEqual(ints, ints_ref, 3)

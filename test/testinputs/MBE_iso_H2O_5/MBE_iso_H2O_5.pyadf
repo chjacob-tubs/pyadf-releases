@@ -100,9 +100,9 @@ print("Error compared to supermol, eb-MBE-2 (kJ/mol): ", error_eb_2)
 print("Error compared to supermol, eb-MBE-3 (kJ/mol): ", error_eb_3)
 
 if 'unittesting' in pyadfenv.options:
-    testobj.assertAlmostEqual(error_eb_1, 174.1098139231353, 4)
-    testobj.assertAlmostEqual(error_eb_2,  12.4007362739690, 4)
-    testobj.assertAlmostEqual(error_eb_3,  -0.7180034439005, 4)
+    testobj.assertAlmostEqual(error_eb_1, 174.1099907975709, 4)
+    testobj.assertAlmostEqual(error_eb_2,  12.4010119862957, 4)
+    testobj.assertAlmostEqual(error_eb_3,  -0.7188638006208, 4)
 
 ###############################################
 # B) density-based MBE
@@ -155,6 +155,6 @@ print("Error compared to supermol, db-MBE-2 (kJ/mol): ", error_db_2)
 print("Error compared to supermol, db-MBE-3 (kJ/mol): ", error_db_3)
 
 if 'unittesting' in pyadfenv.options:
-    testobj.assertAlmostEqual(error_db_1, 134.035540022800, 4)
-    testobj.assertAlmostEqual(error_db_2,   0.744651511235, 4)
-    testobj.assertAlmostEqual(error_db_3,   0.720381157279, 4)
+    testobj.assertAlmostEqual(error_db_1, 134.035710015465, 4)
+    testobj.assertAlmostEqual(error_db_2,   0.744922905809, 4)
+    testobj.assertAlmostEqual(error_db_3,   0.719522394763, 4)

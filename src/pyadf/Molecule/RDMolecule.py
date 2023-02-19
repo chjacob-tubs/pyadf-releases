@@ -541,7 +541,8 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
 
         tmolfile = '$coord\n'
         for at, c in zip(self.get_atom_symbols(ghosts=False), self.get_coordinates(ghosts=False)):
-            tmolfile += f'{c[0] * ratio:20.14f} {c[1] * ratio:20.14f} {c[2] * ratio:20.14f} {at.lower():<8} \n'
+            tmolfile += f'{c[0] * ratio:20.14f} {c[1] * ratio:20.14f} {c[2] * ratio:20.14f} ' \
+                        f'{at.split(".")[0].lower():<8} \n'
         tmolfile += '$end\n'
         return tmolfile
 

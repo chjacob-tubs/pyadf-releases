@@ -1,0 +1,30 @@
+import os
+from pyadf import *
+import numpy as np
+
+if 'pyadfenv' not in globals():
+    from pyadf.Initialization import *
+
+mol = molecule(os.path.join(pyadfenv.outdir, 'ch2o.xyz'))
+mol.set_charge(0)
+
+settings = OrcaSettings(method='DFT', ri=True, basis='def2-SVP', functional='BP86', cpcm='WATER')
+tddft_settings = OrcaTDDFTSettings(nroots=5, maxdim=10)
+
+results = OrcaExcitationsJob(mol, settings=settings, tddft=tddft_settings).run()
+
+exens = results.get_excitation_energies()
+exens_ref = np.array([3.961, 7.829, 9.028, 9.415, 9.642])
+testobj.assertAlmostEqual(exens, exens_ref, 2)
+
+osc = results.get_oscillator_strengths()
+osc_ref = np.array([0.000000000, 0.155580230, 0.000756617, 0.002021943, 0.000000000])
+testobj.assertAlmostEqual(osc, osc_ref, 4)
+
+tdm = results.get_transition_dipole_vector()
+tdm_ref = np.array([[0.00000000e+00, 0.00000000e+00, -0.00000000e+00],
+                    [0.00000000e+00, -9.00619984e-01, -0.00000000e+00],
+                    [0.00000000e+00, 0.00000000e+00, -5.84900007e-02],
+                    [-9.36300009e-02, -0.00000000e+00, 0.00000000e+00],
+                    [0.00000000e+00, 0.00000000e+00, 0.00000000e+00]])
+testobj.assertAlmostEqual(np.abs(tdm), np.abs(tdm_ref), 4)

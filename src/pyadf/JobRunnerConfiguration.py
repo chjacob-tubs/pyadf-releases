@@ -199,8 +199,9 @@ class JobRunnerConfiguration:
             for mod in env_modules:
                 module_cmd += f'module load {mod}; '
 
+            DEVNULL = open(os.devnull, 'wb')
             env_output_new = Popen(module_cmd+'env', shell=True, executable=self.default_shell,
-                                   stdout=PIPE).communicate()[0].decode('utf-8')
+                                   stdout=PIPE, stderr=DEVNULL).communicate()[0].decode('utf-8')
             environ = self._env_output_to_environ_dict(env_output_new)
         else:
             environ = os.environ

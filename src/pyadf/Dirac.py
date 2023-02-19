@@ -61,7 +61,14 @@ class diracresults(results):
         """
         Return the file name of the DFCOEF file belonging to the results.
         """
-        return self.files.get_results_filename(self.fileid, 21)
+        try:
+            fn = self.files.get_results_filename(self.fileid, 22)
+        except PyAdfError:
+            try:
+                fn = self.files.get_results_filename(self.fileid, 23)
+            except PyAdfError:
+                fn = self.files.get_results_filename(self.fileid, 21)
+        return fn
 
     def get_gridout_filename(self):
         """
@@ -81,14 +88,22 @@ class diracresults(results):
         """
         return self.files.get_results_filename(self.fileid, 66)
 
-    def copy_dfcoef(self, name="DFCOEF"):
+    def copy_dfcoef(self):
         """
         Copy result DFCOEF file to the working directory.
-
-        @param name: The name of the copied file
-        @type  name: str
         """
-        self.files.copy_result_file(self.fileid, 21, name)
+        try:
+            self.files.copy_result_file(self.fileid, 21, "DFCOEF")
+        except PyAdfError:
+            pass
+
+        try:
+            self.files.copy_result_file(self.fileid, 22, "CHECKPOINT.h5")
+        except PyAdfError:
+            try:
+                self.files.copy_result_file(self.fileid, 23, "CHECKPOINT.noh5.tar.gz")
+            except PyAdfError:
+                pass
 
     def copy_gridout(self, name="GRIDOUT"):
         """
@@ -334,8 +349,8 @@ class diracjob(job):
 
     def get_runscript(self, nproc=1):
 
-        put_files = ['DFCOEF', 'FRZDNS', 'EMBPOT', 'GRIDOUT']
-        get_files = ['DFCOEF', 'GRIDOUT', 'dirac.xml']
+        put_files = ['FRZDNS', 'EMBPOT', 'GRIDOUT']
+        get_files = ['GRIDOUT', 'dirac.xml']
 
         runscript = ""
 
@@ -353,7 +368,10 @@ class diracjob(job):
         if nproc > 1:
             runscript += f'--mpi={nproc:d} '
         runscript += ' --put="' + " ".join([pf for pf in put_files if os.path.exists(pf)]) + '"'
+        if os.path.exists('DFCOEF') or os.path.exists('CHECKPOINT.h5') or os.path.exists('CHECKPOINT.noh5.tar.gz'):
+            runscript += ' --incmo'
         runscript += ' --get="' + " ".join([gf for gf in get_files]) + '"'
+        runscript += ' --outcmo'
         if 'DIRMAX_GB' in os.environ:
             runscript += ' --ag=' + os.environ['DIRMAX_GB']
         runscript += " --mol=MOLECULE.xyz --inp=DIRAC.inp \n"
@@ -374,7 +392,7 @@ class diracjob(job):
         return runscript
 
     def result_filenames(self):
-        return ['DFCOEF', 'GRIDOUT', 'dirac.xml']
+        return ['DFCOEF', 'CHECKPOINT.h5', 'CHECKPOINT.noh5.tar.gz', 'GRIDOUT', 'dirac.xml']
 
     def check_success(self, outfile, errfile):
         # check that Dirac terminated normally

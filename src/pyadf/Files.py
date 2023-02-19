@@ -387,7 +387,8 @@ class adf_filemanager(filemanager):
         self._ispacked.append(True)
 
         # we store DFCOEF as TAPE21, and GRIDOUT as TAPE10, dirac.xml as TAPE66
-        fnlist = [('DFCOEF', 21), ('GRIDOUT', 10), ('dirac.xml', 66)]
+        fnlist = [('DFCOEF', 21), ('CHECKPOINT.h5', 22), ('CHECKPOINT.noh5.tar.gz', 23),
+                  ('GRIDOUT', 10), ('dirac.xml', 66)]
         self.add_resultfiles_as_tapes(fnlist, results.fileid)
 
     def add_nwchem_results(self, results):

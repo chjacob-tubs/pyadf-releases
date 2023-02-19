@@ -47,8 +47,8 @@ check_results_hf(energy, dipole_vect, dipole_magn)
 
 # LDA single point calculation
 
-settings = OrcaSettings(method='DFT', functional='LDA', basis='cc-pVDZ', ri=False)
-settings.set_extra_keywords(['TightSCF', 'DefGrid3'])
+settings = OrcaSettings(method='DFT', functional='LDA', basis='cc-pVDZ', ri=False, converge='TightSCF')
+settings.set_extra_keywords(['DefGrid3'])
 results = OrcaSinglePointJob(h2o, settings=settings).run()
 
 energy = results.get_energy()
@@ -59,8 +59,8 @@ check_results_lda(energy, dipole_vect, dipole_magn)
 
 # BP86 single point calculation
 
-settings = OrcaSettings(method='DFT', functional='BP86', basis='cc-pVDZ', ri=False)
-settings.set_extra_keywords(['TightSCF', 'DefGrid3'])
+settings = OrcaSettings(method='DFT', functional='BP86', basis='cc-pVDZ', ri=False, converge='TightSCF')
+settings.set_extra_keywords(['DefGrid3'])
 results = OrcaSinglePointJob(h2o, settings=settings).run()
 
 energy = results.get_energy()

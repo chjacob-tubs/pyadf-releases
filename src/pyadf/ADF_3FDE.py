@@ -27,7 +27,6 @@
 
 """
 
-import itertools
 from .Errors import PyAdfError
 from .Molecule import MoleculeFactory, OBMolecule, RDMolecule
 from .BaseJob import metajob, results
@@ -466,6 +465,27 @@ class cappedfragmentlist(fragmentlist):
     def caps(self):
         return self._caps
 
+    def set_charges(self, reschargelist=None):
+        """
+        sets charges for every cappedfragment
+
+        @param reschargelist: list with charged residues [['A2', -1], ['B3', +2]]
+        @type  reschargelist: list
+        """
+        for frag in self.fragiter():
+            natoms = frag.mol.get_number_of_atoms()
+            chainresnumlist = []
+            for i in range(natoms):
+                chain, resname, resnum = frag.mol.get_atom_resinfo(i+1)
+                if not resname == 'CAP':
+                    chainresnumlist.append(chain + str(resnum))
+            charge = 0
+            for res in reschargelist:
+                if res[0] in chainresnumlist:
+                    charge += res[1]
+            frag.mol.set_charge(charge)
+        return
+
     def get_total_molecule(self):
         """
         Returns the total molecule.
@@ -690,7 +710,6 @@ class cappedfragmentlist(fragmentlist):
                 self.append(cappedfragment(None, res_frag.get_total_molecule()))
                 # clear frag_reslist for next fragment
                 frag_reslist = []
-
         # ------------------------------------------------------------------------------
 
         # find all peptide bonds and create caps
@@ -699,7 +718,7 @@ class cappedfragmentlist(fragmentlist):
             caps = 'mfcc'
 
         if caps == 'mfcc':
-            sp = '[C;X4;H1,H2][CX3](=O)[NX3][C;X4;H1,H2][CX3](=O)'
+            sp = '[NX3,NX4][C;X4;H1,H2][CX3](=O)[NX3][C;X4;H1,H2][CX3](=O)'
             # this SMARTS pattern matches all peptide bonds
             #
             # (in this comment: atom numbering starts at 1;
@@ -710,7 +729,7 @@ class cappedfragmentlist(fragmentlist):
             # part 2 (n-part): atoms 4-5
 
         elif caps == 'hydrogen':
-            sp = '[C;X4;H1,H2][CX3](=O)[NX3]([*])[C;X4;H1,H2][CX3](=O)'
+            sp = '[NX3,NX4][C;X4;H1,H2][CX3](=O)[NX3]([*])[C;X4;H1,H2][CX3](=O)'
             # same as above, but also matches any atom bound to the nitrogen
             # the * might not be a good idea, but [C,H] was not working...
             # (this is needed for the proper calculation of the hydrogen coordinates)
@@ -719,17 +738,15 @@ class cappedfragmentlist(fragmentlist):
             raise PyAdfError('unsupported cap type, please specify one of the following: mfcc, hydrogen')
 
         maplist = mol.get_smarts_matches(sp)
-
         for mp in maplist:
+            if {res_of_atoms[mp[4] - 1], res_of_atoms[mp[2] - 1]} not in non_capped_res:
 
-            if {res_of_atoms[mp[3] - 1], res_of_atoms[mp[1] - 1]} not in non_capped_res:
-
-                capped_bonds.append({mp[1], mp[3]})
+                capped_bonds.append({mp[2], mp[4]})
 
                 m_cap = None
                 if caps == 'mfcc':
-                    cap_o = mp[0:3] + mol.find_adjacent_hydrogens(mp[0:3])
-                    cap_n = mp[3:5] + mol.find_adjacent_hydrogens(mp[3:5])
+                    cap_o = mp[1:4] + mol.find_adjacent_hydrogens(mp[1:4])
+                    cap_n = mp[4:6] + mol.find_adjacent_hydrogens(mp[4:6])
                     m_cap = mol.get_fragment(cap_o + cap_n)
                     m_cap.set_spin(0)
                     m_cap.set_residue('CAP', 1, atoms=list(range(1, len(cap_o) + 1)))
@@ -740,13 +757,13 @@ class cappedfragmentlist(fragmentlist):
                     m_cap.add_hydrogens_to_sp3_c(len(cap_o) + 2)
 
                 elif caps == 'hydrogen':
-                    ccap = mol.get_fragment([mp[1], mp[2], mp[0]])
+                    ccap = mol.get_fragment([mp[2], mp[3], mp[1]])
                     ccap.add_hydrogens_to_sp2_c(1)
-                    ncap = mol.get_fragment([mp[3], mp[4], mp[5]])
+                    ncap = mol.get_fragment([mp[4], mp[5], mp[6], mp[7]])
                     ncap.add_hydrogens_to_sp3_n(1)
 
                     m_cap = capmolecule()
-                    m_cap.add_atoms(['H'], ncap.get_coordinates([4]))
+                    m_cap.add_atoms(['H'], ncap.get_coordinates([5]))
                     m_cap.add_atoms(['H'], ccap.get_coordinates([4]), bond_to=1)
 
                     m_cap.set_spin(0)
@@ -756,11 +773,10 @@ class cappedfragmentlist(fragmentlist):
                     m_cap.set_symmetry('NOSYM')
 
                 # find the capped fragments
-                #   frag1: fragment that contains the N atom (mp[3])
-                #   frag2: fragment that contains the C=O atom (mp[1])
-
-                fi1 = frag_indices[res_of_atoms[mp[3] - 1]]
-                fi2 = frag_indices[res_of_atoms[mp[1] - 1]]
+                #   frag1: fragment that contains the N atom (mp[4])
+                #   frag2: fragment that contains the C=O atom (mp[2])
+                fi1 = frag_indices[res_of_atoms[mp[4] - 1]]
+                fi2 = frag_indices[res_of_atoms[mp[2] - 1]]
 
                 frag1 = self._frags[fi1]
                 frag2 = self._frags[fi2]
@@ -939,8 +955,7 @@ class mfccresults(results):
 
 class adfmfccjob(metajob):
 
-    def __init__(self, frags, basis, settings=None, core=None,
-                 pointcharges=None, fitbas=None, options=None, reschargelist=None):
+    def __init__(self, frags, basis, settings=None, core=None, pointcharges=None, fitbas=None, options=None):
         """
         Initialize a MFCC job.
 
@@ -958,8 +973,6 @@ class adfmfccjob(metajob):
         @type  fitbas
         @param options:
         @type  options:
-        @param reschargelist: list of charged residues [[str(chain+residue), int(charge)], ['A13', -1]]
-        @type  reschargelist: list
         """
         super().__init__()
 
@@ -971,20 +984,6 @@ class adfmfccjob(metajob):
         self._pc = pointcharges
         self._fitbas = fitbas
         self._options = options
-        self._reschargelist = reschargelist
-
-    def set_charges(self):
-        """
-        sets charges for every fragment
-        """
-        for frag in self._frags.fragiter():
-            charge = 0
-            chain, resname, resnum = frag.mol.get_atom_resinfo(1)
-            for res in self._reschargelist:
-                if chain + str(resnum) in res:
-                    charge += res[1]
-            frag.mol.set_charge(charge)
-        return
 
     def create_results_instance(self):
         return mfccresults(self)
@@ -995,9 +994,6 @@ class adfmfccjob(metajob):
     def metarun(self):
         import copy
         frags = copy.deepcopy(self._frags)
-
-        if self._reschargelist:
-            self.set_charges()
 
         frags.calculate_all(lambda mol:
                             adfsinglepointjob(mol, basis=self._basis, settings=self._settings,
@@ -1210,355 +1206,3 @@ class adf3fdejob(adfmfccjob):
             return self.mixed_ft_run()
         else:
             return self.parallel_ft_run()
-
-
-class mfccmberesults(results):
-    """
-    Class for MFCCMBE(2) results.
-
-    """
-
-    def __init__(self, job):
-        super().__init__(job)
-        self.overlap_res_by_comb = {}
-        self.nooverlap_res_by_comb = {}
-        self.trimer_res_by_comb = {}
-        self.fragcap_res_by_comb = {}
-        self.capcap_res_by_comb = {}
-
-    def get_overlap_energy(self):
-        """
-        returns total interaction energy of all nondisjoint dimers (1-2)
-        """
-        overlapenergy = 0
-        for i in self.overlap_res_by_comb:
-            energy = self.overlap_res_by_comb[i][0].get_total_energy() \
-                     - (self.overlap_res_by_comb[i][1].get_total_energy()
-                        + self.overlap_res_by_comb[i][2].get_total_energy()
-                        - self.overlap_res_by_comb[i][3].get_total_energy())
-            overlapenergy += energy
-        return overlapenergy
-
-    def get_nooverlap_energy(self):
-        """
-        returns total interaction energy of all disjoint dimers (> 1-3)
-        """
-        nooverlapenergy = 0
-        for i in self.nooverlap_res_by_comb:
-            energy = self.nooverlap_res_by_comb[i][0].get_total_energy() \
-                     - (self.nooverlap_res_by_comb[i][1].get_total_energy()
-                        + self.nooverlap_res_by_comb[i][2].get_total_energy())
-            nooverlapenergy += energy
-        return nooverlapenergy
-
-    def get_trimer_energy(self):
-        """
-        returns total interaction energy of all disjoint dimers (1-3)
-        """
-        trimerenergy = 0
-        for i in self.trimer_res_by_comb:
-            energy = self.trimer_res_by_comb[i][0].get_total_energy() \
-                     - (self.trimer_res_by_comb[i][1].get_total_energy()
-                        + self.trimer_res_by_comb[i][2].get_total_energy()
-                        - self.trimer_res_by_comb[i][3].get_total_energy())
-            trimerenergy += energy
-        return trimerenergy
-
-    def get_fragcap_energy(self):
-        """
-        returns total interaction energy of all fragment-cap combinations
-        """
-        fragcapenergy = 0
-        for i in self.fragcap_res_by_comb:
-            energy = self.fragcap_res_by_comb[i][0].get_total_energy() \
-                     - (self.fragcap_res_by_comb[i][1].get_total_energy()
-                        + self.fragcap_res_by_comb[i][2].get_total_energy())
-            fragcapenergy += energy
-        return fragcapenergy
-
-    def get_capcap_energy(self):
-        """
-        returns total interaction energy of all cap-cap combinations
-        """
-        capcapenergy = 0
-        for i in self.capcap_res_by_comb:
-            energy = self.capcap_res_by_comb[i][0].get_total_energy() \
-                     - (self.capcap_res_by_comb[i][1].get_total_energy()
-                        + self.capcap_res_by_comb[i][2].get_total_energy())
-            capcapenergy += energy
-        return capcapenergy
-
-    def get_total_energy(self):
-        """
-        returns total interaction energy
-        """
-        overlapenergy = self.get_overlap_energy()
-        nooverlapenergy = self.get_nooverlap_energy()
-        trimerenergy = self.get_trimer_energy()
-        fragcapenergy = self.get_fragcap_energy()
-        capcapenergy = self.get_capcap_energy()
-        totalenergy = overlapenergy + nooverlapenergy + trimerenergy - fragcapenergy + capcapenergy
-        return totalenergy
-
-
-class adfmfccmbejob(metajob):
-
-    def __init__(self, frags, jobfunc, jobfunc_kwargs=None, reschargelist=None, caps='mfcc', onlyffterms=False, order=2,
-                 cutoff=None):
-        """
-        Initialize a MFCC-MBE(2) job.
-
-        @param frags: list of capped fragments
-        @type  frags: L{cappedfragmentlist}
-        @param jobfunc: function to perform calculation for one fragment, returning a results object
-        @type  jobfunc: function with signature adfsinglepointjob(mol: molecule, **kwargs)
-        @param jobfunc_kwargs: kwargs that will be passed to jobfunc
-        @type  jobfunc_kwargs: dict or None
-        @param reschargelist: list of charged residues [[str(chain+residue), int(charge)], ['A13', -1]]
-        @type  reschargelist: list of lists
-        @param caps: 'mfcc' or 'hydrogen'
-        @type  caps: str
-        @param onlyffterms: decides if frag-cap and cap-cap terms are calculated
-        @type  onlyffterms: Boolean
-        @param order: many-body expansion order
-        @type  order: int
-        @param cutoff: distance cutoff for calculating combinations
-        @type  cutoff: int or float
-
-        """
-        super().__init__()
-
-        self.jobfunc = jobfunc
-        if jobfunc_kwargs is None:
-            self._jobfunc_kwargs = {}
-        else:
-            self._jobfunc_kwargs = jobfunc_kwargs
-
-        self._cutoff = cutoff
-        self._onlyffterms = onlyffterms
-        self._order = order
-        self._caps = caps
-        self._frags = frags
-        self._reschargelist = reschargelist
-
-    @property
-    def monomerlist(self):
-        """
-        returns the list of cappedfragemts
-        """
-        monolist = []
-        for frag in self._frags.fragiter():
-            monolist.append(frag)
-        return monolist
-
-    @property
-    def nfrag(self):
-        """
-        returns the number of cappedragments
-        """
-        return len(self.monomerlist)
-
-    @property
-    def caplist(self):
-        """
-        returns the list of caps
-        """
-        caplist = []
-        for cap in self._frags.capiter():
-            caplist.append(cap)
-        return caplist
-
-    @property
-    def ncap(self):
-        """
-        returns the number of caps
-        """
-        return len(self.caplist)
-
-    @property
-    def nfragcombi(self):
-        """
-        returns theorethical number of fragment-fragment combinations
-        """
-        return len(list(itertools.combinations(list(range(self.nfrag)), self._order)))
-
-    @property
-    def ncapcombi(self):
-        """
-        returns theorethical number of cap-cap combinations
-        """
-        return len(list(itertools.combinations(list(range(self.ncap)), self._order)))
-
-    def set_charges(self):
-        """
-        sets charges for every cappedfragment
-        """
-        for frag in self._frags.fragiter():
-            charge = 0
-            chain, resname, resnum = frag.mol.get_atom_resinfo(1)
-            for res in self._reschargelist:
-                if chain + str(resnum) in res:
-                    charge += res[1]
-            frag.mol.set_charge(charge)
-        return
-
-    def create_results_instance(self):
-        return mfccmberesults(self)
-
-    def overlapintencalc(self, dimer, frag1, frag2):
-        """
-        returns results for every needed part of a nondisjointed dimer (1-2)
-
-        @param dimer: dimer molecule
-        @type  dimer: cappedfragment
-        @param frag1: fragment 1 of the dimer
-        @type  frag1: cappedfragment
-        @param frag2: fragment 2 of the dimer
-        @type  frag2: cappedfragment
-        """
-        cap = dimer.get_overlapping_caps()[0]
-        dimer_res = self.jobfunc(dimer.mol, **self._jobfunc_kwargs)
-        frag1_res = self.jobfunc(frag1.mol, **self._jobfunc_kwargs)
-        frag2_res = self.jobfunc(frag2.mol, **self._jobfunc_kwargs)
-        cap_res = self.jobfunc(cap.mol, **self._jobfunc_kwargs)
-        return dimer_res, frag1_res, frag2_res, cap_res
-
-    def nooverlapintencalc(self, frag1, frag2):
-        """
-        returns results for every needed part of a disjointed dimer (> 1-3)
-
-        @param frag1: fragment 1 of the dimer
-        @type  frag1: cappedfragment
-        @param frag2: fragment 2 of the dimer
-        @type  frag2: cappedfragment
-        """
-        dimer = frag1.mol + frag2.mol
-        dimer_res = self.jobfunc(dimer, **self._jobfunc_kwargs)
-        frag1_res = self.jobfunc(frag1.mol, **self._jobfunc_kwargs)
-        frag2_res = self.jobfunc(frag2.mol, **self._jobfunc_kwargs)
-        return dimer_res, frag1_res, frag2_res
-
-    def trimerintencalc(self, dimer12, dimer23, trimer, midmonomer):
-        """
-        returns results for every needed part of a disjointed dimer (1-3)
-
-        @param dimer12: 1-2 dimer
-        @type  dimer12: cappedfragment
-        @param dimer23: 2-3 dimer
-        @type  dimer23: cappedfragment
-        @param trimer: trimer
-        @type  trimer: cappedfragment
-        @param midmonomer: 2 monomer
-        @type  midmonomer: cappedfragment
-        """
-        trimer_res = self.jobfunc(trimer.mol, **self._jobfunc_kwargs)
-        dimer12_res = self.jobfunc(dimer12.mol, **self._jobfunc_kwargs)
-        dimer23_res = self.jobfunc(dimer23.mol, **self._jobfunc_kwargs)
-        midmono_res = self.jobfunc(midmonomer.mol, **self._jobfunc_kwargs)
-        return trimer_res, dimer12_res, dimer23_res, midmono_res
-
-    def metarun(self):
-        mfccmbe_results = self.create_results_instance()
-
-        if self._reschargelist:
-            self.set_charges()
-
-        # FRAG-FRAG INTERACTIONS
-        counter = 1
-        for c in itertools.combinations(list(range(self.nfrag)), self._order):
-            print('>  Fragment-Fragment Combination', counter, 'of', self.nfragcombi)
-            print('>  Consisting of Fragments', c[0] + 1, 'and', c[1] + 1, 'of', self.nfrag, 'Fragments')
-            monomer1 = self.monomerlist[c[0]]
-            monomer2 = self.monomerlist[c[1]]
-            dimer = monomer1.merge_fragments(monomer2)
-            print('Charge Fragment ' + str(c[0] + 1) + ':', monomer1.mol.get_charge())
-            print('Charge Fragment ' + str(c[1] + 1) + ':', monomer2.mol.get_charge())
-            print('Charge Dimer:', dimer.mol.get_charge())
-            fragfragdist = monomer1.mol.distance(monomer2.mol)
-            cutoffbool = False
-            if (self._cutoff and fragfragdist <= self._cutoff) or self._cutoff is None:
-                cutoffbool = True
-
-            overlapping_caps = dimer.get_overlapping_caps()
-
-            # TOO MANY CAPS
-            if len(overlapping_caps) > 1:
-                raise PyAdfError("Handeling more than one overlapping cap not implemented yet!")
-
-            # OVERLAP
-            elif len(overlapping_caps) == 1 and cutoffbool:
-                # frag-frag inten
-                dimerres, frag1res, frag2res, capres = self.overlapintencalc(dimer, monomer1, monomer2)
-                mfccmbe_results.overlap_res_by_comb[c] = [dimerres, frag1res, frag2res, capres]
-
-            # NO OVERLAP
-            elif len(overlapping_caps) == 0 and cutoffbool:
-                # frag-frag inten
-                if fragfragdist > 0.0:
-                    dimerres, frag1res, frag2res = self.nooverlapintencalc(monomer1, monomer2)
-                    mfccmbe_results.nooverlap_res_by_comb[c] = [dimerres, frag1res, frag2res]
-
-                # 1-3-Fragment handeling for mfcc
-                elif fragfragdist == 0.0 and self._caps == 'mfcc':
-                    midmonomer = self.monomerlist[c[0] + 1]
-                    dimer12 = monomer1.merge_fragments(midmonomer)
-                    dimer23 = midmonomer.merge_fragments(monomer2)
-                    trimer = dimer12.merge_fragments(monomer2)
-                    trimerres, dimer12res, dimer23res, midmonores = \
-                        self.trimerintencalc(dimer12, dimer23, trimer, midmonomer)
-                    mfccmbe_results.trimer_res_by_comb[c] = [trimerres, dimer12res, dimer23res, midmonores]
-            else:
-                print('>  Distance between Fragments greater than the cutoff of', self._cutoff, 'Angstrom')
-                print('>  Skipping Combination')
-
-            counter += 1
-
-        # FRAG-CAP INTERACTIONS
-        if not self._onlyffterms:
-            for i, frag in enumerate(self.monomerlist):
-                for j, cap in enumerate(self.caplist):
-                    print('>  Fragment', i + 1, 'of', self.nfrag, 'with Cap', j + 1, 'of', self.ncap)
-                    fragcapdist = frag.mol.distance(cap.mol)
-                    cutoffbool = False
-                    if (self._cutoff and fragcapdist <= self._cutoff) or self._cutoff is None:
-                        cutoffbool = True
-
-                    if fragcapdist > 0.0 and cutoffbool:
-                        fragfragres, frag1res, frag2res = self.nooverlapintencalc(frag, cap)
-                        mfccmbe_results.fragcap_res_by_comb[(i, j)] = [fragfragres, frag1res, frag2res]
-                    elif fragcapdist == 0.0:
-                        print('>  Fragment and Cap are too close')
-                        print('>  Skipping Combination')
-                    else:
-                        print('>  Distance between Fragment and Cap greater than the cutoff of',
-                              self._cutoff, 'Angstrom')
-                        print('>  Skipping Combination')
-        else:
-            print('>  Not calculating Fragment-Cap-Terms')
-
-        # CAP-CAP INTERACTIONS
-        if not self._onlyffterms:
-            capcounter = 1
-            for c in itertools.combinations(list(range(self.ncap)), self._order):
-                print('>  Cap-Cap-combination', capcounter, 'of', self.ncapcombi)
-                print('>  Consisting of Caps', c[0] + 1, 'and', c[1] + 1, 'of', self.ncap, 'Caps')
-                cap1 = self.caplist[c[0]]
-                cap2 = self.caplist[c[1]]
-                capcapdist = cap1.mol.distance(cap2.mol)
-                cutoffbool = False
-                if (self._cutoff and capcapdist <= self._cutoff) or self._cutoff is None:
-                    cutoffbool = True
-
-                if capcapdist > 0.0 and cutoffbool:
-                    fragfragres, frag1res, frag2res = self.nooverlapintencalc(cap1, cap2)
-                    mfccmbe_results.capcap_res_by_comb[c] = [fragfragres, frag1res, frag2res]
-                elif capcapdist == 0.0:
-                    print('>  Caps are too close')
-                    print('>  Skipping Combination')
-                else:
-                    print('>  Distance between Caps greater than the cutoff of', self._cutoff, 'Angstrom')
-                    print('>  Skipping Combination')
-                capcounter += 1
-        else:
-            print('>  Not calculating Cap-Cap-Terms')
-        return mfccmbe_results

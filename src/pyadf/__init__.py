@@ -229,7 +229,10 @@ from .ADFNumDiff import numgradsettings, adfnumgradjob, adfnumgradsjob
 from .DaltonSinglePoint import daltonsettings, daltonjob, daltonsinglepointjob
 from .DaltonCC2 import daltonCC2settings, daltonCC2job
 
-from .Orca import OrcaSettings, OrcaJob, OrcaSinglePointJob, OrcaGeometryOptimizationJob, OrcaFrequenciesJob, OrcaOptFrequenciesJob, OrcaResults
+from .Orca import OrcaSettings, OrcaTDDFTSettings, OrcaJob, OrcaSinglePointJob, \
+    OrcaGeometryOptimizationJob, OrcaFrequenciesJob, OrcaOptFrequenciesJob, \
+    OrcaExcitationsJob, OrcaExStateGeoOptJob, OrcaExStateFrequenciesJob, \
+    OrcaResults
 
 from .Dirac import diracsettings, diracjob, diracsinglepointjob
 from .QuantumEspresso import QEJob, QESinglePointJob, QEResults, QESettings
@@ -253,7 +256,13 @@ from .ADF_FDE import adffdejob, adffderesults, adffdesettings
 
 try:
     from .ADF_3FDE import cappedfragment, cappedfragmentlist, capmolecule, \
-        adfmfccjob, mfccresults, adf3fdejob, mfccmberesults, adfmfccmbejob
+        adfmfccjob, mfccresults, adf3fdejob
+except ImportError:
+    pass
+
+try:
+    from .MFCCMBE2 import mfccmbe2results, mfccmbe2job, mfccmbe2interactionresults, mfccmbe2interactionjob,\
+        generalmfccresults, generalmfccjob, mfccinteractionresults, mfccinteractionjob
 except ImportError:
     pass
 

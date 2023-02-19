@@ -53,4 +53,4 @@ if 'unittesting' in pyadfenv.options:
                                0.64937272, 0.0, -0.20225085]])
     overlap = np.dot(modes_mw, modes_mw_orig.T)
 
-    testobj.assertAlmostEqual(overlap.diagonal(), np.ones(3), 4)
+    testobj.assertAlmostEqual(np.abs(overlap.diagonal()), np.ones(3), 4)

@@ -1,0 +1,34 @@
+import os
+from pyadf import *
+if 'pyadfenv' not in globals():
+    from pyadf.Initialization import *
+
+helix_mol = molecule(os.path.join(pyadfenv.outdir, '310_h.pdb'), 'pdb')
+
+settings = OrcaSettings()
+settings.set_method('DFT')
+settings.set_functional('PBEh-3C')
+settings.set_maxiter(500)
+caps = 'mfcc'
+cutoff = 4.0
+
+
+def calculate_mol(mol):  # INPUT FUNFCTION USED BY MFCC-MBE(2) JOB
+    res = OrcaSinglePointJob(mol, settings=settings).run()
+    return res
+
+
+frags = cappedfragmentlist()
+frags.partition_protein(helix_mol, caps=caps, fragsize=1)
+
+# RUN MFCC JOB
+mfcc_res = generalmfccjob(frags, jobfunc=calculate_mol).run()
+toten_mfcc = mfcc_res.get_total_energy()
+
+# RUN MFCC-MBE(2) JOB
+mfccmbe_res = mfccmbe2job(frags, jobfunc=calculate_mol, caps=caps, cutoff=cutoff).run()
+toten_mfccmbe = mfccmbe_res.get_total_interaction_energy()
+
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(toten_mfcc, -988.3296195839191, 6)
+    testobj.assertAlmostEqual(toten_mfccmbe, -0.012578022689012869, 6)

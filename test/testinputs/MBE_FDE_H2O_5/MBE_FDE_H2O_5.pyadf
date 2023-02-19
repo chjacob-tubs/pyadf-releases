@@ -81,8 +81,8 @@ print("Error compared to supermol, eb-MBE-1 (kJ/mol): ", error_eb_1)
 print("Error compared to supermol, eb-MBE-2 (kJ/mol): ", error_eb_2)
 
 if 'unittesting' in pyadfenv.options:
-    testobj.assertAlmostEqual(error_eb_1, 180.1349243826781, 4)
-    testobj.assertAlmostEqual(error_eb_2,  11.7039465328583, 4)
+    testobj.assertAlmostEqual(error_eb_1, 180.1344663297860, 4)
+    testobj.assertAlmostEqual(error_eb_2,  11.7034562576608, 4)
 
 ###############################################
 # B) density-based MBE
@@ -110,7 +110,7 @@ print("Interaction energy db-MBE-2 (Hartree) : ", int_energy_db)
 print()
 
 if 'unittesting' in pyadfenv.options:
-    testobj.assertAlmostEqual(tot_energy_db, -380.1416444307099, 6)
+    testobj.assertAlmostEqual(tot_energy_db, -380.1416450877759, 6)
     testobj.assertAlmostEqual(int_energy_db,   -0.0684949703175, 6)
 
 toten_db_by_order = dbmbe_res.get_total_energies_by_order()
@@ -122,5 +122,5 @@ print("Error compared to supermol, db-MBE-1 (kJ/mol): ", error_db_1)
 print("Error compared to supermol, db-MBE-2 (kJ/mol): ", error_db_2)
 
 if 'unittesting' in pyadfenv.options:
-    testobj.assertAlmostEqual(error_db_1, 128.0028667734718, 4)
-    testobj.assertAlmostEqual(error_db_2,   0.3001714932594, 4)
+    testobj.assertAlmostEqual(error_db_1, 128.0023997201008, 4)
+    testobj.assertAlmostEqual(error_db_2,   0.2996791650482, 4)

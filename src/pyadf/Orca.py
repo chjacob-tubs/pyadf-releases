@@ -27,7 +27,6 @@ from .DensityEvaluator import GTODensityEvaluatorMixin
 
 class OrcaResults(GTODensityEvaluatorMixin):
     """
-
     Class for results of a Orca calculation.
 
     @group Initialization:
@@ -35,7 +34,7 @@ class OrcaResults(GTODensityEvaluatorMixin):
     @group Retrieval of specific results:
         get_singlepointenergy, get_optimized_molecule,
         get_dipole_vector, get_dipole_magnitude,
-        get_hess_value, get_frequencies, get_intensities
+        get_hess_value, get_frequencies, get_ir_intensities
 
     """
 
@@ -240,11 +239,11 @@ class OrcaResults(GTODensityEvaluatorMixin):
                 found = i
         if found is None:
             raise PyAdfError('Dipole moment not found in ORCA properties file')
-        vector = [float(ii.split()[1]) for ii in lines[found+2:found+5]]
+        vector = [float(ii.split()[1]) for ii in lines[found + 2:found + 5]]
         return vector
 
     def get_hess_values(self, values):
-        if max(values) > 5 :
+        if max(values) > 5:
             raise PyAdfError('IR spectrum entry only contains 6 colums!')
 
         hess_fn = self.get_hess_filename()
@@ -258,30 +257,96 @@ class OrcaResults(GTODensityEvaluatorMixin):
         if found is None:
             raise PyAdfError('IR spectrum not found in ORCA hess file')
 
-        n_values = int(lines[found+1].strip())
+        n_values = int(lines[found + 1].strip())
 
         hess_values = []
 
-        for i in range(found+8,found+n_values+2):
+        for i in range(found + 8, found + n_values + 2):
             sequence = lines[i].strip().split()
             hess_values.append([float(sequence[n]) for n in values])
 
         return hess_values
 
     def get_frequencies(self):
-        freqs = self.get_hess_values([0])
+        freqs = [f[0] for f in self.get_hess_values([0])]
         return freqs
 
-    def get_intensities(self):
-        ints = self.get_hess_values([2])
+    def get_ir_intensities(self):
+        ints = [i[0] for i in self.get_hess_values([2])]
         return ints
+
+
+class OrcaExcitationResults(OrcaResults):
+
+    def __init__(self, j=None):
+        super().__init__(j)
+        self.resultstype = "Orca excitation (TD-DFT) results"
+
+    def read_cis_results(self):
+        import numpy as np
+
+        prop_fn = self.get_prop_filename()
+
+        with open(prop_fn) as f:
+            lines = f.readlines()
+        found = None
+        for i, ll in enumerate(lines):
+            if ll.startswith('$ CIS_ABS'):
+                found = i
+        if found is None:
+            raise PyAdfError('Excitation results not found in ORCA properties file')
+
+        nroots = int(lines[found + 4].split()[-1])
+
+        cis_results = []
+        for i in range(found + 7, found + 7 + nroots):
+            sequence = lines[i].strip().split()
+            sequence = [float(s) for s in sequence[1:]]
+            cis_results.append(sequence)
+
+        cis_results = np.array(cis_results)
+        return cis_results
+
+    def get_excitation_energies(self):
+        """
+        Return excitation energies in eV.
+
+        @return: excitation energies
+        @rtype: np.array
+        """
+        from .Utils import au_in_eV
+
+        exens = self.read_cis_results()[:, 0]
+        exens = exens * au_in_eV
+
+        return exens
+
+    def get_oscillator_strengths(self):
+        """
+        Return oscillator strength (length representation).
+
+        @return: oscillator strengths (dimensionless)
+        @rtype: np.array
+        """
+        return self.read_cis_results()[:, 1]
+
+    def get_transition_dipole_vector(self):
+        """
+        Electronic transition dipole moments (length representation).
+
+        @returns: Numpy array containing transition dipole moments.
+        @rtype: np.array(nroots, 3)
+        """
+        return self.read_cis_results()[:, 3:]
+
 
 class OrcaSettings:
     """
     Class that holds the settings for a orca calculation
     """
 
-    def __init__(self, method='DFT', basis='def2-SVP', functional='LDA', ri=None, disp=False, maxiter=None):
+    def __init__(self, method='DFT', basis='def2-SVP', functional='LDA', ri=None, disp=False, cpcm=None, memory=None,
+                 converge=None, maxiter=None):
         """
         Constructor for OrcaSettings.
 
@@ -294,8 +359,18 @@ class OrcaSettings:
         @type  functional: str
         @param basis: the basis set for the calculation
         @type  basis: str
-        @param ri:  C{True} to switch on RI approximation, C{False} to switch off; C{None} to use method's default.
-        @type  ri:  L{bool}
+        @param ri:  C{True} to switch on RI approximation, C{False} to switch off,
+                    string to set other method; C{None} to use method's default.
+        @type  ri:  L{bool} or str
+        @type  ri:  None, bool, or str
+        @param cpcm: the selected solvent for the calculation
+        @type cpcm: str
+        @param memory: Changes the default memory per core (MB)
+        @type memory: str or int
+        @param converge: the chosen convergence tolerance of the SCF;
+                         Default: NormalSCF (<1.0e06 au) for single point calculation and
+                                  TightSCF (<1.0e-08 au) for geometry optimization
+        @type converge: str
         @param maxiter: the maximum number of SCF iterations
         @type  maxiter: int
         """
@@ -305,6 +380,9 @@ class OrcaSettings:
         self._functional = None
         self.ri = None
         self.disp = None
+        self.cpcm = None
+        self.memory = None
+        self.converge = None
         self.maxiter = None
         self.extra_keywords = None
         self.extra_blocks = None
@@ -316,6 +394,9 @@ class OrcaSettings:
             self.set_functional(functional)
         self.set_ri(ri)
         self.set_disp(disp)
+        self.set_cpcm(cpcm)
+        self.set_memory(memory)
+        self.set_converge(converge)
         self.set_maxiter(maxiter)
 
     def set_method(self, method):
@@ -361,11 +442,18 @@ class OrcaSettings:
         """
         Switch RI approximation on or off.
 
-        @param value:  C{True} to switch on RI approximation, C{False} to switch off.
-        @type  value:  L{bool}
+        @param value:  C{True} to switch on RI approximation, C{False} to switch off, string to set other
+        approximation (RIJK, RIJCOSX, etc.)
+        @type  value:  L{bool} or Lstr
         """
         if value is None:
-            self.ri = (self.method == 'DFT')
+            self.ri = None
+        elif isinstance(value, str):
+            self.ri = value
+        elif value:
+            self.ri = "RI"
+        elif not value:
+            self.ri = "NoRI"
         else:
             self.ri = value
 
@@ -379,6 +467,36 @@ class OrcaSettings:
         if dispersion not in ['D3', 'D3BJ', 'D3Zero', 'D4', True, False]:
             raise PyAdfError('Unknown dispersion correction in OrcaJob')
         self.disp = dispersion
+
+    def set_cpcm(self, cpcm):
+        """
+        Sets the CPCM solvent model, e.g. "WATER"
+
+        @param cpcm: Chosen solvent model
+        @type cpcm: str
+        """
+        self.cpcm = cpcm
+
+    def set_memory(self, memory):
+        """
+        Sets the memory per core for the calculation.
+
+        @param memory: Choosen memory (MB)
+        @type memory: str or int
+        """
+
+        self.memory = memory
+        if self.memory is not None:
+            self.set_extra_block("%maxcore " + str(self.memory) + "\n", append=False)
+
+    def set_converge(self, converge):
+        """
+        Sets the SCF convergence threshold, e.g. "TightSCF"
+
+        @param converge: Choosen convergence level
+        @type converge: str
+        """
+        self.converge = converge
 
     def set_maxiter(self, maxiter):
         """
@@ -429,7 +547,7 @@ class OrcaSettings:
             if self.extra_blocks is None:
                 self.extra_blocks = [block]
             elif append:
-                self.extra_blocks = self.extra_blocks.append(block)
+                self.extra_blocks.append(block)
             else:
                 self.extra_blocks = [block]
 
@@ -445,7 +563,8 @@ class OrcaSettings:
             s += '(RI: ON) \n'
         else:
             s += '(RI: OFF) \n'
-        s += f'   Basis Set: {self.basis} \n'
+        if self._functional not in ['PBEh-3C', 'HF-3C']:
+            s += f'   Basis Set: {self.basis} \n'
         if self.method == 'DFT':
             s += f'   Exchange-correlation functional: {self.functional} \n'
         if self.maxiter is not None:
@@ -458,15 +577,19 @@ class OrcaSettings:
         return s
 
     def get_keywords(self):
-        kws = [self.basis, self.method]
+        kws = [self.method]
+        if self._functional not in ['PBEh-3C', 'HF-3C']:
+            kws.append(self.basis)
         if self.method == 'DFT':
             kws.append(self.functional)
         if self.disp:
             kws.append(self.disp)
-        if self.ri:
-            kws.append('RI')
-        else:
-            kws.append('NoRI')
+        if self.ri is not None:
+            kws.append(self.ri)
+        if self.converge is not None:
+            kws.append(self.converge)
+        if self.cpcm:
+            kws.append('CPCM' + '(' + self.cpcm + ')')
         if self.extra_keywords is not None:
             kws = kws + self.extra_keywords
         return kws
@@ -487,6 +610,67 @@ class OrcaSettings:
             blocks += '\n'.join(self.extra_blocks) + '\n'
 
         return blocks
+
+
+class OrcaTDDFTSettings:
+
+    def __init__(self, nroots=None, maxdim=None, triplets=False, tda=False):
+        """
+        Settings for ORCA TDDFT calculations.
+
+        @param nroots Number of excited states
+        @type nroots: int or str
+        @param maxdim: size of Davidson expansion space (Davidson expansion space = MaxDim * NRoots,
+                       see Orca manual sec. 8.4)
+        @type maxdim: int or str
+        @param triplets: Triple excitations allowed or not (no by default)
+        @type triplets: bool
+        @param tda: Is the Tamm Dancoff approximation requested (no by default)
+        @type tda: bool
+        """
+        self.nroots = nroots
+        self.maxdim = maxdim
+        self.iroot = None
+        self.triplets = triplets
+        self.tda = tda
+
+    def get_tddft_block(self):
+        block = "%tddft\n"
+
+        if self.nroots is not None:
+            block += f"NRoots {self.nroots}\n"
+        if self.maxdim is not None:
+            block += f"MaxDim {self.maxdim}\n"
+        if self.iroot is not None:
+            block += f"IRoot {self.iroot}\n"
+        if self.triplets:
+            block += "Triplets true\n"
+        if not self.tda:
+            block += "TDA false\n"
+        block += "end\n"
+
+        return block
+
+    def __str__(self):
+        """
+        Get a nicely formatted text block summarizing the settings.
+
+        @returns: Text block
+        @rtype:   L{str}
+        """
+        if self.tda:
+            s = f'   Excitation energies: TDDFT (TDA) \n'
+        else:
+            s = f'   Excitation energies: TDDFT \n'
+        if self.triplets:
+            s += f'   Triplet excitations: ON \n'
+        else:
+            s += f'   Triplet excitations: OFF \n'
+        s += f'   Number of roots: {self.nroots} \n'
+        if self.iroot is not None:
+            s += f'   Root to follow: {self.iroot} \n'
+        s += f'   Maxdim: {self.maxdim} \n'
+        return s
 
 
 class OrcaJob(job):
@@ -674,6 +858,7 @@ class OrcaFrequenciesJob(OrcaJob):
     def get_keywords(self):
         return ['FREQ'] + self.settings.get_keywords()
 
+
 class OrcaOptFrequenciesJob(OrcaGeometryOptimizationJob):
     """
     A class for Orca optimization and frequencies jobs.
@@ -689,3 +874,106 @@ class OrcaOptFrequenciesJob(OrcaGeometryOptimizationJob):
 
     def get_keywords(self):
         return ['OPT FREQ'] + self.settings.get_keywords()
+
+
+class OrcaExcitationsJob(OrcaSinglePointJob):
+    """
+    A class for Orca excitation energy jobs.
+
+    Corresponding results class: L{OrcaResults}
+    """
+
+    def __init__(self, mol, settings=None, tddft=None):
+        """
+        Constructor for OrcaExcitationsJob.
+
+        @param mol: the molecule
+        @param settings: Orca settings
+        @type settings: L{OrcaSettings}
+        @param tddft: Orca TDDFT settings
+        @type tddft: L{OrcaTDDFTSettings}
+        """
+        super().__init__(mol, settings)
+
+        if tddft is None:
+            self.tddft_settings = OrcaTDDFTSettings()
+        else:
+            self.tddft_settings = tddft
+
+        if not self.settings.method == 'DFT':
+            raise PyAdfError("OrcaExcitationsJob currently only supports TDDFT")
+
+    def print_jobtype(self):
+        return "Orca excitation energy job"
+
+    def create_results_instance(self):
+        return OrcaExcitationResults(self)
+
+    def get_input_blocks(self, nproc=1):
+        blocks = super().get_input_blocks(nproc=nproc)
+        blocks += "\n"
+        blocks += self.tddft_settings.get_tddft_block()
+        return blocks
+
+    def print_jobinfo(self):
+        super().print_jobinfo()
+        print()
+        print(self.tddft_settings)
+
+
+class OrcaExStateGeoOptJob(OrcaExcitationsJob):
+    """
+    A class for Orca excited state geometry optimization jobs.
+
+    Corresponding results class: L{OrcaResults}
+    """
+
+    def __init__(self, mol, settings=None, tddft=None, iroot=1):
+        """
+        Constructor for OrcaExStateGeoOptJob.
+
+        @param mol: the molecule
+        @param settings: Orca settings
+        @type settings: L{OrcaSettings}
+        @param tddft: Orca TDDFT settings
+        @type tddft: L{OrcaTDDFTSettings}
+        @param iroot: Solve geometry for state iroot
+        @type iroot: int
+        """
+        super().__init__(mol, settings, tddft=tddft)
+        self.tddft_settings.iroot = iroot
+
+    def print_jobtype(self):
+        return "Orca excited state geometry optimization job"
+
+    def get_keywords(self):
+        return ['OPT'] + self.settings.get_keywords()
+
+
+class OrcaExStateFrequenciesJob(OrcaExcitationsJob):
+    """
+    A class for Orca excited state frequencies jobs.
+
+    Corresponding results class: L{OrcaResults}
+    """
+
+    def __init__(self, mol, settings=None, tddft=None, iroot=1):
+        """
+        Constructor for OrcaExStateFrequenciesJob.
+
+        @param mol: the molecule
+        @param settings: Orca settings
+        @type settings: L{OrcaSettings}
+        @param tddft: Orca TDDFT settings
+        @type tddft: L{OrcaTDDFTSettings}
+        @param iroot: Solve geometry for state iroot
+        @type iroot: int
+        """
+        super().__init__(mol, settings, tddft=tddft)
+        self.tddft_settings.iroot = iroot
+
+    def print_jobtype(self):
+        return "Orca excited state frequencies job"
+
+    def get_keywords(self):
+        return ['FREQ'] + self.settings.get_keywords()

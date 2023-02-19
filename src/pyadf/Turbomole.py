@@ -895,7 +895,8 @@ class _TurbomoleAbInitioSettings(TurbomoleSettings):
         self.mp2 = method == 'mp2'
 
         if self.mp2:
-            self.set_cc_memory()  # sets to default
+            if self.cc_memory is None:
+                self.set_cc_memory()
         else:
             self.mp2_memory = None
 
@@ -1155,6 +1156,7 @@ class TurbomoleGeometryOptimizationSettings(_TurbomoleAbInitioSettings):
         self.gcart = None
         self.max_iterations = None
         self.frozen_atoms = None
+        self.job_verbosity = None
 
     def generate_summary(self):
         # See mother's docstring.
@@ -1212,6 +1214,17 @@ class TurbomoleGeometryOptimizationSettings(_TurbomoleAbInitioSettings):
         """
 
         self.frozen_atoms = frozen_list
+
+    def set_job_verbosity(self, verbosity):
+        """
+        Sets the job verbosity, so that the optimization can be followed.
+
+        @param verbosity:        whether or not jobex should be verbose
+        @type  verbosity:        boolean
+
+        """
+
+        self.job_verbosity = verbosity
 
 
 class TurbomoleGradientSettings(_TurbomoleAbInitioSettings):
@@ -1391,17 +1404,18 @@ class TurbomoleJob(job):
         runscript = ''
         if nproc > 1:
             runscript += f"export PARNODES={nproc:d} \n\n"
+            # Trying to get the results to stdout while it is running.
+            # The results for Turbmole in parallel mode only appear in 
+            # the slave1.output file. For serial mode, this already works.
+            runscript += "tail -f --retry slave1.output &\n"
+            runscript += "TAILPID=$!\n"
+
         for ex in self.execute:
             runscript += ex + '\n'
 
-        # Well this is annoying: If  Turbomole runs in parallel mode, it writes
-        # the   interesting   parts   of   the   output   to   a   file   named
-        # `slave1.output'. Christoph  mentioned the idea  to look for  that one
-        # and  simply  `cat'  it  in   order  to  always  get  the  interesting
-        # information to  stdout without each  individual method to  retrieve a
-        # result having to know about Turbomole running in parallel or not.
+        if nproc > 1:
+            runscript += "kill $TAILPID\n"
 
-        runscript += "if [ -f {o} ]; then cat {o}; fi".format(o='slave1.output')
         return runscript
 
     def after_run(self):
@@ -1841,6 +1855,8 @@ class TurbomoleGeometryOptimizationJob(TurbomoleJob):
             self.settings.set_convergence_criterion(4)
         if self.settings.max_iterations is None:
             self.settings.set_max_iterations(500)
+        if self.settings.job_verbosity is None:
+            self.settings.set_job_verbosity(True)
 
         self.file_on_success = 'GEO_OPT_CONVERGED'
         self.file_on_fail = 'GEO_OPT_FAILED'
@@ -1854,6 +1870,8 @@ class TurbomoleGeometryOptimizationJob(TurbomoleJob):
             shellstring += ' -level=cc2'
         elif self.settings.ri:
             shellstring += ' -ri'
+        if self.settings.job_verbosity:
+            shellstring += ' -outfile /dev/stdout'
         shellstring += ' -gcart ' + str(self.settings.gcart)
         shellstring += ' -c ' + str(self.settings.max_iterations)
         self.execute.append(shellstring)

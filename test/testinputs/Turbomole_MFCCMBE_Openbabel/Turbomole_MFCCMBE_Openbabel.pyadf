@@ -1,0 +1,35 @@
+import os
+from pyadf import *
+if 'pyadfenv' not in globals():
+    from pyadf.Initialization import *
+
+helix_mol = molecule(os.path.join(pyadfenv.outdir, '310_h.pdb'), 'pdb')
+
+settings = TurbomoleSinglePointSettings(verbose_level=5)
+settings.set_basis_set('def2-TZVP')
+settings.set_dft_functional('b-p')
+settings.set_dft_grid('m3')
+caps = 'mfcc'
+cutoff = 4.0
+
+
+def calculate_mol(mol):  # INPUT FUNFCTION USED BY MFCC-MBE(2) JOB
+    res = TurbomoleSinglePointJob(mol, method='dft', settings=settings).run()
+    return res
+
+
+frags = cappedfragmentlist()
+frags.partition_protein(helix_mol, caps=caps, fragsize=1)
+
+# RUN MFCC-MBE(2) JOB
+mfccmbe_res = mfccmbe2job(frags, jobfunc=calculate_mol, caps=caps, cutoff=cutoff).run()
+toten_mfccmbe = mfccmbe_res.get_total_interaction_energy()
+
+# RUN MFCC JOB
+mfcc_res = generalmfccjob(frags, jobfunc=calculate_mol).run()
+toten_mfcc = mfcc_res.get_total_energy()
+
+
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(toten_mfcc, -990.9054364702001, 6)
+    testobj.assertAlmostEqual(toten_mfccmbe, -0.008911221599987584, 6)

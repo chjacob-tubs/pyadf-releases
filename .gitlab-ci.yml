@@ -3,8 +3,8 @@ variables:
   USER: legit
   PYADFHOME: $CI_BUILDS_DIR/$CI_PROJECT_PATH
   PYADF_NPROC: 4
-  OB_MODULE_LOAD: openbabel/3.1.1-py36
-  RD_MODULE_LOAD: rdkit/2021_03_4
+  CONDA_MODULE_LOAD: python/anaconda3-2022.5
+  CONDA_ENV: ci_pyadf
 
 workflow:
   rules:
@@ -19,11 +19,12 @@ stages:
 
 before_script:
         - hostname
-        - . /usr/share/modules/init/zsh
+        - . /usr/share/modules/init/bash
         - . /usr/share/modules/init/setup
-        - module load xcfun/master-20220601
-        - module load locvib/python-2to3-20210823
-        - module load pyscf/github-master-20210409
+        - module load $CONDA_MODULE_LOAD
+        - conda activate $CONDA_ENV
+        - module load xcfun/master-20221014-py310-conda
+        - module load locvib/master-20221116
         - export PYADF_NPROC
         - export PYTHONPATH=$PYTHONPATH:$PYADFHOME/src
         - export PATH=$PATH:$PYADFHOME/src/scripts
@@ -35,7 +36,6 @@ doctests-openbabel:
         - nodes
     stage: general
     script:
-        - module load $OB_MODULE_LOAD
         - test/test_pyadf --jobrunnerconf test/test_pyadf.conf --molclass=openbabel --tests=doctests
 
 doctests-rdkit:
@@ -43,7 +43,6 @@ doctests-rdkit:
         - nodes
     stage: general
     script:
-        - module load $RD_MODULE_LOAD
         - test/test_pyadf --jobrunnerconf test/test_pyadf.conf --molclass=rdkit --tests=doctests
 
 unittests:
@@ -59,7 +58,6 @@ misc:
     stage: openbabel
     needs: ["unittests"]
     script:
-        - module load $OB_MODULE_LOAD
         - test/test_pyadf --keep --timings --jobrunnerconf test/test_pyadf.conf --molclass=openbabel --noturbomole --noorca --nodirac --nodalton --noadf --nonwchem --noespresso --nomolcas --nodoctests --nounittests
 
 turbomole:
@@ -68,7 +66,6 @@ turbomole:
     stage: openbabel
     needs: ["unittests"]
     script:
-        - module load $OB_MODULE_LOAD
         - test/test_pyadf --keep --timings --jobrunnerconf test/test_pyadf.conf --molclass=openbabel --tests=turbomole --nodoctests --nounittests
 
 orca:
@@ -77,7 +74,6 @@ orca:
     stage: openbabel
     needs: ["unittests"]
     script:
-        - module load $OB_MODULE_LOAD
         - test/test_pyadf --keep --timings --jobrunnerconf test/test_pyadf.conf --molclass=openbabel --test=orca --nodoctests --nounittests
 
 dirac:
@@ -86,7 +82,6 @@ dirac:
     stage: openbabel
     needs: ["unittests"]
     script:
-        - module load $OB_MODULE_LOAD
         - test/test_pyadf --keep --timings --jobrunnerconf test/test_pyadf.conf --molclass=openbabel --tests=dirac --nodoctests --nounittests
 
 dalton:
@@ -95,7 +90,6 @@ dalton:
     stage: openbabel
     needs: ["unittests"]
     script:
-        - module load $OB_MODULE_LOAD
         - test/test_pyadf --keep --timings --jobrunnerconf test/test_pyadf.conf --molclass=openbabel --tests=dalton --nodoctests --nounittests
 
 adf:
@@ -104,7 +98,6 @@ adf:
     stage: openbabel
     needs: ["unittests"]
     script:
-        - module load $OB_MODULE_LOAD
         - test/test_pyadf --keep --timings --jobrunnerconf test/test_pyadf.conf --molclass=openbabel --tests=adf --nodoctests --nounittests
 
 nwchem:
@@ -113,7 +106,6 @@ nwchem:
     stage: openbabel
     needs: ["unittests"]
     script:
-        - module load $OB_MODULE_LOAD
         - test/test_pyadf --keep --timings --jobrunnerconf test/test_pyadf.conf --molclass=openbabel --tests=nwchem --nodoctests --nounittests
 
 espresso:
@@ -122,7 +114,6 @@ espresso:
     stage: openbabel
     needs: ["unittests"]
     script:
-        - module load $OB_MODULE_LOAD
         - test/test_pyadf --keep --timings --jobrunnerconf test/test_pyadf.conf --molclass=openbabel --tests=espresso --nodoctests --nounittests
 
 molcas:
@@ -131,7 +122,6 @@ molcas:
     stage: openbabel
     needs: ["unittests"]
     script:
-        - module load $OB_MODULE_LOAD
         - test/test_pyadf --keep --timings --jobrunnerconf test/test_pyadf.conf --molclass=openbabel --tests=molcas --nodoctests --nounittests
 
 misc_rd:
@@ -140,7 +130,6 @@ misc_rd:
     stage: rdkit  
     needs: ["unittests"]
     script:
-        - module load $RD_MODULE_LOAD
         - test/test_pyadf --keep --timings --jobrunnerconf test/test_pyadf.conf --molclass=rdkit --noturbomole --noorca --nodirac --nodalton --noadf --nonwchem --noespresso --nomolcas --nodoctests --nounittests
 
 turbomole_rd:
@@ -149,8 +138,6 @@ turbomole_rd:
     stage: rdkit
     needs: ["unittests"]
     script:
-        - module load $RD_MODULE_LOAD
-        - module load $OB_MODULE_LOAD
         - test/test_pyadf --keep --timings --jobrunnerconf test/test_pyadf.conf --molclass=rdkit --tests=turbomole --nodoctests --nounittests
 
 orca_rd:
@@ -159,7 +146,6 @@ orca_rd:
     stage: rdkit
     needs: ["unittests"]
     script:
-        - module load $RD_MODULE_LOAD
         - test/test_pyadf --keep --timings --jobrunnerconf test/test_pyadf.conf --molclass=rdkit --test=orca --nodoctests --nounittests
 
 dirac_rd:
@@ -168,7 +154,6 @@ dirac_rd:
     stage: rdkit
     needs: ["unittests"]
     script:
-        - module load $RD_MODULE_LOAD
         - test/test_pyadf --keep --timings --jobrunnerconf test/test_pyadf.conf --molclass=rdkit --tests=dirac --nodoctests --nounittests
 
 dalton_rd:
@@ -177,7 +162,6 @@ dalton_rd:
     stage: rdkit
     needs: ["unittests"]
     script:
-        - module load $RD_MODULE_LOAD
         - test/test_pyadf --keep --timings --jobrunnerconf test/test_pyadf.conf --molclass=rdkit --tests=dalton --nodoctests --nounittests
 
 adf_rd:
@@ -186,7 +170,6 @@ adf_rd:
     stage: rdkit
     needs: ["unittests"]
     script:
-        - module load $RD_MODULE_LOAD
         - test/test_pyadf --keep --timings --jobrunnerconf test/test_pyadf.conf --molclass=rdkit --tests=adf --nodoctests --nounittests
 
 nwchem_rd:
@@ -195,7 +178,6 @@ nwchem_rd:
     stage: rdkit  
     needs: ["unittests"]
     script:
-        - module load $RD_MODULE_LOAD
         - test/test_pyadf --keep --timings --jobrunnerconf test/test_pyadf.conf --molclass=rdkit --tests=nwchem --nodoctests --nounittests
 
 espresso_rd:
@@ -204,7 +186,6 @@ espresso_rd:
     stage: rdkit
     needs: ["unittests"]
     script:
-        - module load $RD_MODULE_LOAD
         - test/test_pyadf --keep --timings --jobrunnerconf test/test_pyadf.conf --molclass=rdkit --tests=espresso --nodoctests --nounittests
 
 molcas_rd:
@@ -213,7 +194,6 @@ molcas_rd:
     stage: rdkit
     needs: ["unittests"]
     script:
-        - module load $RD_MODULE_LOAD
         - test/test_pyadf --keep --timings --jobrunnerconf test/test_pyadf.conf --molclass=rdkit --tests=molcas --nodoctests --nounittests
 
 misc_obfree:
@@ -230,7 +210,6 @@ turbomole_obfree:
     stage: obfree
     needs: ["unittests"]
     script:
-        - module load $OB_MODULE_LOAD
         - test/test_pyadf --keep --timings --noopenbabel --jobrunnerconf test/test_pyadf.conf --molclass=obfree --tests=turbomole --nodoctests --nounittests
 
 orca_obfree:

@@ -27,11 +27,11 @@ newfrag1 = monolist[1].merge_fragments(monolist[2])
 res1 = adfsinglepointjob(newfrag1._mols[0], basis=basis, settings=settings, core=core, options=options).run()
 res1_tot_energy = res1.get_total_energy()
 if 'unittesting' in pyadfenv.options:
-    testobj.assertAlmostEqual(res1_tot_energy, -740.9346871895207, 6)
+    testobj.assertAlmostEqual(res1_tot_energy, -740.9346885171406, 6)
 
 # Test Disjoint Dimer
 newfrag2 = monolist[2].merge_fragments(monolist[6])
 res2 = adfsinglepointjob(newfrag2._mols[0], basis=basis, settings=settings, core=core, options=options).run()
 res2_tot_energy = res2.get_total_energy()
 if 'unittesting' in pyadfenv.options:
-    testobj.assertAlmostEqual(res2_tot_energy, -949.4529264924056, 6)
+    testobj.assertAlmostEqual(res2_tot_energy, -949.4529284611923, 6)
