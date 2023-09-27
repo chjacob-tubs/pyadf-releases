@@ -40,32 +40,32 @@ class KFFileError(Exception):
 class KFReader:
     """A class for efficient Python-native reader of binary files in KF format.
 
-    This class offers read-only access to any fragment of data from a KF file. Unlike other 
-    Python KF readers, this one does not use the Fortran binary ``dmpkf`` to process KF files, 
-    but instead reads and interprets raw binary data straight from the file, on Python level. 
-    That approach results in significant speedup (by a factor of few hundreds for large files 
+    This class offers read-only access to any fragment of data from a KF file. Unlike other
+    Python KF readers, this one does not use the Fortran binary ``dmpkf`` to process KF files,
+    but instead reads and interprets raw binary data straight from the file, on Python level.
+    That approach results in significant speedup (by a factor of few hundreds for large files
     extracted variable by variable).
 
-    The constructor argument *path* should be a string with a path (relative or absolute) to 
+    The constructor argument *path* should be a string with a path (relative or absolute) to
     an existing KF file.
 
-    *blocksize* indicates the length of basic KF file block. So far, all KF files produced by 
-    any of Amsterdam Modeling Suite programs have the same block size of 4096 bytes. Unless 
+    *blocksize* indicates the length of basic KF file block. So far, all KF files produced by
+    any of Amsterdam Modeling Suite programs have the same block size of 4096 bytes. Unless
     you're doing something *very* special, you should not touch this value.
 
-    Organization of data inside KF file can depend on a machine on which this file was produced. 
-    Two parameters can vary: the length of integer (32 or 64 bit) and endian (little or big). 
-    These parameters have to be determined before any reading can take place, otherwise the 
-    results will have no sense. If the constructor argument *autodetect* is ``True``, the constructor 
-    attempts to automatically detect the format of a given KF file, allowing to read files created 
-    on a machine with different endian or integer length. This automatic detection is enabled by 
-    default and it is advised to leave it that way. If you wish to disable it, you should set 
+    Organization of data inside KF file can depend on a machine on which this file was produced.
+    Two parameters can vary: the length of integer (32 or 64 bit) and endian (little or big).
+    These parameters have to be determined before any reading can take place, otherwise the
+    results will have no sense. If the constructor argument *autodetect* is ``True``, the constructor
+    attempts to automatically detect the format of a given KF file, allowing to read files created
+    on a machine with different endian or integer length. This automatic detection is enabled by
+    default and it is advised to leave it that way. If you wish to disable it, you should set
     ``endian`` and ``word`` attributes manually before reading anything (see the code for details).
 
     .. note ::
 
-        This class consists of quite technical, low level code. If you don't need to modify or 
-        extend |KFReader|, you can safely ignore all private methods, all you need 
+        This class consists of quite technical, low level code. If you don't need to modify or
+        extend |KFReader|, you can safely ignore all private methods, all you need
         is :meth:`~KFReader.read` and occasionally :meth:`~KFReader.__iter__`
 
     """
@@ -91,8 +91,8 @@ class KFReader:
     def read(self, section, variable):
         """Extract and return data for a *variable* located in a *section*.
 
-        For single-value numerical or boolean variables returned value is a single number or bool. 
-        For longer variables this method returns a list of values. 
+        For single-value numerical or boolean variables returned value is a single number or bool.
+        For longer variables this method returns a list of values.
         """
 
         if self.sections is None:
@@ -142,7 +142,7 @@ class KFReader:
             elif vtype == 2:
                 ret = numpy.empty(vlen, dtype=numpy.float_)
             elif vtype == 4:
-                ret = numpy.empty(vlen, dtype=numpy.bool)
+                ret = numpy.empty(vlen, dtype=bool)
             else:
                 raise KeyError('Unknown vtype')
 
@@ -186,7 +186,7 @@ class KFReader:
             self.word = 'q'
             one = b[96:104]
         else:
-            # log('WARNING: Unable to autodetect integer size and endian of {}. Using' 
+            # log('WARNING: Unable to autodetect integer size and endian of {}. Using'
             #     'defaults (4 bytes and little endian)'.format(self.path), 3)
             return
 
@@ -205,14 +205,14 @@ class KFReader:
     def _parse(self, block, format):  # format = [(32,'s'),(4,'i'),(2,'d')]
         """Translate a *block* of binary data into list of values in specified *format*.
 
-        *format* should be a list of pairs *(a,t)* where *t* is one of the following 
-        characters: ``'s'`` for string (bytes), ``'i'`` for 32-bit integer, ``'q'`` for 
+        *format* should be a list of pairs *(a,t)* where *t* is one of the following
+        characters: ``'s'`` for string (bytes), ``'i'`` for 32-bit integer, ``'q'`` for
         64-bit integer and *a* is the number of occurrences (or length of a string).
 
-        For example, if *format* is equal to ``[(32,'s'),(4,'i'),(2,'d'),(2,'i')]``, the 
-        contents of *block* are divided into 72 bytes (32*1 + 4*4 + 2*8 + 2*4 = 72) chunks 
-        (possibly droping the last one, if it's shorter than 72 bytes). Then each chunk is 
-        translated to a 9-tuple of bytes, 4 ints, 2 floats and 2 ints. List of such tuples 
+        For example, if *format* is equal to ``[(32,'s'),(4,'i'),(2,'d'),(2,'i')]``, the
+        contents of *block* are divided into 72 bytes (32*1 + 4*4 + 2*8 + 2*4 = 72) chunks
+        (possibly droping the last one, if it's shorter than 72 bytes). Then each chunk is
+        translated to a 9-tuple of bytes, 4 ints, 2 floats and 2 ints. List of such tuples
         is the returned value.
         """
         step = 0
@@ -248,7 +248,7 @@ class KFReader:
 
     def _get_data(self, datablock, vtype):
         """
-        Extract all data of a given type from a single data block. 
+        Extract all data of a given type from a single data block.
 
         Returned value is a list of values (int, float, or bool) or a single "bytes" object.
         """
@@ -268,22 +268,22 @@ class KFReader:
 
     def create_index(self):
         """
-        Find and parse relevant index blocks of KFFile to extract the information 
+        Find and parse relevant index blocks of KFFile to extract the information
         about location of all sections and variables.
 
-        Two dictionaries are populated during this process. ``_data`` contains, for each section, 
-        a list of triples describing how logical blocks of data are mapped into physical ones. For 
-        example, ``_data['General'] = [(3,6,12), (9,40,45)]`` means that logical blocks 3-8 of section 
-        ``General`` are located in physical blocks 6-11 and logical blocks 9-13 in physical blocks 40-44. 
-        This list is always sorted via first tuple elements allowing efficient access to arbitrary 
+        Two dictionaries are populated during this process. ``_data`` contains, for each section,
+        a list of triples describing how logical blocks of data are mapped into physical ones. For
+        example, ``_data['General'] = [(3,6,12), (9,40,45)]`` means that logical blocks 3-8 of section
+        ``General`` are located in physical blocks 6-11 and logical blocks 9-13 in physical blocks 40-44.
+        This list is always sorted via first tuple elements allowing efficient access to arbitrary
         logical block of each section.
 
-        The second dictionary, ``_sections``, is used to locate each variable within its section. 
-        For each section, it contains another dictionary of each variable of this section. So 
-        ``_section[sec][var]`` contains all information needed to extract variable ``var`` from 
-        section ``sec``. This is a 4-tuple containing the following information: variable type, 
-        logic block in which the variable first occurs, position within this block where its data 
-        start and the length of the variable. Combining this information with mapping stored in 
+        The second dictionary, ``_sections``, is used to locate each variable within its section.
+        For each section, it contains another dictionary of each variable of this section. So
+        ``_section[sec][var]`` contains all information needed to extract variable ``var`` from
+        section ``sec``. This is a 4-tuple containing the following information: variable type,
+        logic block in which the variable first occurs, position within this block where its data
+        start and the length of the variable. Combining this information with mapping stored in
         ``_data`` allows to extract each single variable.
         """
 
@@ -339,7 +339,7 @@ class KFReader:
 
     @staticmethod
     def _datablocks(lst, n=1):
-        """Transform a tuple of lists ``([x1,x2,...], [(a1,b1),(a2,b2),...])`` into an iterator 
+        """Transform a tuple of lists ``([x1,x2,...], [(a1,b1),(a2,b2),...])`` into an iterator
         over ``range(a1,b1)+range(a2,b2)+...`` Iteration starts from nth element of this list."""
         i = bisect(lst[0], n) - 1
         lb = lst[0][i]
@@ -357,28 +357,28 @@ class KFReader:
 class KFFile:
     """A class for reading and writing binary files in KF format.
 
-    This class acts as a wrapper around |KFReader| collecting all the data written by 
-    user in some "temporary zone" and using Fortran binaries ``udmpkf`` and ``cpkf`` to 
+    This class acts as a wrapper around |KFReader| collecting all the data written by
+    user in some "temporary zone" and using Fortran binaries ``udmpkf`` and ``cpkf`` to
     write this data to the physical file when needed.
 
-    The constructor argument *path* should be a string with a path to an existing KF file 
-    or a new KF file that you wish to create. If a path to existing file is passed, new 
+    The constructor argument *path* should be a string with a path to an existing KF file
+    or a new KF file that you wish to create. If a path to existing file is passed, new
     |KFReader| instance is created allowing to read all the data from this file.
 
-    When :meth:`~KFFile.write` method is used, the new data is not immediately written to 
-    a disk. Instead of that, it is temporarily stored in ``tmpdata`` dictionary. When 
-    method :meth:`~KFFile.save` is invoked, contents of that dictionary are written to 
+    When :meth:`~KFFile.write` method is used, the new data is not immediately written to
+    a disk. Instead of that, it is temporarily stored in ``tmpdata`` dictionary. When
+    method :meth:`~KFFile.save` is invoked, contents of that dictionary are written to
     a physical file and ``tmpdata`` is emptied.
 
-    Other methods like :meth:`~KFFile.read` or :meth:`~KFFile.delete_section` are aware 
-    of ``tmpdata`` and work flawlessly, regardless if :meth:`~KFFile.save` was called or 
+    Other methods like :meth:`~KFFile.read` or :meth:`~KFFile.delete_section` are aware
+    of ``tmpdata`` and work flawlessly, regardless if :meth:`~KFFile.save` was called or
     not.
 
-    By default, :meth:`~KFFile.save` is automatically invoked after each :meth:`~KFFile.write`, 
-    so physical file on a disk is always "actual". This behavior can be adjusted with *autosave* 
-    constructor parameter. Having autosave enabled is usually a good idea, however, if you need 
-    to write a lot of small pieces of data to your file, the overhead of calling ``udmpkf`` and 
-    ``cpkf`` after *every* :meth:`~KFFile.write` can lead to significant delays. In such a case 
+    By default, :meth:`~KFFile.save` is automatically invoked after each :meth:`~KFFile.write`,
+    so physical file on a disk is always "actual". This behavior can be adjusted with *autosave*
+    constructor parameter. Having autosave enabled is usually a good idea, however, if you need
+    to write a lot of small pieces of data to your file, the overhead of calling ``udmpkf`` and
+    ``cpkf`` after *every* :meth:`~KFFile.write` can lead to significant delays. In such a case
     it is advised to disable autosave and call :meth:`~KFFile.save` manually, when needed.
 
     Dictionary-like bracket notation can be used as a shortcut to read and write variables::
@@ -413,10 +413,10 @@ class KFFile:
         """
         Extract and return data for a *variable* located in a *section*.
 
-        By default, for single-value numerical or boolean variables returned value is 
-        a single number or bool. For longer variables this method returns a list of values. 
-        For string variables a single string is returned. This behavior can be changed by 
-        setting *return_as_list* parameter to ``True``. In that case the returned value is 
+        By default, for single-value numerical or boolean variables returned value is
+        a single number or bool. For longer variables this method returns a list of values.
+        For string variables a single string is returned. This behavior can be changed by
+        setting *return_as_list* parameter to ``True``. In that case the returned value is
         always a list of numbers (possibly of length 1) or a single string.
         """
         if section in self.tmpdata and variable in self.tmpdata[section]:
@@ -431,7 +431,7 @@ class KFFile:
 
     def write(self, section, variable, value):
         """
-        Write a *variable* with a *value* in a *section* . If such a variable already 
+        Write a *variable* with a *value* in a *section* . If such a variable already
         exists in this section, the old value is overwritten.
         """
 
@@ -503,7 +503,7 @@ class KFFile:
 
         .. note::
 
-            Some sections can contain very large amount of data. Turning them into dictionaries 
+            Some sections can contain very large amount of data. Turning them into dictionaries
             can cause memory shortage or performance issues. Use this method carefully.
 
         """
@@ -518,7 +518,7 @@ class KFFile:
 
     def get_skeleton(self):
         """
-        Return a dictionary reflecting the structure of this KF file. Each key in that dictionary 
+        Return a dictionary reflecting the structure of this KF file. Each key in that dictionary
         corresponds to a section name of the KF file with the value being a set of variable names.
         """
         ret = {}
@@ -530,7 +530,7 @@ class KFFile:
 
     def __getitem__(self, name):
         """
-        Allow to use ``x = mykf['section%variable']`` or ``x = mykf[('section','variable')]`` 
+        Allow to use ``x = mykf['section%variable']`` or ``x = mykf[('section','variable')]``
         instead of ``x = kf.read('section', 'variable')``.
         """
         section, variable = KFFile._split(name)
@@ -538,7 +538,7 @@ class KFFile:
 
     def __setitem__(self, name, value):
         """
-        Allow to use ``mykf['section%variable'] = value`` or ``mykf[('section','variable')] = value`` 
+        Allow to use ``mykf['section%variable'] = value`` or ``mykf[('section','variable')] = value``
          instead of ``kf.write('section', 'variable', value)``.
         """
         section, variable = KFFile._split(name)
@@ -559,7 +559,7 @@ class KFFile:
 
     def __contains__(self, arg):
         """
-        Implements Python ``in`` operator for KFFiles. *arg* can be a single string with a section 
+        Implements Python ``in`` operator for KFFiles. *arg* can be a single string with a section
         name or a pair of strings (section, variable).
         """
         if isinstance(arg, str):
@@ -576,7 +576,7 @@ class KFFile:
     @staticmethod
     def _split(name):
         """
-        Ensure that a key used in bracket notation is of the form ``'section%variable'`` 
+        Ensure that a key used in bracket notation is of the form ``'section%variable'``
         or ``('section','variable')``. If so, return a tuple ``('section','variable')``.
         """
         if isinstance(name, tuple) and len(name) == 2:

@@ -27,10 +27,13 @@
 """
 
 import itertools
+import numpy as np
+import xcfun
 from .Errors import PyAdfError
 from .BaseJob import metajob, results
 from .ADFSinglePoint import adfsinglepointresults
-from .ADF_3FDE import cappedfragment, cappedfragmentlist
+from .ADF_3FDE import cappedfragment, cappedfragmentlist, capmolecule
+from .ADFFragments import adffragmentsjob, adffragmentsresults
 from .Turbomole import TurbomoleSinglePointResults
 from .Orca import OrcaResults
 
@@ -42,6 +45,8 @@ class mfccmbe2results(results):
 
     def __init__(self, job):
         super().__init__(job)
+        self.frag_res = []
+        self.cap_res = []
         self.overlap_res_by_comb = {}
         self.nooverlap_res_by_comb = {}
         self.trimer_res_by_comb = {}
@@ -49,32 +54,48 @@ class mfccmbe2results(results):
         self.capcap_res_by_comb = {}
 
     def get_energy_function(self, res):
-        if isinstance(res, TurbomoleSinglePointResults) or isinstance(res, OrcaResults):
+        """
+        returns the total energy function depending on the type of results
+
+        @param res: results
+        @type  res: results object
+        """
+        if isinstance(res, TurbomoleSinglePointResults):
             return res.get_energy()
+        elif isinstance(res, OrcaResults):
+            return res.get_total_energy()
         elif isinstance(res, adfsinglepointresults):
             return res.get_total_energy()
 
     def get_fragfrag_energy(self):
+        """
+        returns total interaction energy of all fragment-fragment combinations
+        """
         overlapenergy = 0
         for i in self.overlap_res_by_comb:
-            energy = self.get_energy_function(self.overlap_res_by_comb[i][0]) \
-                     - (self.get_energy_function(self.overlap_res_by_comb[i][1])
-                        + self.get_energy_function(self.overlap_res_by_comb[i][2])
-                        - self.get_energy_function(self.overlap_res_by_comb[i][3]))
+            energy = self.get_energy_function(self.overlap_res_by_comb[i]) \
+                     - (self.get_energy_function(self.frag_res[i[0]])
+                        + self.get_energy_function(self.frag_res[i[1]])
+                        - self.get_energy_function(self.cap_res[i[0]]))
             overlapenergy += energy
+
         nooverlapenergy = 0
         for i in self.nooverlap_res_by_comb:
-            energy = self.get_energy_function(self.nooverlap_res_by_comb[i][0]) \
-                     - (self.get_energy_function(self.nooverlap_res_by_comb[i][1])
-                        + self.get_energy_function(self.nooverlap_res_by_comb[i][2]))
+            energy = self.get_energy_function(self.nooverlap_res_by_comb[i]) \
+                     - (self.get_energy_function(self.frag_res[i[0]])
+                        + self.get_energy_function(self.frag_res[i[1]]))
             nooverlapenergy += energy
+
         trimerenergy = 0
         for i in self.trimer_res_by_comb:
-            energy = self.get_energy_function(self.trimer_res_by_comb[i][0]) \
-                     - (self.get_energy_function(self.trimer_res_by_comb[i][1])
-                        + self.get_energy_function(self.trimer_res_by_comb[i][2])
-                        - self.get_energy_function(self.trimer_res_by_comb[i][3]))
+            dimer12 = (i[0], i[0] + 1)
+            dimer23 = (i[1] - 1, i[1])
+            energy = self.get_energy_function(self.trimer_res_by_comb[i]) \
+                     - (self.get_energy_function(self.overlap_res_by_comb[dimer12])
+                        + self.get_energy_function(self.overlap_res_by_comb[dimer23])
+                        - self.get_energy_function(self.frag_res[i[0]+1]))
             trimerenergy += energy
+
         return overlapenergy + nooverlapenergy + trimerenergy
 
     def get_fragcap_energy(self):
@@ -83,9 +104,9 @@ class mfccmbe2results(results):
         """
         fragcapenergy = 0
         for i in self.fragcap_res_by_comb:
-            energy = self.get_energy_function(self.fragcap_res_by_comb[i][0]) \
-                     - (self.get_energy_function(self.fragcap_res_by_comb[i][1])
-                        + self.get_energy_function(self.fragcap_res_by_comb[i][2]))
+            energy = self.get_energy_function(self.fragcap_res_by_comb[i]) \
+                     - (self.get_energy_function(self.frag_res[i[0]])
+                        + self.get_energy_function(self.cap_res[i[1]]))
             fragcapenergy += energy
         return fragcapenergy
 
@@ -95,9 +116,9 @@ class mfccmbe2results(results):
         """
         capcapenergy = 0
         for i in self.capcap_res_by_comb:
-            energy = self.get_energy_function(self.capcap_res_by_comb[i][0]) \
-                     - (self.get_energy_function(self.capcap_res_by_comb[i][1])
-                        + self.get_energy_function(self.capcap_res_by_comb[i][2]))
+            energy = self.get_energy_function(self.capcap_res_by_comb[i]) \
+                     - (self.get_energy_function(self.cap_res[i[0]])
+                        + self.get_energy_function(self.cap_res[i[1]]))
             capcapenergy += energy
         return capcapenergy
 
@@ -108,14 +129,55 @@ class mfccmbe2results(results):
         fragfragenergy = self.get_fragfrag_energy()
         fragcapenergy = self.get_fragcap_energy()
         capcapenergy = self.get_capcap_energy()
-        totalenergy = fragfragenergy - fragcapenergy + capcapenergy
+        totalintenergy = fragfragenergy - fragcapenergy + capcapenergy
+        return totalintenergy
+
+    def get_mfcc_energy(self):
+        """
+        returns mfcc total energy
+        """
+        mfccenergy = 0
+        for res in self.frag_res:
+            mfccenergy += self.get_energy_function(res)
+        for res in self.cap_res:
+            mfccenergy -= self.get_energy_function(res)
+        return mfccenergy
+
+    def get_total_energy(self):
+        """
+        returns total energy
+        """
+        mfccenergy = self.get_mfcc_energy()
+        fragfragenergy = self.get_fragfrag_energy()
+        fragcapenergy = self.get_fragcap_energy()
+        capcapenergy = self.get_capcap_energy()
+        totalenergy = mfccenergy + fragfragenergy - fragcapenergy + capcapenergy
         return totalenergy
+
+    def print_number_of_calculations(self):
+        """
+        returns number of calculated combinations
+        """
+        self.overlap_res_by_comb = {}
+        self.nooverlap_res_by_comb = {}
+        self.trimer_res_by_comb = {}
+        self.fragcap_res_by_comb = {}
+        self.capcap_res_by_comb = {}
+
+        sumoffrags = len(self.overlap_res_by_comb) + len(self.nooverlap_res_by_comb) + len(self.trimer_res_by_comb)
+
+        print('> Number of calculated combinations: ')
+        print('> n(Frag-Frag): %d' % sumoffrags)
+        print('> n(Frag-Cap):  %d' % len(self.fragcap_res_by_comb))
+        print('> n(Cap-Cap):   %d' % len(self.capcap_res_by_comb))
+        print('>', 20 * '-')
+        print('> Sum:          %d' % (sumoffrags + len(self.fragcap_res_by_comb) + len(self.capcap_res_by_comb)))
 
 
 class mfccmbe2job(metajob):
 
     def __init__(self, frags, jobfunc, jobfunc_kwargs=None, caps='mfcc', onlyffterms=False, order=2,
-                 cutoff=None):
+                 cutoff=None, printchargeinfo=False):
         """
         Initialize a MFCC-MBE(2) job.
 
@@ -133,7 +195,8 @@ class mfccmbe2job(metajob):
         @type  order: int
         @param cutoff: distance cutoff in Angstrom for calculating combinations
         @type  cutoff: int or float
-
+        @param printchargeinfo: if True the charges of the dimers are printed
+        @type  printchargeinfo: boolean
         """
         super().__init__()
 
@@ -148,23 +211,24 @@ class mfccmbe2job(metajob):
         self._order = order
         self._caps = caps
         self._frags = frags
+        self._printchargeinfo = printchargeinfo
 
     @property
-    def monomerlist(self):
+    def fraglist(self):
         """
         returns the list of cappedfragments
         """
-        monolist = []
+        fraglist = []
         for frag in self._frags.fragiter():
-            monolist.append(frag)
-        return monolist
+            fraglist.append(frag)
+        return fraglist
 
     @property
     def nfrag(self):
         """
         returns the number of cappedfragments
         """
-        return len(self.monomerlist)
+        return len(self.fraglist)
 
     @property
     def caplist(self):
@@ -200,60 +264,45 @@ class mfccmbe2job(metajob):
     def create_results_instance(self):
         return mfccmbe2results(self)
 
-    def overlapintencalc(self, dimer, frag1, frag2):
+    def dimercalc(self, monomer1, monomer2, overlap=False):
         """
-        returns results for every needed part of a nondisjointed dimer (1-2)
+        returns results dimers
 
-        @param dimer: dimer molecule
-        @type  dimer: cappedfragment
-        @param frag1: fragment 1 of the dimer
-        @type  frag1: cappedfragment
-        @param frag2: fragment 2 of the dimer
-        @type  frag2: cappedfragment
+        @param monomer1: frag/cap molecule 1
+        @type  monomer1: cappedfragment
+        @param monomer2: frag/cap molecule 2
+        @type  monomer2: cappedfragment
+        @param overlap: True when overlap of 1-2 dimers
+        @type  overlap: boolean
         """
-        cap = dimer.get_overlapping_caps()[0]
-        dimer_res = self.jobfunc(dimer.mol, **self._jobfunc_kwargs)
-        frag1_res = self.jobfunc(frag1.mol, **self._jobfunc_kwargs)
-        frag2_res = self.jobfunc(frag2.mol, **self._jobfunc_kwargs)
-        cap_res = self.jobfunc(cap.mol, **self._jobfunc_kwargs)
-        return dimer_res, frag1_res, frag2_res, cap_res
-
-    def nooverlapintencalc(self, frag1, frag2):
-        """
-        returns results for every needed part of a disjointed dimer (> 1-3)
-
-        @param frag1: fragment/cap 1 of the dimer
-        @type  frag1: cappedfragment
-        @param frag2: fragment/cap 2 of the dimer
-        @type  frag2: cappedfragment
-        """
-        dimer = frag1.mol + frag2.mol
+        if overlap:
+            dimer = monomer1.merge_fragments(monomer2).mol
+        else:
+            dimer = monomer1.mol + monomer2.mol
         dimer_res = self.jobfunc(dimer, **self._jobfunc_kwargs)
-        frag1_res = self.jobfunc(frag1.mol, **self._jobfunc_kwargs)
-        frag2_res = self.jobfunc(frag2.mol, **self._jobfunc_kwargs)
-        return dimer_res, frag1_res, frag2_res
+        return dimer_res
 
-    def trimerintencalc(self, dimer12, dimer23, trimer, midmonomer):
+    def trimercalc(self, trimer):
         """
-        returns results for every needed part of a disjointed dimer (1-3)
+        returns results for trimer
 
-        @param dimer12: 1-2 dimer
-        @type  dimer12: cappedfragment
-        @param dimer23: 2-3 dimer
-        @type  dimer23: cappedfragment
         @param trimer: trimer
         @type  trimer: cappedfragment
-        @param midmonomer: 2 monomer
-        @type  midmonomer: cappedfragment
         """
         trimer_res = self.jobfunc(trimer.mol, **self._jobfunc_kwargs)
-        dimer12_res = self.jobfunc(dimer12.mol, **self._jobfunc_kwargs)
-        dimer23_res = self.jobfunc(dimer23.mol, **self._jobfunc_kwargs)
-        midmono_res = self.jobfunc(midmonomer.mol, **self._jobfunc_kwargs)
-        return trimer_res, dimer12_res, dimer23_res, midmono_res
+        return trimer_res
 
     def metarun(self):
+
         mfccmbe_results = self.create_results_instance()
+
+        for frag in self.fraglist:
+            fragres = self.jobfunc(frag.mol, **self._jobfunc_kwargs)
+            mfccmbe_results.frag_res.append(fragres)
+
+        for cap in self.caplist:
+            capres = self.jobfunc(cap.mol, **self._jobfunc_kwargs)
+            mfccmbe_results.cap_res.append(capres)
 
         # FRAG-FRAG INTERACTIONS
         counter = 1
@@ -261,12 +310,13 @@ class mfccmbe2job(metajob):
         for c in itertools.combinations(list(range(self.nfrag)), self._order):
             print('>  Fragment-Fragment Combination', counter, 'of', self.nfragcombi)
             print('>  Consisting of Fragments', c[0] + 1, 'and', c[1] + 1, 'of', self.nfrag, 'Fragments')
-            monomer1 = self.monomerlist[c[0]]
-            monomer2 = self.monomerlist[c[1]]
+            monomer1 = self.fraglist[c[0]]
+            monomer2 = self.fraglist[c[1]]
             dimer = monomer1.merge_fragments(monomer2)
-            print('> Charge Fragment ' + str(c[0] + 1) + ':', monomer1.mol.get_charge())
-            print('> Charge Fragment ' + str(c[1] + 1) + ':', monomer2.mol.get_charge())
-            print('> Charge Dimer:', dimer.mol.get_charge())
+            if self._printchargeinfo:
+                print('> Charge Fragment ' + str(c[0] + 1) + ':', monomer1.mol.get_charge())
+                print('> Charge Fragment ' + str(c[1] + 1) + ':', monomer2.mol.get_charge())
+                print('> Charge Dimer:', dimer.mol.get_charge())
             fragfragdist = monomer1.mol.distance(monomer2.mol)
             cutoffbool = False
             if (self._cutoff and fragfragdist <= self._cutoff) or self._cutoff is None:
@@ -274,32 +324,27 @@ class mfccmbe2job(metajob):
 
             overlapping_caps = dimer.get_overlapping_caps()
 
-            # TOO MANY CAPS
             if len(overlapping_caps) > 1:
+                # TOO MANY CAPS
                 raise PyAdfError("Handeling more than one overlapping cap not implemented yet!")
 
-            # OVERLAP
             elif len(overlapping_caps) == 1 and cutoffbool:
-                # frag-frag inten
-                dimerres, frag1res, frag2res, capres = self.overlapintencalc(dimer, monomer1, monomer2)
-                mfccmbe_results.overlap_res_by_comb[c] = [dimerres, frag1res, frag2res, capres]
+                # joint frag-frag inten
+                dimerres = self.dimercalc(monomer1, monomer2, overlap=True)
+                mfccmbe_results.overlap_res_by_comb[c] = dimerres
 
-            # NO OVERLAP
-            elif len(overlapping_caps) == 0 and cutoffbool:
-                # frag-frag inten
-                if fragfragdist > 0.0:
-                    dimerres, frag1res, frag2res = self.nooverlapintencalc(monomer1, monomer2)
-                    mfccmbe_results.nooverlap_res_by_comb[c] = [dimerres, frag1res, frag2res]
+            elif len(overlapping_caps) == 0 and fragfragdist > 0.0 and cutoffbool:
+                # disjoint frag-frag inten
+                dimerres = self.dimercalc(monomer1, monomer2, overlap=False)
+                mfccmbe_results.nooverlap_res_by_comb[c] = dimerres
 
+            elif len(overlapping_caps) == 0 and fragfragdist == 0.0 and self._caps == 'mfcc' and cutoffbool:
                 # 1-3-Fragment handeling for ACE-NME Caps
-                elif fragfragdist == 0.0 and self._caps == 'mfcc':
-                    midmonomer = self.monomerlist[c[0] + 1]
-                    dimer12 = monomer1.merge_fragments(midmonomer)
-                    dimer23 = midmonomer.merge_fragments(monomer2)
-                    trimer = dimer12.merge_fragments(monomer2)
-                    trimerres, dimer12res, dimer23res, midmonores = \
-                        self.trimerintencalc(dimer12, dimer23, trimer, midmonomer)
-                    mfccmbe_results.trimer_res_by_comb[c] = [trimerres, dimer12res, dimer23res, midmonores]
+                midmonomer = self.fraglist[c[0] + 1]
+                dimer12 = monomer1.merge_fragments(midmonomer)
+                trimer = dimer12.merge_fragments(monomer2)
+                trimerres = self.trimercalc(trimer)
+                mfccmbe_results.trimer_res_by_comb[c] = trimerres
             else:
                 print('>  Distance between Fragments greater than the cutoff of', self._cutoff, 'Angstrom')
                 print('>  Skipping Combination')
@@ -309,7 +354,7 @@ class mfccmbe2job(metajob):
         # FRAG-CAP INTERACTIONS
         if not self._onlyffterms:
             print('>  Starting Fragment-Cap Calculations')
-            for i, frag in enumerate(self.monomerlist):
+            for i, frag in enumerate(self.fraglist):
                 for j, cap in enumerate(self.caplist):
                     print('>  Fragment', i + 1, 'of', self.nfrag, 'with Cap', j + 1, 'of', self.ncap)
                     fragcapdist = frag.mol.distance(cap.mol)
@@ -318,8 +363,8 @@ class mfccmbe2job(metajob):
                         cutoffbool = True
 
                     if fragcapdist > 0.0 and cutoffbool:
-                        fragcapres, fragres, capres = self.nooverlapintencalc(frag, cap)
-                        mfccmbe_results.fragcap_res_by_comb[(i, j)] = [fragcapres, fragres, capres]
+                        fragcapres = self.dimercalc(frag, cap, overlap=False)
+                        mfccmbe_results.fragcap_res_by_comb[(i, j)] = fragcapres
                     elif fragcapdist == 0.0:
                         print('>  Fragment and Cap are too close')
                         print('>  Skipping Combination')
@@ -348,8 +393,8 @@ class mfccmbe2job(metajob):
                     cutoffbool = True
 
                 if capcapdist > 0.0 and cutoffbool:
-                    capcapres, cap1res, cap2res = self.nooverlapintencalc(cap1, cap2)
-                    mfccmbe_results.capcap_res_by_comb[c] = [capcapres, cap1res, cap2res]
+                    capcapres = self.dimercalc(cap1, cap2, overlap=False)
+                    mfccmbe_results.capcap_res_by_comb[c] = capcapres
                 elif capcapdist == 0.0:
                     print('>  Caps are too close')
                     print('>  Skipping Combination')
@@ -379,8 +424,16 @@ class mfccmbe2interactionresults(results):
         self.capcap_res_by_comb = {}
 
     def get_energy_function(self, res):
-        if isinstance(res, TurbomoleSinglePointResults) or isinstance(res, OrcaResults):
+        """
+        returns the total energy function depending on the type of results
+
+        @param res: results
+        @type  res: results object
+        """
+        if isinstance(res, TurbomoleSinglePointResults):
             return res.get_energy()
+        elif isinstance(res, OrcaResults):
+            return res.get_total_energy()
         elif isinstance(res, adfsinglepointresults):
             return res.get_total_energy()
 
@@ -442,6 +495,7 @@ class mfccmbe2interactionresults(results):
         sumofall = (len(self.fragfrag_res_by_comb) + len(self.frag1cap2_res_by_comb)
                     + len(self.frag2cap1_res_by_comb) + len(self.capcap_res_by_comb))
 
+        print('> Number of calculated combinations: ')
         print('> n(Frag-Frag): %d' % len(self.fragfrag_res_by_comb))
         print('> n(Frag-Cap):  %d' % (len(self.frag1cap2_res_by_comb) + len(self.frag2cap1_res_by_comb)))
         print('> n(Cap-Cap):   %d' % len(self.capcap_res_by_comb))
@@ -529,7 +583,7 @@ class mfccmbe2interactionjob(metajob):
         """
         @param frags1: fragmentlist of protein 1
         @type  frags1: L{cappedfragmentlist}
-        @param frags2: fragmentlist of protein 1
+        @param frags2: fragmentlist of protein 2
         @type  frags2: L{cappedfragmentlist}
         """
         fragcap_res_by_comb = {}
@@ -626,6 +680,20 @@ class generalmfccresults(results):
         super().__init__(job)
         self._frags = frags
 
+    def get_energy_function(self, res):
+        """
+        returns the total energy function depending on the type of results
+
+        @param res: results
+        @type  res: results object
+        """
+        if isinstance(res, TurbomoleSinglePointResults):
+            return res.get_energy()
+        elif isinstance(res, OrcaResults):
+            return res.get_total_energy()
+        elif isinstance(res, adfsinglepointresults):
+            return res.get_total_energy()
+
     def set_fragmentlist(self, frags):
         self._frags = frags
 
@@ -633,6 +701,9 @@ class generalmfccresults(results):
         return self._frags
 
     def get_dipole_vector(self):
+        """
+        returns dipole vector of the total molecule
+        """
         import numpy
         dipole = numpy.zeros(3)
         for f in self._frags.fragiter():
@@ -642,8 +713,11 @@ class generalmfccresults(results):
         return dipole
 
     def get_total_energy(self):
-        frag_energies = [f.results.get_energy() for f in self._frags.fragiter()]
-        cap_energies = [c.results.get_energy() for c in self._frags.capiter()]
+        """
+        returns total energy of the total molecule
+        """
+        frag_energies = [self.get_energy_function(f.results) for f in self._frags.fragiter()]
+        cap_energies = [self.get_energy_function(c.results) for c in self._frags.capiter()]
         return sum(frag_energies) - sum(cap_energies)
 
 
@@ -651,12 +725,12 @@ class generalmfccjob(metajob):
 
     def __init__(self, frags, jobfunc, jobfunc_kwargs=None):
         """
-        Initialize a Turbomole or ORCA MFCC job.
+        Initialize a Turbomole, ORCA or ADF MFCC job.
 
         @param frags: the list of MFCC fragments
         @type  frags: L{cappedfragmentlist}
         @param jobfunc: function to perform calculation for one fragment, returning a results object
-        @type  jobfunc: function with signature adfsinglepointjob(mol: molecule, **kwargs)
+        @type  jobfunc: function with signature XXXsinglepointjob(mol: molecule, **kwargs)
         @param jobfunc_kwargs: kwargs that will be passed to jobfunc
         @type  jobfunc_kwargs: dict or None
         """
@@ -694,12 +768,20 @@ class mfccinteractionresults(results):
         self.cap_res_by_comb = {}
 
     def get_energy_function(self, res):
-        if isinstance(res, TurbomoleSinglePointResults) or isinstance(res, OrcaResults):
+        """
+        returns the total energy function depending on the type of results
+
+        @param res: results
+        @type  res: results object
+        """
+        if isinstance(res, TurbomoleSinglePointResults):
             return res.get_energy()
+        elif isinstance(res, OrcaResults):
+            return res.get_total_energy()
         elif isinstance(res, adfsinglepointresults):
             return res.get_total_energy()
 
-    def get_frag_interactionenergy(self):
+    def get_frag_interaction_energy(self):
         """
         returns total interaction energy of all fragment-ligand combinations
         """
@@ -711,7 +793,7 @@ class mfccinteractionresults(results):
             fragenergy += energy
         return fragenergy
 
-    def get_cap_interactionenergy(self):
+    def get_cap_interaction_energy(self):
         """
         returns total interaction energy of all cap-ligand combinations
         """
@@ -727,7 +809,7 @@ class mfccinteractionresults(results):
         """
         returns total interaction energy
         """
-        return self.get_frag_interactionenergy() - self.get_cap_interactionenergy()
+        return self.get_frag_interaction_energy() - self.get_cap_interaction_energy()
 
 
 class mfccinteractionjob(metajob):

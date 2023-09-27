@@ -1,0 +1,50 @@
+######################################################################
+#
+# PyADF test Orca Coupled Cluster density 
+#
+# Test and demonstrate calculation of density and potential
+#
+######################################################################
+
+import numpy as np
+import xcfun
+
+m_h2o = molecule(os.path.join(pyadfenv.outdir, 'H2O.xyz'))
+m_h2o.set_symmetry('NOSYM')
+
+settings = OrcaSettings(method='HF', ri=False)
+
+settings.manual = True
+settings.cc_density = True
+settings.method_block = False
+settings.set_extra_block('%mdci\n citype CCSD\n Denmat orbopt\n density orbopt\nend\n\n! CCSD cc-pvdz NPA\n')
+
+r_h2o = OrcaSinglePointJob(m_h2o, settings=settings).run()
+
+# Cube grid
+cgrid = cubegrid(r_h2o.get_molecule(), spacing=0.1)
+dens_cube = r_h2o.get_density(grid=cgrid)
+
+int_dens_cube = dens_cube.integral()
+print("Integral of density (cube grid): ", int_dens_cube)
+
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(int_dens_cube, 9.839033263885797, 4)
+
+# ADF grid
+settings = adfsettings(functional='BLYP', zlmfit=True)
+settings.set_integration(4.0, becke='Normal')
+settings.set_ncycles(1)  # do not converge SCF, we only need the grid
+settings.set_save_tapes([21, 10])
+
+res_adf = adfsinglepointjob(m_h2o, basis='SZ', settings=settings).run()
+
+agrid = adfgrid(res_adf)
+dens = r_h2o.get_density(grid=agrid)
+
+int_dens = dens.integral()
+print("Integral of density (ADF grid): ", int_dens)
+
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(int_dens, 10.0, 5)
+

@@ -1,0 +1,43 @@
+import os
+from pyadf import *
+if 'pyadfenv' not in globals():
+    from pyadf.Initialization import *
+
+
+h2o = molecule(os.path.join(pyadfenv.outdir, 'H2O.xyz'))
+
+# CCSD single point calculation
+
+settings = OrcaSettings(method='CCSD', basis='cc-pVDZ')
+results = OrcaSinglePointJob(h2o, settings=settings).run()
+
+scfenergy = results.get_scf_energy()
+print("CJCJ aa", scfenergy)
+energy = results.get_total_energy()
+print("CJCJ bb", energy)
+
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(scfenergy, -76.0215733129, 6)
+    testobj.assertAlmostEqual(energy, -76.235299249, 6)
+
+# CCSD(T) single point calculation
+
+settings = OrcaSettings(method='CCSD(T)', basis='cc-pVDZ')
+results = OrcaSinglePointJob(h2o, settings=settings).run()
+
+energy = results.get_total_energy()
+
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(energy, -76.238490630, 6)
+
+scfenergy = results.get_energy('SCF')
+mp2energy = results.get_energy('MP2')
+ccsdenergy = results.get_energy('CCSD')
+ccsdtenergy = results.get_energy('CCSD(T)')
+
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(scfenergy, -76.0215733129, 6)
+    testobj.assertAlmostEqual(mp2energy, -76.2256651833, 6)
+    testobj.assertAlmostEqual(ccsdenergy, -76.235299249, 6)
+    testobj.assertAlmostEqual(ccsdtenergy, -76.238490630, 6)
+

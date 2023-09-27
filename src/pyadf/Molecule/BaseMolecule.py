@@ -2,8 +2,8 @@
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
 # Copyright (C) 2006-2022 by Christoph R. Jacob, Tobias Bergmann,
 # S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Maria Chekmeneva,
-# Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz, 
-# Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder, 
+# Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz,
+# Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder,
 # Jetze Sikkema, Lucas Visscher, Johannes Vornweg and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
@@ -238,6 +238,26 @@ class BaseMolecule:
                 pc_list[i].append(charges_H3O[atom])
             else:
                 pc_list[i].append(charges_TIP3P[atom])
+
+        return pc_list
+
+    def get_dmso_pointcharges(self):
+        """
+        Returns a list of coordinates and point charge values corresponding
+        to the DMSO molecules (charges from PCCP 2004, 6, 2136-2144).
+        """
+
+        # charges for DMSO from PCCP 2004, 6, 2136-2144
+        charges_DMSO = {'C': -0.267, 'O': -0.545, 'H': +0.129, 'S': +0.305}
+
+        coords = self.get_coordinates()
+        atoms = self.get_atom_symbols()
+
+        pc_list = []
+
+        for i, atom in enumerate(atoms):
+            pc_list.append([j for j in coords[i]])
+            pc_list[i].append(charges_DMSO[atom])
 
         return pc_list
 

@@ -1,0 +1,61 @@
+import os
+from pyadf import *
+if 'pyadfenv' not in globals():
+    from pyadf.Initialization import *
+
+
+def check_results_hf(energ, kin_energ, nuc_energ):
+    testobj.assertAlmostEqual(energ, -76.021573326, 6)
+    testobj.assertAlmostEqual(kin_energ, 75.84392316, 6)
+    testobj.assertAlmostEqual(nuc_energ, 8.82769437, 6)
+
+
+def check_results_lda(energ, kin_energ, nuc_energ):
+    testobj.assertAlmostEqual(energ, -75.853883509, 6)
+    testobj.assertAlmostEqual(kin_energ, 75.76664221, 6)
+    testobj.assertAlmostEqual(nuc_energ, 8.82769437, 6)
+
+
+def check_results_bp86(energ, kin_energ, nuc_energ):
+    testobj.assertAlmostEqual(energ, -76.4210249, 6)
+    testobj.assertAlmostEqual(kin_energ, 75.89438922, 6)
+    testobj.assertAlmostEqual(nuc_energ, 8.82769437, 6)
+
+
+h2o = molecule(os.path.join(pyadfenv.outdir, 'H2O.xyz'))
+
+# HF single point calculation
+
+settings = OrcaSettings(method='HF', basis='cc-pVDZ')
+settings.set_extra_keywords('TightSCF')
+results = OrcaSinglePointJob(h2o, settings=settings).run()
+
+energy = results.get_total_energy()
+kin_energy = results.get_kinetic_energy()
+nuc_energy = results.get_scf_energy('Nuclear Repulsion')
+
+check_results_hf(energy, kin_energy, nuc_energy)
+
+# LDA single point calculation
+
+settings = OrcaSettings(method='DFT', functional='LDA', basis='cc-pVDZ', ri=False, converge='TightSCF')
+settings.set_extra_keywords(['DefGrid3'])
+results = OrcaSinglePointJob(h2o, settings=settings).run()
+
+energy = results.get_total_energy()
+kin_energy = results.get_kinetic_energy()
+nuc_energy = results.get_scf_energy('Nuclear Repulsion')
+
+check_results_lda(energy, kin_energy, nuc_energy)
+
+# BP86 single point calculation
+
+settings = OrcaSettings(method='DFT', functional='BP86', basis='cc-pVDZ', ri=False, converge='TightSCF')
+settings.set_extra_keywords(['DefGrid3'])
+results = OrcaSinglePointJob(h2o, settings=settings).run()
+
+energy = results.get_total_energy()
+kin_energy = results.get_kinetic_energy()
+nuc_energy = results.get_scf_energy('Nuclear Repulsion')
+
+check_results_bp86(energy, kin_energy, nuc_energy)

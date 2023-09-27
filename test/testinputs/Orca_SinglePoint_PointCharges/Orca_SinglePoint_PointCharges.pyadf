@@ -1,0 +1,27 @@
+import os
+from pyadf import *
+if 'pyadfenv' not in globals():
+    from pyadf.Initialization import *
+
+mol = molecule(os.path.join(pyadfenv.outdir, 'H2O.xyz'))
+
+mol_pc = molecule(os.path.join(pyadfenv.outdir, 'H2O_pc.pdb'), 'pdb')
+
+settings = OrcaSettings(method='dft', basis='cc-pVDZ')
+
+# default settings: RI-DFT/BP
+
+res = OrcaSinglePointJob(mol, settings=settings).run()
+
+energy = res.get_energy()
+print("Total Energy without pc: ", energy)
+
+settings.pointcharges = mol_pc.get_tip3p_pointcharges()
+
+res_pc = OrcaSinglePointJob(mol, settings=settings).run()
+energy_pc = res_pc.get_energy()
+print("Total Energy with pc: ", energy_pc)
+
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(energy, -75.85536497248, 6)
+    testobj.assertAlmostEqual(energy_pc, -75.870337467348, 6)

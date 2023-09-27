@@ -2,8 +2,8 @@
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
 # Copyright (C) 2006-2022 by Christoph R. Jacob, Tobias Bergmann,
 # S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Maria Chekmeneva,
-# Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz, 
-# Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder, 
+# Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz,
+# Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder,
 # Jetze Sikkema, Lucas Visscher, Johannes Vornweg and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
@@ -134,12 +134,14 @@ class PyAdfTextTestResult(unittest.TextTestResult):
         self._first_unittest = True
 
         self._linebuffer = None
+        self._newline = False
 
     def startTest(self, test):
         save_showAll = self.showAll
         self.showAll = False
         super().startTest(test)
         self.showAll = save_showAll
+        self._newline = False
 
         if not isinstance(test, PyAdfTestCase):
             if self._first_doctest:
@@ -196,6 +198,7 @@ class PyAdfTextTestResult(unittest.TextTestResult):
 class PyAdfTextTestRunner(unittest.TextTestRunner):
 
     def __init__(self, print_timing_report=False, *args, **kwargs):
+        self.stream = None
         super().__init__(verbosity=2, descriptions=False, resultclass=PyAdfTextTestResult, *args, **kwargs)
         self._print_timing_report = print_timing_report
 
@@ -206,46 +209,48 @@ class PyAdfTextTestRunner(unittest.TextTestRunner):
             # noinspection PyUnresolvedReferences
             all_timings = result.test_timings
 
-            print()
-            print(" Timing Report ")
-            print(" ============= \n")
+            self.stream.writeln()
+            self.stream.writeln(" Timing Report ")
+            self.stream.writeln(" ============= \n")
 
             doctest_timings = [t[2] for t in all_timings if t[1] == 'doctest']
             if len(doctest_timings) > 0:
                 doctests_total = sum(doctest_timings)
-                print(f" Doctests: total time {_time2str(doctests_total):s}")
-                print()
+                self.stream.writeln(f" Doctests: total time {_time2str(doctests_total):s}")
+                self.stream.writeln()
 
             unittest_timings = [t[2] for t in all_timings if t[1] == 'unittest']
             if len(unittest_timings) > 0:
                 unittests_total = sum(unittest_timings)
-                print(f" Unittests: total time {_time2str(unittests_total):s}")
-                print()
+                self.stream.writeln(f" Unittests: total time {_time2str(unittests_total):s}")
+                self.stream.writeln()
 
             for testset in ['short', 'medium', 'long']:
                 timings = [(t[0], t[2]) for t in all_timings if t[1] == testset]
                 if len(timings) > 0:
                     timings.sort(key=lambda t: t[1])
                     times = numpy.array([t[1] for t in timings])
-                    print(f" Input tests ({testset.upper():s} testset): total time {_time2str(numpy.sum(times)):s}")
-                    print(f"   avg {_time2str(numpy.mean(times)):s}"
-                          f"   min {_time2str(numpy.min(times)):s}"
-                          f"   max {_time2str(numpy.max(times)):s}")
-                    print()
-                    print(f"   Slowest {testset:s} tests: ")
+                    self.stream.writeln(f" Input tests ({testset.upper():s} testset):"
+                                        f" total time {_time2str(numpy.sum(times)):s}")
+                    self.stream.writeln(f"   avg {_time2str(numpy.mean(times)):s}"
+                                        f"   min {_time2str(numpy.min(times)):s}"
+                                        f"   max {_time2str(numpy.max(times)):s}")
+                    self.stream.writeln()
+                    self.stream.writeln(f"   Slowest {testset:s} tests: ")
                     for i in range(1, min(3, len(timings))+1):
-                        print(f"      {timings[-i][0]:s}  ( {_time2str(timings[-i][1]):s} )")
-                    print()
-                    print(f"   Fastest {testset:s} tests: ")
+                        self.stream.writeln(f"      {timings[-i][0]:s}  ( {_time2str(timings[-i][1]):s} )")
+                    self.stream.writeln()
+                    self.stream.writeln(f"   Fastest {testset:s} tests: ")
                     for i in range(min(3, len(timings))):
-                        print(f"      {timings[i][0]:s}  ( {_time2str(timings[i][1]):s} )")
-                    print()
+                        self.stream.writeln(f"      {timings[i][0]:s}  ( {_time2str(timings[i][1]):s} )")
+                    self.stream.writeln()
 
             timings = [(t[0], t[2]) for t in all_timings if (t[1] in ['all', 'unkonwn'])]
             if len(timings) > 0:
-                print(" Uncategorized tests: ")
+                self.stream.writeln(" Uncategorized tests: ")
                 for t in timings:
-                    print(f"      {t[0]:s}  ( {_time2str(t[1]):s} )")
-                print()
+                    self.stream.writeln(f"      {t[0]:s}  ( {_time2str(t[1]):s} )")
+                self.stream.writeln()
+            self.stream.flush()
 
         return result

@@ -2,8 +2,8 @@
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
 # Copyright (C) 2006-2022 by Christoph R. Jacob, Tobias Bergmann,
 # S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Maria Chekmeneva,
-# Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz, 
-# Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder, 
+# Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz,
+# Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder,
 # Jetze Sikkema, Lucas Visscher, Johannes Vornweg and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
@@ -116,6 +116,7 @@ def setup_pyadfenv():
                        args[0], opts)
     else:
         # run locally
+        from datetime import datetime
         cwd = os.getcwd()
 
         if options.force and os.path.exists('pyadftempdir'):
@@ -124,17 +125,23 @@ def setup_pyadfenv():
         os.mkdir('pyadftempdir')
         os.chdir('pyadftempdir')
 
-        pyadfenv = env(cwd, cwd, str(os.getpid()), args[0], opts)
+        now = datetime.now()
+        jobid = now.strftime('%Y%m%d-%H%M%S')
+
+        pyadfenv = env(cwd, cwd, jobid, args[0], opts)
 
     return pyadfenv
 
 
-def setup_test_pyadfenv(pyadfinput, molclass=None, jobrunnerconf=None):
+def setup_test_pyadfenv(pyadfinput, molclass=None, jobrunnerconf=None, save_results=False):
 
     # run locally
+    from datetime import datetime
     cwd = os.getcwd()
 
     options = {'unittesting': True, 'molclass': molclass}
+    if save_results:
+        options['save_results'] = True
 
     if jobrunnerconf is None:
         options['jobrunner_conffile'] = jobrunnerconf
@@ -144,6 +151,9 @@ def setup_test_pyadfenv(pyadfinput, molclass=None, jobrunnerconf=None):
     os.mkdir('pyadftempdir')
     os.chdir('pyadftempdir')
 
-    pyadfenv = env(cwd, cwd, str(os.getpid()), pyadfinput, options)
+    now = datetime.now()
+    jobid = now.strftime('%Y%m%d-%H%M%S') + "-" + str(os.getpid())
+
+    pyadfenv = env(cwd, cwd, jobid, pyadfinput, options)
 
     return pyadfenv

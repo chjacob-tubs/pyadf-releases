@@ -2,8 +2,8 @@
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
 # Copyright (C) 2006-2022 by Christoph R. Jacob, Tobias Bergmann,
 # S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Maria Chekmeneva,
-# Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz, 
-# Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder, 
+# Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz,
+# Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder,
 # Jetze Sikkema, Lucas Visscher, Johannes Vornweg and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
@@ -298,7 +298,7 @@ class GTODensityEvaluatorMixin(DensityEvaluatorInterface):
         from .DensityEvaluator_PySCF import PyScfInterface
 
         if self._pyscf_object is None:
-            self._pyscf_object = PyScfInterface(self.read_molden_file())
+            self._pyscf_object = PyScfInterface(result=self)
 
         return self._pyscf_object
 
@@ -341,7 +341,6 @@ class GTODensityEvaluatorMixin(DensityEvaluatorInterface):
         from .Plot.GridFunctions import GridFunctionFactory
 
         gridpoints = grid.get_coordinates(bohr=True)
-        dens_values = self.pyscf_interface.density(gridpoints)
 
         import hashlib
         m = hashlib.md5()
@@ -349,9 +348,12 @@ class GTODensityEvaluatorMixin(DensityEvaluatorInterface):
         m.update(self.checksum.encode('utf-8'))
         m.update(b"and grid: \n")
         m.update(grid.checksum.encode('utf-8'))
+        pyscf_checksum = m.hexdigest()
+
+        dens_values = self.pyscf_interface.density(gridpoints)
 
         dens_gf = GridFunctionFactory.newGridFunction(grid, dens_values, gf_type='density',
-                                                      checksum=m.hexdigest())
+                                                      checksum=pyscf_checksum)
         return dens_gf
 
     @use_default_grid
@@ -367,7 +369,6 @@ class GTODensityEvaluatorMixin(DensityEvaluatorInterface):
         from .Plot.GridFunctions import GridFunctionFactory
 
         gridpoints = grid.get_coordinates(bohr=True)
-        mixed_dens_values = self.pyscf_interface.density(gridpoints, deriv=1)
 
         import hashlib
         m = hashlib.md5()
@@ -375,9 +376,12 @@ class GTODensityEvaluatorMixin(DensityEvaluatorInterface):
         m.update(self.checksum.encode('utf-8'))
         m.update(b"and grid: \n")
         m.update(grid.checksum.encode('utf-8'))
+        pyscf_checksum = m.hexdigest()
+
+        mixed_dens_values = self.pyscf_interface.density(gridpoints, deriv=1)
 
         return GridFunctionFactory.newGridFunction(grid, mixed_dens_values[1:4].transpose(),
-                                                   checksum=m.hexdigest())
+                                                   checksum=pyscf_checksum)
 
     @use_default_grid
     def get_density_hessian(self, grid=None):
@@ -395,7 +399,6 @@ class GTODensityEvaluatorMixin(DensityEvaluatorInterface):
         from .Plot.GridFunctions import GridFunctionFactory
 
         gridpoints = grid.get_coordinates(bohr=True)
-        mixed_dens_values = self.pyscf_interface.density(gridpoints, deriv=2)
 
         import hashlib
         m = hashlib.md5()
@@ -403,9 +406,12 @@ class GTODensityEvaluatorMixin(DensityEvaluatorInterface):
         m.update(self.checksum.encode('utf-8'))
         m.update(b"and grid: \n")
         m.update(grid.checksum.encode('utf-8'))
+        pyscf_checksum = m.hexdigest()
+
+        mixed_dens_values = self.pyscf_interface.density(gridpoints, deriv=2)
 
         return GridFunctionFactory.newGridFunction(grid, mixed_dens_values[4:10].transpose(),
-                                                   checksum=m.hexdigest())
+                                                   checksum=pyscf_checksum)
 
     @use_default_grid
     def get_laplacian(self, grid=None):
@@ -423,7 +429,17 @@ class GTODensityEvaluatorMixin(DensityEvaluatorInterface):
         from pyadf.Plot.GridFunctions import GridFunctionFactory
 
         gridpoints = grid.get_coordinates(bohr=True)
+
+        import hashlib
+        m = hashlib.md5()
+        m.update(b"Electron density Laplacian calculated for job: \n")
+        m.update(self.checksum.encode('utf-8'))
+        m.update(b"and grid: \n")
+        m.update(grid.checksum.encode('utf-8'))
+        pyscf_checksum = m.hexdigest()
+
         lapl_values = self.pyscf_interface.laplacian(gridpoints)
+
         lapl_gf = GridFunctionFactory.newGridFunction(grid, lapl_values)
 
         return lapl_gf
@@ -441,7 +457,6 @@ class GTODensityEvaluatorMixin(DensityEvaluatorInterface):
         from pyadf.Plot.GridFunctions import GridFunctionFactory
 
         gridpoints = grid.get_coordinates(bohr=True)
-        pot_values = self.pyscf_interface.nuclear_potential(gridpoints)
 
         import hashlib
         m = hashlib.md5()
@@ -449,9 +464,12 @@ class GTODensityEvaluatorMixin(DensityEvaluatorInterface):
         m.update(self.checksum.encode('utf-8'))
         m.update(b"and grid: \n")
         m.update(grid.checksum.encode('utf-8'))
+        pyscf_checksum = m.hexdigest()
+
+        pot_values = self.pyscf_interface.nuclear_potential(gridpoints)
 
         pot_gf = GridFunctionFactory.newGridFunction(grid, pot_values, gf_type='potential',
-                                                     checksum=m.hexdigest())
+                                                     checksum=pyscf_checksum)
 
         return pot_gf
 
@@ -468,7 +486,6 @@ class GTODensityEvaluatorMixin(DensityEvaluatorInterface):
         from pyadf.Plot.GridFunctions import GridFunctionFactory
 
         gridpoints = grid.get_coordinates(bohr=True)
-        pot_values = self.pyscf_interface.coulomb_potential(gridpoints)
 
         import hashlib
         m = hashlib.md5()
@@ -476,8 +493,11 @@ class GTODensityEvaluatorMixin(DensityEvaluatorInterface):
         m.update(self.checksum.encode('utf-8'))
         m.update(b"and grid: \n")
         m.update(grid.checksum.encode('utf-8'))
+        pyscf_checksum = m.hexdigest()
+
+        pot_values = self.pyscf_interface.coulomb_potential(gridpoints)
 
         pot_gf = GridFunctionFactory.newGridFunction(grid, pot_values, gf_type='potential',
-                                                     checksum=m.hexdigest())
+                                                     checksum=pyscf_checksum)
 
         return pot_gf

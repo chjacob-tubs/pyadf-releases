@@ -2,8 +2,8 @@
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
 # Copyright (C) 2006-2022 by Christoph R. Jacob, Tobias Bergmann,
 # S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Maria Chekmeneva,
-# Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz, 
-# Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder, 
+# Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz,
+# Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder,
 # Jetze Sikkema, Lucas Visscher, Johannes Vornweg and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
@@ -477,7 +477,7 @@ class cappedfragmentlist(fragmentlist):
             chainresnumlist = []
             for i in range(natoms):
                 chain, resname, resnum = frag.mol.get_atom_resinfo(i+1)
-                if not resname == 'CAP':
+                if resname not in ['CAP', 'SCP']:
                     chainresnumlist.append(chain + str(resnum))
             charge = 0
             for res in reschargelist:

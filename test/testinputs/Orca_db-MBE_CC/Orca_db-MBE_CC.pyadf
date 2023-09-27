@@ -1,0 +1,383 @@
+######################################################################
+#
+# PyADF test DBMBE_CC_Paper_test
+#
+# Test of the CC db-MBE calculations performed in paper "Coupled-
+# Cluster Density-Based Many-Body Expansion" by Focke and Jacob
+# (J. Phys. Chem. A, 2023).
+#
+######################################################################
+import os
+from pyadf import *
+if 'pyadfenv' not in globals():
+    from pyadf.Initialization import *
+
+max_order = 3
+
+
+# read coordinates of OH(H2O)2 cluster
+mol_tot = molecule(os.path.join(pyadfenv.outdir, 'OH_H2O_2.xyz'))
+mol_tot.set_charge(-1)
+mol_list = [molecule(os.path.join(pyadfenv.outdir, 'OH.xyz')),
+            molecule(os.path.join(pyadfenv.outdir, 'H2O_1.xyz')),
+            molecule(os.path.join(pyadfenv.outdir, 'H2O_2.xyz'))]
+mol_list[0].set_charge(-1)
+
+
+#############################################
+# 0) Function for creating the Grid
+#############################################
+# noinspection PyUnusedLocal
+def calculate_mol_grid(mol, frozen_mols=None, savetape10=False):
+    mol.set_symmetry('NOSYM')
+    settings = adfsettings(zlmfit=True)
+    settings.set_functional('BP86')
+    settings.set_integration(4.0, becke='Basic')
+    if savetape10:
+        settings.set_save_tapes([21, 10])
+
+    res = adfsinglepointjob(mol, basis='SZ', core='Medium', settings=settings,
+                            options=['TOTALENERGY', 'TOL 1e-6']).run()
+    return res
+
+
+# conversion factor from Hartree to kJ/mol
+kJmol = conversion('Hartree', 'kJ/mol')
+
+# perform calculation of the supermolecule as reference
+res_supermol_grid = calculate_mol_grid(mol_tot, savetape10=True)
+grid = adfgrid(res_supermol_grid)
+
+functional = 'PBE'
+nadkin = 'PW91k'
+
+
+###############################################
+# 3) CCSD(T) with HF density
+###############################################
+
+# noinspection PyUnusedLocal
+def calculate_mol(mol, frozen_mols=None, savetape10=False):
+    """
+    This function is passed to MBEJob as an argument.
+
+    It takes a molecule and returns a results object.
+    How this is done is completely irrelevant to MBEJob.
+    """
+    settings = OrcaSettings(method='HF', ri=False)
+    settings.manual = True
+    settings.set_extra_block('%mdci\n maxiter 300\nend\n\n! CCSD(T) ma-def2-SVP '
+                             'VeryTightSCF NPA\n%maxcore 12000\n')
+    settings.dummy_options = {'%maxcore': ' 6666'}
+    res = OrcaSinglePointJob(mol, settings=settings).run()
+    return res
+
+
+###############################################
+# A) energy-based MBE
+###############################################
+
+# perform MBE calculations (up to third order)
+mbejob = MBEJob(mol_list, calculate_mol, order=max_order)
+mberes = mbejob.run()
+
+# perform calculation of the supermolecule as reference
+res_supermol = calculate_mol(mol_tot, savetape10=True)
+toten_supermol = res_supermol.get_total_energy()
+
+tot_energy_eb = mberes.get_total_energy()
+tot_energy_monomers = mberes.get_total_energy(order=1)
+int_energy_supermol = (toten_supermol - tot_energy_monomers)
+int_energy_eb = mberes.get_interaction_energy()
+
+tot_energy_eb_by_order = mberes.get_total_energies_by_order()
+
+print()
+print('CCSD(T) WITH HF DENSITY')
+print('FIRST RESULTS WITH ' + functional + ' AND ' + nadkin)
+print("SUPERMOL Total energy (Hartree)", toten_supermol)
+print()
+
+for i in range(max_order):
+    print(str(i+1) + ". Total energy eb-MBE (Hartree): ", tot_energy_eb_by_order[i])
+print()
+
+for i in range(max_order):
+    print(str(i+1) + ". Total energy eb-MBE (kJ/mol): ", tot_energy_eb_by_order[i] * kJmol)
+print()
+
+int_energy_eb_by_order = mberes.get_interaction_energies_by_order()
+for i in range(max_order):
+    print(str(i+1) + ". Interaction energy eb-MBE (Hartree): ", int_energy_eb_by_order[i])
+print()
+
+for i in range(max_order):
+    print(str(i+1) + ". Interaction energy eb-MBE (kJ/mol): ", int_energy_eb_by_order[i] * kJmol)
+print()
+
+for i in range(max_order):
+    error_eb = (int_energy_eb_by_order[i] - int_energy_supermol)
+    print(str(i+1) + ". Error compared to supermol eb-MBE (Hartree): ", error_eb)
+print()
+
+for i in range(max_order):
+    error_eb = (int_energy_eb_by_order[i] - int_energy_supermol) * kJmol
+    print(str(i+1) + ". Error compared to supermol eb-MBE (kJ/mol): ", error_eb)
+print()
+
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(tot_energy_eb_by_order,
+                              [-227.92396777896798, -228.02148779159802, -228.01649424481298], 6)
+    testobj.assertAlmostEqual(int_energy_eb_by_order,
+                              [0, -0.09752001263004217, -0.09252646584499757], 6)
+    testobj.assertAlmostEqual(int_energy_supermol, -0.092526465845026, 6)
+
+###############################################
+# B) density-based MBE
+###############################################
+
+dbmbe_job = DensityBasedMBEJob(mberes, grid=grid, nadxc=functional, nadkin=nadkin)
+dbmbe_res = dbmbe_job.run()
+tot_energy_db = dbmbe_res.get_total_energy()
+int_energy_db = dbmbe_res.get_interaction_energy()
+
+tot_energy_db_by_order = dbmbe_res.get_total_energies_by_order()
+
+print()
+print('CCSD(T) WITH HF DENSITY')
+print('NEW RESULTS WITH ' + functional + ' AND ' + nadkin)
+print()
+
+for i in range(max_order):
+    print(str(i+1) + ". Total energy db-MBE (Hartree): ", tot_energy_db_by_order[i])
+print()
+
+for i in range(max_order):
+    print(str(i+1) + ". Total energy db-MBE (kJ/mol): ", tot_energy_db_by_order[i] * kJmol)
+print()
+
+int_energy_db_by_order = dbmbe_res.get_interaction_energies_by_order()
+for i in range(max_order):
+    print(str(i+1) + ". Interaction energy db-MBE (Hartree): ", int_energy_db_by_order[i])
+print()
+
+for i in range(max_order):
+    print(str(i+1) + ". Interaction energy db-MBE (kJ/mol): ", int_energy_db_by_order[i] * kJmol)
+print()
+
+for i in range(max_order):
+    error_db = (int_energy_db_by_order[i] - int_energy_supermol)
+    print(str(i+1) + ". Error compared to supermol db-MBE (Hartree): ", error_db)
+print()
+
+for i in range(max_order):
+    error_db = (int_energy_db_by_order[i] - int_energy_supermol) * kJmol
+    print(str(i+1) + ". Error compared to supermol db-MBE (kJ/mol): ", error_db)
+print()
+
+for i in range(max_order):
+    print(str(i+1) + ". Density Correction (Hartree): ", dbmbe_res.get_dbcorr(i+1))
+print()
+
+for i in range(max_order):
+    print(str(i+1) + ". Density Correction (kJ/mol): ", (dbmbe_res.get_dbcorr(i+1) * kJmol))
+
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(tot_energy_db_by_order,
+                              [-227.97788546851876, -228.0165120412639, -228.0164909748803], 6)
+    testobj.assertAlmostEqual(int_energy_db_by_order,
+                              [-0.05391768955078646, -0.09254426229591672, -0.09252319591232094], 6)
+    testobj.assertAlmostEqual(int_energy_supermol, -0.092526465845026, 6)
+
+###############################################
+# 3.5) OOCCD with OOCC density
+# This is not done in the paper directly
+###############################################
+cc_eb_tot = tot_energy_eb_by_order
+cc_eb_int = int_energy_eb_by_order
+cc_supermol_int = int_energy_supermol
+
+
+# noinspection PyUnusedLocal
+def calculate_mol(mol, frozen_mols=None, savetape10=False):
+    """
+    This function is passed to MBEJob as an argument.
+
+    It takes a molecule and returns a results object.
+    How this is done is completely irrelevant to MBEJob.
+    """
+    settings = OrcaSettings(method='HF', ri=False)
+    settings.manual = True
+    settings.cc_density = True
+    settings.set_extra_block('%mdci\n Denmat orbopt\n density orbopt\n maxiter 500\n end\n\n! CCSD '
+                             'ma-def2-SVP VeryTightSCF NPA\n%maxcore 11000\n')
+    settings.dummy_options = {'%maxcore': ' 6666', ' maxiter': ' 300'}
+    res = OrcaSinglePointJob(mol, settings=settings).run()
+    return res
+
+
+###############################################
+# A) energy-based MBE
+###############################################
+
+# perform MBE calculations (up to third order)
+mbejob = MBEJob(mol_list, calculate_mol, order=max_order)
+mberes = mbejob.run()
+
+# perform calculation of the supermolecule as reference
+res_supermol = calculate_mol(mol_tot, savetape10=True)
+toten_supermol = res_supermol.get_total_energy()
+
+tot_energy_eb = mberes.get_total_energy()
+tot_energy_monomers = mberes.get_total_energy(order=1)
+int_energy_supermol = (toten_supermol - tot_energy_monomers)
+int_energy_eb = mberes.get_interaction_energy()
+
+tot_energy_eb_by_order = mberes.get_total_energies_by_order()
+
+print()
+print('OOCCD WITH OOCC DENSITY')
+print('FIRST RESULTS WITH ' + functional + ' AND ' + nadkin)
+print("SUPERMOL Total energy (Hartree)", toten_supermol)
+print()
+
+for i in range(max_order):
+    print(str(i+1) + ". Total energy eb-MBE (Hartree): ", tot_energy_eb_by_order[i])
+print()
+
+for i in range(max_order):
+    print(str(i+1) + ". Total energy eb-MBE (kJ/mol): ", tot_energy_eb_by_order[i] * kJmol)
+print()
+
+int_energy_eb_by_order = mberes.get_interaction_energies_by_order()
+for i in range(max_order):
+    print(str(i+1) + ". Interaction energy eb-MBE (Hartree): ", int_energy_eb_by_order[i])
+print()
+
+for i in range(max_order):
+    print(str(i+1) + ". Interaction energy eb-MBE (kJ/mol): ", int_energy_eb_by_order[i] * kJmol)
+print()
+
+for i in range(max_order):
+    error_eb = (int_energy_eb_by_order[i] - int_energy_supermol)
+    print(str(i+1) + ". Error compared to supermol eb-MBE (Hartree): ", error_eb)
+print()
+
+for i in range(max_order):
+    error_eb = (int_energy_eb_by_order[i] - int_energy_supermol) * kJmol
+    print(str(i+1) + ". Error compared to supermol eb-MBE (kJ/mol): ", error_eb)
+print()
+
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(tot_energy_eb_by_order,
+                              [-227.909527767973, -228.005664765207, -228.000664357867], 6)
+    testobj.assertAlmostEqual(int_energy_eb_by_order,
+                              [0, -0.09613699723399804, -0.09113658989400619], 6)
+    testobj.assertAlmostEqual(int_energy_supermol, -0.09113658989400619, 6)
+
+###############################################
+# B) density-based MBE
+###############################################
+
+dbmbe_job = DensityBasedMBEJob(mberes, grid=grid, nadxc=functional, nadkin=nadkin)
+dbmbe_res = dbmbe_job.run()
+tot_energy_db = dbmbe_res.get_total_energy()
+int_energy_db = dbmbe_res.get_interaction_energy()
+
+tot_energy_db_by_order = dbmbe_res.get_total_energies_by_order()
+
+print()
+print('OOCCD WITH OOCC DENSITY')
+print('NEW RESULTS WITH ' + functional + ' AND ' + nadkin)
+print()
+
+for i in range(max_order):
+    print(str(i+1) + ". Total energy db-MBE (Hartree): ", tot_energy_db_by_order[i])
+print()
+
+for i in range(max_order):
+    print(str(i+1) + ". Total energy db-MBE (kJ/mol): ", tot_energy_db_by_order[i] * kJmol)
+print()
+
+int_energy_db_by_order = dbmbe_res.get_interaction_energies_by_order()
+for i in range(max_order):
+    print(str(i+1) + ". Interaction energy db-MBE (Hartree): ", int_energy_db_by_order[i])
+print()
+
+for i in range(max_order):
+    print(str(i+1) + ". Interaction energy db-MBE (kJ/mol): ", int_energy_db_by_order[i] * kJmol)
+print()
+
+for i in range(max_order):
+    error_db = (int_energy_db_by_order[i] - int_energy_supermol)
+    print(str(i+1) + ". Error compared to supermol db-MBE (Hartree): ", error_db)
+print()
+
+for i in range(max_order):
+    error_db = (int_energy_db_by_order[i] - int_energy_supermol) * kJmol
+    print(str(i+1) + ". Error compared to supermol db-MBE (kJ/mol): ", error_db)
+print()
+
+for i in range(max_order):
+    print(str(i+1) + ". Density Correction (Hartree): ", dbmbe_res.get_dbcorr(i+1))
+print()
+
+for i in range(max_order):
+    print(str(i+1) + ". Density Correction (kJ/mol): ", (dbmbe_res.get_dbcorr(i+1) * kJmol))
+
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(tot_energy_db_by_order,
+                              [-227.9546553330497, -228.00077527728885, -228.00066108793547], 6)
+    testobj.assertAlmostEqual(int_energy_db_by_order,
+                              [-0.04512756507668314, -0.09124750931584913, -0.09113331996246643], 6)
+    testobj.assertAlmostEqual(int_energy_supermol, -0.09113658989400619, 6)
+
+###############################################
+# 4) CCSD(T) with OOCC density
+###############################################
+print()
+print('CCSD(T) WITH OOCC DENSITY')
+print('ONLY RESULTS WITH ' + functional + ' AND ' + nadkin)
+print()
+
+for i in range(max_order):
+    tot_energy_db_by_order[i] = cc_eb_tot[i] + dbmbe_res.get_dbcorr(i+1)
+    print(str(i+1) + ". Total energy db-MBE (Hartree): ", tot_energy_db_by_order[i])
+print()
+
+for i in range(max_order):
+    print(str(i+1) + ". Total energy db-MBE (kJ/mol): ", tot_energy_db_by_order[i] * kJmol)
+print()
+
+for i in range(max_order):
+    int_energy_db_by_order[i] = cc_eb_int[i] + dbmbe_res.get_dbcorr(i+1)
+    print(str(i+1) + ". Interaction energy db-MBE (Hartree): ", int_energy_db_by_order[i])
+print()
+
+for i in range(max_order):
+    print(str(i+1) + ". Interaction energy db-MBE (kJ/mol): ", int_energy_db_by_order[i] * kJmol)
+print()
+
+for i in range(max_order):
+    error_db = (int_energy_db_by_order[i] - cc_supermol_int)
+    print(str(i+1) + ". Error compared to supermol db-MBE (Hartree): ", error_db)
+print()
+
+for i in range(max_order):
+    error_db = (int_energy_db_by_order[i] - cc_supermol_int) * kJmol
+    print(str(i+1) + ". Error compared to supermol db-MBE (kJ/mol): ", error_db)
+print()
+
+for i in range(max_order):
+    print(str(i+1) + ". Density Correction (Hartree): ", dbmbe_res.get_dbcorr(i+1))
+print()
+
+for i in range(max_order):
+    print(str(i+1) + ". Density Correction (kJ/mol): ", dbmbe_res.get_dbcorr(i+1) * kJmol)
+
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(tot_energy_db_by_order,
+                              [-227.96909534404472, -228.0165983036798, -228.0164909748814], 6)
+    testobj.assertAlmostEqual(int_energy_db_by_order,
+                              [-0.045127565076754195, -0.09263052471182867, -0.09252319591341646], 6)
+    testobj.assertAlmostEqual(cc_supermol_int, -0.092526465845026, 6)

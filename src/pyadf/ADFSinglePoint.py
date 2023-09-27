@@ -2,8 +2,8 @@
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
 # Copyright (C) 2006-2022 by Christoph R. Jacob, Tobias Bergmann,
 # S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Maria Chekmeneva,
-# Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz, 
-# Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder, 
+# Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz,
+# Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder,
 # Jetze Sikkema, Lucas Visscher, Johannes Vornweg and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
@@ -749,6 +749,7 @@ class adfsinglepointresults(adfresults, DensityEvaluatorInterface):
         get_molecule, get_atom_index,
         get_number_of_electrons, get_s2, get_nspin,
         get_orbital_energy, get_bond_energy,
+        get_kinetic_energy, get_total_energy,
         get_voronoi_charges, get_mulliken_charges,
         get_hirshfeld_charges, get_multipolederiv_charges
     @group Retrieval of results on a grid:
@@ -929,6 +930,16 @@ class adfsinglepointresults(adfresults, DensityEvaluatorInterface):
         @rtype: float
         """
         return self.get_result_from_tape('Energy', 'Bond Energy')
+
+    def get_kinetic_energy(self):
+        """
+        Return the kinetic energy (requires TOTALENERGY option).
+
+        @returns: the kinetic energy in atomic units
+        @rtype: float
+        """
+        return self.get_result_from_tape('Total Energy', 'Kinetic energy') \
+            + self.get_result_from_tape('Total Energy', 'Core Kinetic energy')
 
     def get_total_energy(self):
         """

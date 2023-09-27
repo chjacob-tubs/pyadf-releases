@@ -2,8 +2,8 @@
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
 # Copyright (C) 2006-2022 by Christoph R. Jacob, Tobias Bergmann,
 # S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Maria Chekmeneva,
-# Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz, 
-# Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder, 
+# Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz,
+# Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder,
 # Jetze Sikkema, Lucas Visscher, Johannes Vornweg and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
@@ -71,6 +71,9 @@ class grid:
         self._mol = None
         self._checksum = None
         self._weights = None
+
+        # cache the coordinates (in Angstrom) to avoid recalculation
+        self._coords_cache = None
 
     def __copy__(self):
         return self
@@ -161,10 +164,15 @@ class grid:
         """
         Returns an array with the grid point coordinates (default: Angstrom).
         """
-        coords = numpy.zeros((self.npoints, 3))
-        for i, c in enumerate(self.coorditer(bohr=bohr)):
-            coords[i, :] = c
-        return coords
+        if self._coords_cache is None:
+            self._coords_cache = numpy.zeros((self.npoints, 3))
+            for i, c in enumerate(self.coorditer(bohr=False)):
+                self._coords_cache[i, :] = c
+
+        if bohr:
+            return self._coords_cache * Units.conversion('angstrom', 'bohr')
+        else:
+            return self._coords_cache
 
     def _get_weights(self):
         """

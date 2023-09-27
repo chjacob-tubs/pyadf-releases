@@ -1,0 +1,44 @@
+import os
+from pyadf import *
+if 'pyadfenv' not in globals():
+    from pyadf.Initialization import *
+
+
+def check_results(energ, kin_energ, coul_energ, nuc_energ):
+    testobj.assertAlmostEqual(energ, -75.476818055, 6)
+    testobj.assertAlmostEqual(kin_energ, 75.929481121, 6)
+    testobj.assertAlmostEqual(coul_energ, -151.3455967, 6)
+    testobj.assertAlmostEqual(nuc_energ, 8.82769437, 6)
+
+
+def check_results_core(energ, kin_energ, coul_energ, nuc_energ):
+    testobj.assertAlmostEqual(energ, -75.5050837346, 6)
+    testobj.assertAlmostEqual(kin_energ, 75.5550307964, 6)
+    testobj.assertAlmostEqual(coul_energ, -151.03209617, 6)
+    testobj.assertAlmostEqual(nuc_energ, 8.82769437, 6)
+
+
+h2o = molecule(os.path.join(pyadfenv.outdir, 'H2O.xyz'))
+h2o.set_symmetry('NOSYM')
+
+results = adfsinglepointjob(h2o, 'SZ', options=['TOTALENERGY', 'NOSYM']).run()
+
+energy = results.get_total_energy()
+kin_energy = results.get_kinetic_energy()
+coul_energy = results.get_result_from_tape('Total Energy', 'Coulomb energy')
+nuc_energy = results.get_result_from_tape('Total Energy', 'Nuclear repulsion energy')
+
+if 'unittesting' in pyadfenv.options:
+    check_results(energy, kin_energy, coul_energy, nuc_energy)
+
+###################################################################
+
+results = adfsinglepointjob(h2o, 'SZ', core='Large', options=['TOTALENERGY', 'NOSYM']).run()
+
+energy = results.get_total_energy()
+kin_energy = results.get_kinetic_energy()
+coul_energy = results.get_result_from_tape('Total Energy', 'Coulomb energy')
+nuc_energy = results.get_result_from_tape('Total Energy', 'Nuclear repulsion energy')
+
+if 'unittesting' in pyadfenv.options:
+    check_results_core(energy, kin_energy, coul_energy, nuc_energy)

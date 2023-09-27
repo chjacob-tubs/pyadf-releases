@@ -2,8 +2,8 @@
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
 # Copyright (C) 2006-2022 by Christoph R. Jacob, Tobias Bergmann,
 # S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Maria Chekmeneva,
-# Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz, 
-# Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder, 
+# Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz,
+# Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder,
 # Jetze Sikkema, Lucas Visscher, Johannes Vornweg and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
@@ -76,7 +76,7 @@ class GridReader:
         with open(filename_full, encoding='utf-8') as f:
             for line in f:
                 if npoints_re.match(line):
-                    npoints = numpy.int(npoints_re.match(line).group(1))
+                    npoints = int(npoints_re.match(line).group(1))
                     xyz = numpy.zeros((npoints, 3))
                     w = numpy.zeros((npoints,))
 
@@ -113,7 +113,7 @@ class GridFunctionReader:
         with open(filename_full, encoding='utf-8') as f:
             for line in f:
                 if npoints_re.match(line):
-                    npoints = numpy.int(npoints_re.match(line).group(1))
+                    npoints = int(npoints_re.match(line).group(1))
                     v = numpy.zeros((npoints,))
                     xyz = numpy.zeros((npoints, 3))
                     w = numpy.zeros((npoints,))
@@ -205,7 +205,7 @@ class GridFunctionReader:
         with open(filename_full, encoding='utf-8') as f:
             for line in f:
                 if npoints_re.match(line):
-                    npoints = numpy.int(npoints_re.match(line).group(1))
+                    npoints = int(npoints_re.match(line).group(1))
                     rho = numpy.zeros((npoints, 10))
                     elpot = numpy.zeros((npoints,))
                     grid_xyzw = numpy.zeros((npoints, 4))

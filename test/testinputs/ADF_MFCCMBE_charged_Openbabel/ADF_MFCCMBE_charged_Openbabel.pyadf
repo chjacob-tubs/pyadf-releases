@@ -1,0 +1,39 @@
+import os
+from pyadf import *
+if 'pyadfenv' not in globals():
+    from pyadf.Initialization import *
+
+helix_mol = molecule(os.path.join(pyadfenv.outdir, '310_charged.pdb'), 'pdb')
+
+settings = adfsettings()
+settings.set_save_tapes([21, 10])
+settings.set_functional('BP86')
+settings.set_integration(4.0, becke='Normal')
+settings.set_ncycles(200)
+options = ['TOTALENERGY', 'NOSYM', 'NOSYMFIT']
+core = 'None'
+basis = 'SZ'
+caps = 'mfcc'
+cutoff = 3.0
+
+
+def calculate_mol(mol):
+    res = adfsinglepointjob(mol, settings=settings, core=core, basis=basis, options=options).run()
+    return res
+
+
+frags = cappedfragmentlist()
+frags.partition_protein(helix_mol, caps=caps, fragsize=1)
+
+reschargelist = [['A1', 1], ['A4', -1]]
+frags.set_charges(reschargelist=reschargelist)
+
+mfcc_res = generalmfccjob(frags, jobfunc=calculate_mol).run()
+toten_mfcc = mfcc_res.get_total_energy()
+
+mfccmbe_res = mfccmbe2job(frags, jobfunc=calculate_mol, caps=caps, cutoff=cutoff).run()
+toten_mfccmbe = mfccmbe_res.get_total_interaction_energy()
+
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(toten_mfcc, -1062.176844487296, 6)
+    testobj.assertAlmostEqual(toten_mfccmbe, -0.10217005206214935, 6)

@@ -2,8 +2,8 @@
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
 # Copyright (C) 2006-2022 by Christoph R. Jacob, Tobias Bergmann,
 # S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Maria Chekmeneva,
-# Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz, 
-# Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder, 
+# Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz,
+# Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder,
 # Jetze Sikkema, Lucas Visscher, Johannes Vornweg and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
@@ -36,12 +36,13 @@ class PyADFInputTestCase(PyAdfTestCase):
     # pylint: disable=R0904
 
     def __init__(self, methodName='runTest', testname='bla', duration='unknown', keep=False,
-                 prof=False, molclass="openbabel", jobrunnerconf=None):
+                 save_results=False, prof=False, molclass="openbabel", jobrunnerconf=None):
 
         super().__init__(methodName)
         self._testname = testname
         self._duration = duration
         self._keep = keep
+        self._save_results = save_results
         self._profile = prof
         self._molclass = molclass
         self._jobrunnerconf = jobrunnerconf
@@ -100,7 +101,8 @@ class PyADFInputTestCase(PyAdfTestCase):
     def runTest(self):
         globs = globals().copy()
         globs.update({'pyadfinput': self._testname + ".pyadf", 'testobj': self,
-                      'testing_molclass': self._molclass, 'testing_jobrunnerconf': self._jobrunnerconf})
+                      'testing_molclass': self._molclass, 'testing_jobrunnerconf': self._jobrunnerconf,
+                      'testing_save_results': self._save_results})
 
         with open(os.path.join(self._pyadfpath, 'pyadf'), "rb") as fin:
             source = fin.read()
@@ -115,7 +117,7 @@ class PyADFInputTestCase(PyAdfTestCase):
 
 def make_testinputs_suite(tests="all", testnames=None, dalton=True, adf=True, dirac=True, nwchem=True,
                           espresso=True, molcas=True, turbomole=True, orca=True, openbabel=True,
-                          keep=False, prof=False, molclass="openbabel", jobrunnerconf=None):
+                          keep=False, save_results=False, prof=False, molclass="openbabel", jobrunnerconf=None):
 
     testsetorder = ['short', 'medium', 'long', 'all']
 
@@ -194,7 +196,8 @@ def make_testinputs_suite(tests="all", testnames=None, dalton=True, adf=True, di
                     use_test = False
 
             if use_test:
-                suite.addTest(PyADFInputTestCase(testname=testname, duration=testset, keep=keep, prof=prof,
+                suite.addTest(PyADFInputTestCase(testname=testname, duration=testset, keep=keep,
+                                                 save_results=save_results, prof=prof,
                                                  molclass=molclass, jobrunnerconf=jobrunnerconf))
         else:
             raise FileNotFoundError('One of the test folders seems to be missing a test script: ' + testname)

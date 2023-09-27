@@ -2,8 +2,8 @@
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
 # Copyright (C) 2006-2022 by Christoph R. Jacob, Tobias Bergmann,
 # S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Maria Chekmeneva,
-# Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz, 
-# Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder, 
+# Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz,
+# Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder,
 # Jetze Sikkema, Lucas Visscher, Johannes Vornweg and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
@@ -35,6 +35,7 @@ from .Utils import newjobmarker
 from .PatternsLib import Singleton
 import os
 import shutil
+import json
 import pickle
 
 
@@ -128,7 +129,7 @@ class filemanager(metaclass=Singleton):
         @param filename: the file name
         @type  filename: str
         """
-        return filename in self._files
+        return os.path.abspath(filename) in self._files
 
     def change_to_basedir(self):
         os.chdir(self._cwd)
@@ -743,7 +744,7 @@ class adf_filemanager(filemanager):
         """
         Copy all results files to the specified directory.
 
-        In addition to the result files, an index (C{adffiles.pickle}) will be
+        In addition to the result files, an index (C{adffiles.json}) will be
         created, so that the directory can later be imported using L{import_resultsdir}
 
         @param dirname: the directory where the results will be copied.
@@ -754,10 +755,9 @@ class adf_filemanager(filemanager):
             for f in filelist:
                 self.copy_file(f, os.path.join(dirname, os.path.basename(f)))
 
-        f = open(os.path.join(dirname, 'adffiles.pickle'), 'wb')
-        pickle.dump(self._id, f)
-        pickle.dump(self._resultfiles, f)
-        pickle.dump(self._output, f)
+        result_dict = {'id': self._id, 'resultfiles': self._resultfiles, 'output': self._output}
+        f = open(os.path.join(dirname, 'adffiles.json'), 'w')
+        json.dump(result_dict, f, indent=4)
         f.close()
 
     def import_resultsdir(self, dirname):
@@ -771,12 +771,22 @@ class adf_filemanager(filemanager):
         @type  dirname: str
         """
 
-        f = open(os.path.join(dirname, 'adffiles.pickle'), 'rb')
-        if len(self._resultfiles) > 0:
-            # this means, that we already have results
+        if os.path.exists(os.path.join(dirname, 'adffiles.pickle')):
+            print('loading results containing .pickle from older version of PyADF')
+            f = open(os.path.join(dirname, 'adffiles.pickle'), 'rb')
             new_id = pickle.load(f)
             new_resultfiles = pickle.load(f)
             new_output = pickle.load(f)
+        else:
+            f = open(os.path.join(dirname, 'adffiles.json'), 'r')
+            result_dict = json.load(f)
+            new_id = result_dict['id']
+            new_resultfiles = result_dict['resultfiles']
+            new_output = result_dict['output']
+        f.close()
+
+        if len(self._resultfiles) > 0:
+            # this means, that we already have results
             duplicates = 0
             checksums = new_id.copy().keys()
 
@@ -811,7 +821,6 @@ class adf_filemanager(filemanager):
                     new_resultfiles[result_number][file_number] = new_path
 
             self._resultfiles += new_resultfiles
-            f.close()
             for filelist in new_resultfiles:
                 for f in filelist:
                     f1 = old_abs_path_dict[f]
@@ -819,10 +828,9 @@ class adf_filemanager(filemanager):
                     os.symlink(f1, f2)
                     self.add_file(f2)
         else:
-            self._id = pickle.load(f)
-            self._resultfiles = pickle.load(f)
-            self._output = pickle.load(f)
-            f.close()
+            self._id = new_id
+            self._resultfiles = new_resultfiles
+            self._output = new_output
             for filelist in self._resultfiles:
                 for f in filelist:
                     f1 = os.path.abspath(os.path.join(dirname, os.path.basename(f)))

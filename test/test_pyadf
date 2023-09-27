@@ -4,8 +4,8 @@
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
 # Copyright (C) 2006-2022 by Christoph R. Jacob, Tobias Bergmann,
 # S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Maria Chekmeneva,
-# Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz, 
-# Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder, 
+# Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz,
+# Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder,
 # Jetze Sikkema, Lucas Visscher, Johannes Vornweg and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
@@ -72,12 +72,17 @@ def get_options():
                       dest="jobrunnerconf", help="set job runner configuration file [default: $HOME/.pyadfconfig]")
     parser.add_option("--keep", "-k", action="store_true", default=False,
                       dest="keep", help="keep temporary test directories")
+    parser.add_option("--save", "-s", action="store_true", default=False,
+                      dest="save_results", help="save the result directories of each test")
     parser.add_option("--profile", "-p", action="store_true", default=False,
                       dest="profile", help="run tests using the Python profiler")
     parser.add_option("--timings", "-t", action="store_true", default=False,
                       dest="timing_report", help="print a timing report after running tests")
 
     (options, args) = parser.parse_args()
+
+    if options.save_results:
+        options.keep = True
 
     if options.jobrunnerconf is not None:
         options.jobrunnerconf = os.path.abspath(options.jobrunnerconf)
@@ -92,8 +97,8 @@ def test():
 
     if options.singletest:
         suite.addTest(make_testinputs_suite(testnames=[options.singletest],
-                                            keep=options.keep, prof=options.profile,
-                                            molclass=options.molclass,
+                                            keep=options.keep, save_results=options.save_results,
+                                            prof=options.profile, molclass=options.molclass,
                                             jobrunnerconf=options.jobrunnerconf))
     else:
         if options.tests in ["doctests", "unittests"]:
@@ -131,7 +136,9 @@ def test():
                                                 turbomole=options.turbomole,
                                                 orca=options.orca,
                                                 openbabel=options.openbabel,
-                                                keep=options.keep, prof=options.profile,
+                                                keep=options.keep,
+                                                save_results=options.save_results,
+                                                prof=options.profile,
                                                 molclass=options.molclass,
                                                 jobrunnerconf=options.jobrunnerconf))
 

@@ -12,8 +12,6 @@ if 'pyadfenv' not in globals():
 #                                   #                                  #
 ########################################################################
 
-pyadfenv.options['save_results'] = True
-
 #################################
 # general variables and options #
 #################################

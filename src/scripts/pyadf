@@ -4,8 +4,8 @@
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
 # Copyright (C) 2006-2022 by Christoph R. Jacob, Tobias Bergmann,
 # S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Maria Chekmeneva,
-# Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz, 
-# Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder, 
+# Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz,
+# Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder,
 # Jetze Sikkema, Lucas Visscher, Johannes Vornweg and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
@@ -37,7 +37,7 @@ if os.path.basename(sys.argv[0]) == 'pyadf':
     pyadfenv = setup_pyadfenv()
 else:
     # noinspection PyUnresolvedReferences
-    pyadfenv = setup_test_pyadfenv(pyadfinput, testing_molclass, testing_jobrunnerconf)
+    pyadfenv = setup_test_pyadfenv(pyadfinput, testing_molclass, testing_jobrunnerconf, testing_save_results)
 
 stdout_save = sys.stdout
 stderr_save = sys.stderr
@@ -57,8 +57,8 @@ print(" *")
 print(" *  PyADF - A Scripting Framework for Multiscale Quantum Chemistry.")
 print(" *  Copyright (C) 2006-2021 by Christoph R. Jacob, Tobias Bergmann,")
 print(" *  S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Thomas Dresselhaus,")
-print(" *  Kevin Focke, Andre S. P. Gomes, Andreas Goetz, Michal Handzlik,")
-print(" *  Karin Kiewisch, Moritz Klammler, Lars Ridder, Jetze Sikkema,")
+print(" *  Kevin Focke, Andre S. P. Gomes, Andreas Goetz,Michal Handzlik,")
+print(" *  Karin Kiewisch, Moritz Klammler, Lars Ridder,Jetze Sikkema,")
 print(" *  Lucas Visscher, and Mario Wolter.")
 print(" *")
 print(" *      PyADF is free software: you can redistribute it and/or modify")
@@ -142,7 +142,7 @@ try:
     if "profile" not in pyadfenv.options:
         exec(code, globs, globs)
     else:
-        profout = os.path.join(pyadfenv.outdir, "pyadf.profile")
+        profout = os.path.join(pyadfenv.outdir, "pyadf_profiling." + pyadfenv.jobid + ".profile")
         print("Profile will be written to: ", profout)
         profile.runctx(code, globs, globs, profout)
 
@@ -150,13 +150,6 @@ try:
     print(" Finished Execution of PyADF input")
 
 except Exception as e:
-
-    if 'unittesting' in pyadfenv.options:
-        myfiles.cleanup()
-        sys.stdout = stdout_save
-        sys.stderr = stderr_save
-        del pyadfenv
-        raise
 
     print(" Error termination in PyADF")
     print()
@@ -168,6 +161,14 @@ except Exception as e:
         myfiles.copy_all_results_to_dir(crashdir)
         print(" Results were saved to: ", "pyadf_crashed." + pyadfenv.jobid)
         print()
+
+    if 'unittesting' in pyadfenv.options:
+        myfiles.cleanup()
+        sys.stdout = stdout_save
+        sys.stderr = stderr_save
+        pyadfenv.cleanup()
+        del pyadfenv
+        raise
 
 else:
 

@@ -1,9 +1,10 @@
+
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
 # Copyright (C) 2006-2022 by Christoph R. Jacob, Tobias Bergmann,
 # S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Maria Chekmeneva,
-# Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz, 
-# Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder, 
+# Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz,
+# Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder,
 # Jetze Sikkema, Lucas Visscher, Johannes Vornweg and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
@@ -45,7 +46,7 @@ class OrcaResults(GTODensityEvaluatorMixin):
         super().__init__(j)
         self.resultstype = "Orca results"
 
-    def get_gwb_filename(self):
+    def get_gbw_filename(self):
         return self.files.get_results_filename(self.fileid, tape=21)
 
     def get_prop_filename(self):
@@ -207,7 +208,11 @@ class OrcaResults(GTODensityEvaluatorMixin):
 
         return content
 
-    def get_energy(self):
+    def get_total_energy(self):
+        """
+        Always returns Orca's "FINAL SINGLE POINT ENERGY".
+        @return: float
+        """
         import re
 
         output = self.get_output()
@@ -218,6 +223,114 @@ class OrcaResults(GTODensityEvaluatorMixin):
             if m:
                 energy = float(m.group('energy'))
         return energy
+
+    def get_energy(self, level='SCF'):
+        if level in ['SCF', 'HF']:
+            energy = self.get_scf_energy('Total Energy')
+        elif level == 'MP2':
+            energy = self.get_scf_energy('Total Energy') \
+                     + self.get_correlation_energy(r'E\(MP2\)')
+        elif level == 'CCSD':
+            energy = self.get_correlation_energy(r'E\(CCSD\)')
+        elif level == 'CCSD(T)':
+            energy = self.get_correlation_energy(r'E\(CCSD\(T\)\)')
+        else:
+            raise PyAdfError("Energy for level " + level + " not found in Orca output.")
+
+        return energy
+
+    def get_kinetic_energy(self):
+        """
+        Return the kinetic energy (requires TOTALENERGY option).
+
+        @returns: the kinetic energy in atomic units
+        @rtype: float
+        """
+        return self.get_scf_energy('Kinetic Energy')
+
+    def get_scf_energy(self, what='Total Energy'):
+        """
+        Takes a string of what you want
+
+        example from orca output
+        ----------------
+        TOTAL SCF ENERGY
+        ----------------
+
+        Total Energy       :         -455.84332339 Eh          -12404.12744 eV
+
+        Components:
+        Nuclear Repulsion  :          284.30889947 Eh            7736.43847 eV
+        Electronic Energy  :         -740.15222286 Eh          -20140.56591 eV
+        One Electron Energy:        -1196.67492193 Eh          -32563.18011 eV
+        Two Electron Energy:          456.52269908 Eh           12422.61420 eV
+
+        Virial components:
+        Potential Energy   :         -910.32729499 Eh          -24771.26504 eV
+        Kinetic Energy     :          454.48397159 Eh           12367.13760 eV
+        Virial Ratio       :            2.00299098
+
+        """
+        import re
+
+        output = self.get_output()
+        found_section = None
+        for i, ll in enumerate(output):
+            if 'TOTAL SCF ENERGY' in ll:
+                found_section = i
+        if not found_section:
+            raise PyAdfError('TOTAL SCF ENERGY not found in Orca output')
+        else:
+            output = output[found_section:found_section+20]
+
+        energy = None
+        en_re = re.compile(r"(" + what + r") *(:) *(?P<energy>-?\d+\.\d+)")
+        for line in output:
+            m = en_re.match(line)
+            if m:
+                energy = float(m.group('energy'))
+        return energy
+
+    def get_correlation_energy(self, what):
+        """
+        Takes a string of what you want
+
+        example from orca output
+        Triples Correction (T)                     ...     -0.006679230
+        Scaling of triples based on CCSD energies (Peterson et al. Molecular Physics 113, 1551 (2015))
+        E(T*) = f*E(T) where f = E(F12-CCSD)/E(CCSD)
+        f = CCSD (with F12)/ CCSD (without F12)    ...      1.000000000
+        Scaled triples correction (T)              ...     -0.006679230
+
+        Final correlation energy                   ...     -0.433259968
+        E(CCD)                                     ...   -152.352433731
+        E(CCD(T))                                  ...   -152.359112961
+        Initial guess performed in     0.781 sec
+        E(0)                                       ...   -456.296109838
+        E(MP2)                                     ...     -1.345881148
+        Initial E(tot)                             ...   -457.641990986
+        <T|T>                                      ...      0.717812866
+        Number of pairs included                   ... 300
+        Total number of pairs                      ... 300
+        """
+        import re
+        output = self.get_output()
+        energy = None
+        en_re = re.compile(r"(" + what + r") *(\.\.\.) *(?P<energy>-?\d+\.\d+)")
+        for line in output:
+            m = en_re.match(line)
+            if m:
+                energy = float(m.group('energy'))
+        return energy
+
+    def get_result_from_tape(self, section, variable):
+        # FIXME: this should be removed in favor of a general energy interface.
+        if section == 'Total Energy' and variable == 'Nuclear repulsion energy':
+            what = 'Nuclear Repulsion'
+        else:
+            raise PyAdfError('Unknown Section in Orca get_results_from_tape')
+        result = self.get_scf_energy(what)
+        return result
 
     def get_molecule(self):
         from .Molecule import molecule
@@ -345,8 +458,8 @@ class OrcaSettings:
     Class that holds the settings for a orca calculation
     """
 
-    def __init__(self, method='DFT', basis='def2-SVP', functional='LDA', ri=None, disp=False, cpcm=None, memory=None,
-                 converge=None, maxiter=None):
+    def __init__(self, method='DFT', basis='def2-SVP', functional='LDA', ri=None, disp=False, cpcm=None,
+                 memory=None, converge=None, maxiter=None, printmos=False):
         """
         Constructor for OrcaSettings.
 
@@ -373,6 +486,9 @@ class OrcaSettings:
         @type converge: str
         @param maxiter: the maximum number of SCF iterations
         @type  maxiter: int
+        @param printmos : Selects if MO coefficients and basis set should be printed into
+                          output file
+        @type printmos : bool
         """
         # declare all
         self.method = None
@@ -384,8 +500,15 @@ class OrcaSettings:
         self.memory = None
         self.converge = None
         self.maxiter = None
+        self.printmos = None
         self.extra_keywords = None
         self.extra_blocks = None
+        self.manual = None
+        self.cc_density = None
+        self.pointcharges = None
+        self.abs_gbw_path = None
+        self.ignoreconv = None
+        self.dummy_options = None
 
         # initialize the setter
         self.set_method(method)
@@ -398,6 +521,7 @@ class OrcaSettings:
         self.set_memory(memory)
         self.set_converge(converge)
         self.set_maxiter(maxiter)
+        self.set_printmos(printmos)
 
     def set_method(self, method):
         """
@@ -508,6 +632,16 @@ class OrcaSettings:
         """
         self.maxiter = maxiter
 
+    def set_printmos(self, printmos):
+        """
+        Sets the option, wether MO coefficients and basis set should be printed into
+        the output file.
+
+        @param printmos : Choosen option (yes/no)
+        @type printmos : bool
+        """
+        self.printmos = printmos
+
     def set_extra_keywords(self, keywords, append=False):
         """
         Set additional keywords for the calculation
@@ -590,16 +724,21 @@ class OrcaSettings:
             kws.append(self.converge)
         if self.cpcm:
             kws.append('CPCM' + '(' + self.cpcm + ')')
+        if self.printmos:
+            kws.append("PrintMOs")
+            kws.append("PrintBasis")
         if self.extra_keywords is not None:
             kws = kws + self.extra_keywords
         return kws
 
     def get_scf_block(self):
         block = ''
+        block += "%scf\n"
         if self.maxiter is not None:
-            block += "%scf\n"
             block += f"MaxIter {self.maxiter:d} \n"
-            block += "end\n"
+        if self.ignoreconv:
+            block += "IgnoreConv True\n"
+        block += "end\n"
         return block
 
     def get_input_blocks(self):
@@ -614,7 +753,7 @@ class OrcaSettings:
 
 class OrcaTDDFTSettings:
 
-    def __init__(self, nroots=None, maxdim=None, triplets=False, tda=False):
+    def __init__(self, nroots=None, maxdim=None, triplets=False, tda=False, maxiter=None):
         """
         Settings for ORCA TDDFT calculations.
 
@@ -627,12 +766,15 @@ class OrcaTDDFTSettings:
         @type triplets: bool
         @param tda: Is the Tamm Dancoff approximation requested (no by default)
         @type tda: bool
+        @param maxiter: Number of max. steps for TDDFT calculation (default 100)
+        @type maxiter: int
         """
         self.nroots = nroots
         self.maxdim = maxdim
         self.iroot = None
         self.triplets = triplets
         self.tda = tda
+        self.maxiter = maxiter
 
     def get_tddft_block(self):
         block = "%tddft\n"
@@ -647,6 +789,8 @@ class OrcaTDDFTSettings:
             block += "Triplets true\n"
         if not self.tda:
             block += "TDA false\n"
+        if self.maxiter:
+            block += "MaxIter " + str(self.maxiter) + "\n"
         block += "end\n"
 
         return block
@@ -680,11 +824,12 @@ class OrcaJob(job):
     Corresponding results class: L{OrcaResults}
     """
 
-    def __init__(self, mol, settings=None):
+    def __init__(self, mol, settings=None, deuterium=None):
         """
         Constructor
         """
         self.settings = None
+        self.deuterium = deuterium
         self.mol = mol
 
         if settings is None:
@@ -708,6 +853,23 @@ class OrcaJob(job):
         runscript += "eor\n"
         runscript += "cat INPUT.inp\n"
 
+        if self.settings.pointcharges:
+            pointcharges = self.settings.pointcharges
+            runscript += "cat <<EOF >pointcharges.pc\n"
+            runscript += str(len(pointcharges))
+            runscript += '\n'
+            for i in range(len(pointcharges)):
+                runscript += str(pointcharges[i][3])
+                runscript += ' '
+                runscript += str(pointcharges[i][0])
+                runscript += ' '
+                runscript += str(pointcharges[i][1])
+                runscript += ' '
+                runscript += str(pointcharges[i][2])
+                runscript += '\n'
+            runscript += 'EOF\n'
+            runscript += 'cat pointcharges.pc\n'
+
         runscript += 'if [ -z "$OPAL_PREFIX" ]; then\n'
         runscript += "  $ORCA_PATH/orca INPUT.inp\n"
         runscript += "else\n"
@@ -715,16 +877,21 @@ class OrcaJob(job):
         runscript += "fi\n"
         runscript += "retcode=$?\n"
 
-        runscript += "$ORCA_PATH/orca_2mkl INPUT -molden\n"
+        if self.settings.cc_density:
+            runscript += "cp INPUT.mdci.optorb INPUT.mdci.optorb.gbw\n"
+            runscript += "$ORCA_PATH/orca_2mkl INPUT.mdci.optorb -emolden\n"
+            runscript += "mv INPUT.mdci.optorb.molden.input INPUT.molden.input\n"
+        else:
+            runscript += "$ORCA_PATH/orca_2mkl INPUT -emolden\n"
 
-        runscript += "rm INPUT.inp\n"
         runscript += "exit $retcode\n"
 
         return runscript
 
     def result_filenames(self):
         return ['INPUT.gbw', 'INPUT_property.txt', 'INPUT.engrad', 'INPUT.xyz',
-                'INPUT_trj.xyz', 'INPUT.molden.input', 'INPUT.hess']
+                'INPUT_trj.xyz', 'INPUT.molden.input', 'INPUT.mdci.optorb',
+                'INPUT.scfp', 'INPUT.hess']
 
     def check_success(self, outfile, errfile):
         f = open(outfile, encoding="utf-8")
@@ -733,6 +900,8 @@ class OrcaJob(job):
             if '**ORCA TERMINATED NORMALLY**' in ll:
                 success = True
             if 'ORCA finished by error termination' in ll:
+                raise PyAdfError("Error termination in ORCA")
+            if 'Error: Cannot open GBW file: INPUT.mdci.optorb.gbw' in ll:
                 raise PyAdfError("Error termination in ORCA")
         return success
 
@@ -745,23 +914,74 @@ class OrcaJob(job):
         blocks += self.settings.get_input_blocks()
         return blocks
 
-    @staticmethod
-    def get_parallel_block(nproc):
+    def get_parallel_block(self, nproc):
         block = ''
         if nproc > 1:
+            num_elec = self.mol.get_number_of_electrons()
+            if num_elec < nproc:
+                nproc = num_elec
             block += "%pal\n"
             block += f"nprocs {nproc:d} \n"
             block += "end\n"
         return block
 
-    def get_orcafile(self, nproc=1):
+    def get_orcafile(self, nproc=1, checksum=False):
 
-        orcafile = "! " + ' '.join(self.get_keywords()) + "\n"
-        orcafile += self.get_input_blocks(nproc) + "\n"
+        try:
+            if not self.settings.manual:
+                orcafile = "! " + ' '.join(self.get_keywords()) + "\n"
+            else:
+                orcafile = ''
+        except AttributeError:
+            orcafile = "! " + ' '.join(self.get_keywords()) + "\n"
+        orcafile += self.get_input_blocks(nproc=nproc) + "\n"
+        # the amount of memory per core should be irrelevant for
+        # the result, so it will be replaced here when a checksum
+        # is set - to work with running calculations, a specific
+        # but otherwise irrelevant value is set for now
+        # same for maxiter
+        if checksum:
+            if '%maxcore' in orcafile:
+                options = orcafile.split('\n')
+                for option in options:
+                    if '%maxcore' in option:
+                        orcafile = orcafile.replace(option,'%maxcore 3900')
+            if 'maxiter' in orcafile:
+                options = orcafile.split('\n')
+                for option in options:
+                    if 'maxiter' in option:
+                        orcafile = orcafile.replace(option, ' maxiter 300') # wahrscheinlich nicht sinnvoll, weil es Wiederholungen unmöglich macht, wo sie notwendig sind
+        # it might make more sense to simply include (only?)
+        # options one actively chooses to ignore in the checksum
+        # generation
+        # in this version, this would have the following form:
+        # settings.dummy_options = {' maxiter': ' 300', '%maxcore': ' 3900'}
+            if self.settings.dummy_options:
+                dum_opts = self.settings.dummy_options
+                options = orcafile.split('\n')
+                for dummy_option in dum_opts:
+                    for option in options:
+                        if dummy_option in option:
+                            orcafile = orcafile.replace(option, dummy_option + dum_opts[dummy_option])
+
+        if self.settings.pointcharges:
+            orcafile += '%pointcharges "pointcharges.pc"\n'
+        if self.settings.abs_gbw_path and not checksum:
+            # orcafile += '!MOREAD\n'
+            orcafile += '%moinp "' + self.settings.abs_gbw_path + '"\n'
 
         orcafile += f"*xyz {self.mol.get_charge():d} {self.mol.get_spin() + 1:d} \n"
         xyz_file = self.mol.get_xyz_file()
-        orcafile += ''.join(xyz_file.splitlines(True)[2:])
+
+        if self.deuterium is not None:
+            # sets atom mass to 2 for a list of molecules
+            xyz_file_split = xyz_file.splitlines(True)[2:]
+            for i in self.deuterium:
+                xyz_file_split[i-1] = xyz_file_split[i-1].rstrip()+' M 2 \n'
+            orcafile += ''.join(xyz_file_split)
+        else:
+            orcafile += ''.join(xyz_file.splitlines(True)[2:])
+
         orcafile += "*\n"
 
         return orcafile
@@ -774,7 +994,7 @@ class OrcaJob(job):
         import hashlib
 
         m = hashlib.md5()
-        m.update(self.get_orcafile().encode('utf-8'))
+        m.update(self.get_orcafile(checksum=True).encode('utf-8'))
         return m.hexdigest()
 
     def print_molecule(self):
@@ -815,8 +1035,8 @@ class OrcaSinglePointJob(OrcaJob):
     Corresponding results class: L{OrcaResults}
     """
 
-    def __init__(self, mol, settings=None):
-        super().__init__(mol, settings)
+    def __init__(self, mol, settings=None, deuterium=None):
+        super().__init__(mol, settings, deuterium)
 
     def print_jobtype(self):
         return "Orca single point job"
@@ -832,8 +1052,8 @@ class OrcaGeometryOptimizationJob(OrcaJob):
     Corresponding results class: L{OrcaResults}
     """
 
-    def __init__(self, mol, settings=None):
-        super().__init__(mol, settings)
+    def __init__(self, mol, settings=None, deuterium=None):
+        super().__init__(mol, settings, deuterium)
 
     def print_jobtype(self):
         return "Orca geometry optimization job"
@@ -849,8 +1069,8 @@ class OrcaFrequenciesJob(OrcaJob):
     Corresponding results class: L{OrcaResults}
     """
 
-    def __init__(self, mol, settings=None):
-        super().__init__(mol, settings)
+    def __init__(self, mol, settings=None, deuterium=None):
+        super().__init__(mol, settings, deuterium)
 
     def print_jobtype(self):
         return "Orca frequencies job"
@@ -866,8 +1086,8 @@ class OrcaOptFrequenciesJob(OrcaGeometryOptimizationJob):
     Corresponding results class: L{OrcaResults}
     """
 
-    def __init__(self, mol, settings=None):
-        super().__init__(mol, settings)
+    def __init__(self, mol, settings=None, deuterium=None):
+        super().__init__(mol, settings, deuterium)
 
     def print_jobtype(self):
         return "Orca optimization and frequencies job"

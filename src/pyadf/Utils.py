@@ -2,8 +2,8 @@
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
 # Copyright (C) 2006-2022 by Christoph R. Jacob, Tobias Bergmann,
 # S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Maria Chekmeneva,
-# Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz, 
-# Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder, 
+# Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz,
+# Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder,
 # Jetze Sikkema, Lucas Visscher, Johannes Vornweg and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
@@ -249,7 +249,7 @@ class PeriodicTable:
         try:
             number = cls.symtonum[symb.capitalize()]
         except KeyError:
-            raise PTError('trying to convert incorrect atomic symbol')
+            raise PTError('trying to convert incorrect atomic symbol ' + symb.capitalize())
         return number
 
     @classmethod
@@ -257,7 +257,7 @@ class PeriodicTable:
         try:
             symbol = cls.data[atnum][0]
         except KeyError:
-            raise PTError('trying to convert incorrect atomic number')
+            raise PTError('trying to convert incorrect atomic number ' + str(atnum))
         return symbol
 
     @classmethod
@@ -268,9 +268,9 @@ class PeriodicTable:
             try:
                 pr = cls.data[arg][prop]
             except KeyError:
-                raise PTError('trying to convert incorrect atomic number')
+                raise PTError('trying to convert incorrect atomic number ' + str(arg))
         else:
-            raise PTError('trying to convert incorrect atomic number')
+            raise PTError('trying to convert incorrect atomic number ' + str(arg))
         return pr
 
     @classmethod
