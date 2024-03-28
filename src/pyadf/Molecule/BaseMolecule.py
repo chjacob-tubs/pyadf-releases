@@ -1,10 +1,11 @@
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2022 by Christoph R. Jacob, Tobias Bergmann,
+# Copyright (C) 2006-2024 by Christoph R. Jacob, Tobias Bergmann,
 # S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Maria Chekmeneva,
 # Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz,
 # Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder,
-# Jetze Sikkema, Lucas Visscher, Johannes Vornweg and Mario Wolter.
+# Jetze Sikkema, Lucas Visscher, Johannes Vornweg, Michael Welzel,
+# and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -264,7 +265,7 @@ class BaseMolecule:
     def get_nuclear_potential(self, grid):
         import numpy as np
         from ..Utils import Bohr_in_Angstrom
-        from ..Plot.GridFunctions import GridFunctionFactory
+        from pyadf.PyEmbed.Plot.GridFunctions import GridFunctionFactory
 
         grid_coords = grid.get_coordinates(bohr=True)
         nucpot = np.zeros(grid.shape)
@@ -285,3 +286,31 @@ class BaseMolecule:
         gf = GridFunctionFactory.newGridFunction(grid, nucpot, checksum, gf_type='potential')
 
         return gf
+
+    def get_pyscf_obj(self, atoms=None, basis=None, verbosity=0):
+        # for more information: https://pyscf.org/user/gto.html
+        from pyscf import gto
+        mol = gto.Mole()
+        atom_string = ''
+        if atoms:
+            n_atoms = len(atoms)
+        else:
+            n_atoms = self.get_number_of_atoms()
+            atoms = [i for i in range(1, n_atoms + 1)]
+        symbs = self.get_atom_symbols(atoms)
+        coords = self.get_coordinates(atoms)
+        for i in range(n_atoms):
+            atom_string += symbs[i]
+            atom_string += ' '
+            # Job Molecule Interface (internal)
+            atom_string += ' '.join(f'{f:21.14f}' for f in coords[i])
+            atom_string += '\n'
+        mol.atom = atom_string
+        mol.charge = self.get_charge()
+        mol.spin = self.get_spin()
+        mol.verbose = verbosity
+        if basis:
+            # default is currently sto-3g
+            mol.basis = basis
+        mol.build()
+        return mol

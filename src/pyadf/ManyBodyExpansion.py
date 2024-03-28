@@ -1,10 +1,11 @@
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2022 by Christoph R. Jacob, Tobias Bergmann,
+# Copyright (C) 2006-2024 by Christoph R. Jacob, Tobias Bergmann,
 # S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Maria Chekmeneva,
 # Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz,
 # Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder,
-# Jetze Sikkema, Lucas Visscher, Johannes Vornweg and Mario Wolter.
+# Jetze Sikkema, Lucas Visscher, Johannes Vornweg, Michael Welzel,
+# and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -25,7 +26,6 @@ Implementation of many-body expansions, both energy-based and density-based.
  @organization: TU Braunschweig
 """
 
-
 import itertools
 from .Errors import PyAdfError
 from .BaseJob import metajob, results
@@ -37,6 +37,7 @@ try:
 except ImportError:
     print('Warning: XcFun could not be imported. db-MBE will not be available.')
     xcfun = None
+
 
 class MBEResults(results):
     """
@@ -263,6 +264,10 @@ class DensityBasedMBEResults(results):
         self._xc_by_order_ = None
         self._kin_by_order_ = None
 
+    @property
+    def use_adf_fitcorr(self):
+        return issubclass(self.ebmbe_res.res_by_comb[(0,)].__class__, adfresults)
+
     def get_density_by_order(self, order=None):
         if order is None:
             order = self.order
@@ -301,6 +306,13 @@ class DensityBasedMBEResults(results):
         return self._coulpot_by_order_
 
     @property
+    def _fitcorr_by_order(self):
+        if self._fitcorr_by_order_ is None:
+            if self.use_adf_fitcorr:
+                self._fitcorr_by_order_ = self.ebmbe_res.get_fitcorr_by_order(grid=self.grid)
+        return self._fitcorr_by_order_
+
+    @property
     def _xc_by_order(self):
         if self._xc_by_order_ is None:
             self._xc_by_order_ = self._calc_fun_by_order(self.job.nadxc)
@@ -313,15 +325,15 @@ class DensityBasedMBEResults(results):
         return self._kin_by_order_
 
     def get_coulomb_by_order(self):
-        if issubclass(self.ebmbe_res.res_by_comb[(0,)].__class__, adfresults):
-            res_to_en = lambda res: res.get_result_from_tape('Total Energy', 'Coulomb energy') \
-                                    + res.get_result_from_tape('Total Energy', 'Nuclear repulsion energy')
+        if self.use_adf_fitcorr:
+            res_to_en = lambda res: res.get_electrostatic_energy() + res.get_nuclear_repulsion_energy()
         else:
-            res_to_en = lambda res: ((res.get_nonfrozen_potential(self.job.grid, pot='nuc') * \
+            res_to_en = lambda res: ((res.get_nonfrozen_potential(self.job.grid, pot='nuc') *
                                      res.get_nonfrozen_density(self.job.grid)).integral()) \
-                                    + ((res.get_nonfrozen_potential(self.job.grid, pot='coul') * \
+                                    + ((res.get_nonfrozen_potential(self.job.grid, pot='coul') *
                                        res.get_nonfrozen_density(self.job.grid)).integral() * 0.5) \
-                                    + res.get_result_from_tape('Total Energy', 'Nuclear repulsion energy')
+                                    + res.get_nuclear_repulsion_energy()
+
         return self.ebmbe_res.mbe_interactions(res_to_en)
 
     def get_elint_1st_order(self):
@@ -329,45 +341,29 @@ class DensityBasedMBEResults(results):
         entot = 0.0
         eetot = 0.0
 
-        if issubclass(self.ebmbe_res.res_by_comb[(0,)].__class__, adfresults):
-            for i in range(self.job.nfrag):
-                resi = self.ebmbe_res.res_by_comb[(i,)]
-                nucpot = resi.get_nonfrozen_potential(self.job.grid, pot='nuc')
-                elpot = resi.get_nonfrozen_potential(self.job.grid, pot='coul')
+        for i in range(self.job.nfrag):
+            resi = self.ebmbe_res.res_by_comb[(i,)]
+            nucpot = resi.get_nonfrozen_potential(self.job.grid, pot='nuc')
+            elpot = resi.get_nonfrozen_potential(self.job.grid, pot='coul')
 
-                for j in range(self.job.nfrag):
-                    if not (i == j):
-                        resj = self.ebmbe_res.res_by_comb[(j,)]
-                        dens = resj.get_nonfrozen_density(self.job.grid)
+            for j in range(self.job.nfrag):
+                if not (i == j):
+                    resj = self.ebmbe_res.res_by_comb[(j,)]
+                    dens = resj.get_nonfrozen_density(self.job.grid)
+
+                    nnint = self.job.mol_list[i].get_nuclear_interaction_energy(self.job.mol_list[j])
+                    enint = (nucpot * dens).integral()
+                    eeint = 0.5 * (elpot * dens).integral()
+
+                    nntot = nntot + 0.5 * nnint
+                    entot = entot + enint
+                    eetot = eetot + eeint
+
+                    if self.use_adf_fitcorr:
                         fitdens = resj.get_nonfrozen_density(self.job.grid, fit=True)
+                        eecorr = 0.5 * (elpot * fitdens).integral() - eeint
+                        eetot = eetot - eecorr
 
-                        nnint = self.job.mol_list[i].get_nuclear_interaction_energy(self.job.mol_list[j])
-                        enint = (nucpot * dens).integral()
-                        eeint = (elpot * dens).integral()
-                        eecorr = 0.5 * (elpot * fitdens).integral()
-
-                        nntot = nntot + 0.5 * nnint
-                        entot = entot + enint
-                        eetot = eetot + eeint - eecorr
-
-        else:
-            for i in range(self.job.nfrag):
-                resi = self.ebmbe_res.res_by_comb[(i,)]
-                nucpot = resi.get_nonfrozen_potential(self.job.grid, pot='nuc')
-                elpot = resi.get_nonfrozen_potential(self.job.grid, pot='coul')
-
-                for j in range(self.job.nfrag):
-                    if not (i == j):
-                        resj = self.ebmbe_res.res_by_comb[(j,)]
-                        dens = resj.get_nonfrozen_density(self.job.grid)
-
-                        nnint = self.job.mol_list[i].get_nuclear_interaction_energy(self.job.mol_list[j])
-                        enint = (nucpot * dens).integral()
-                        eeint = 0.5 * (elpot * dens).integral()
-
-                        nntot = nntot + 0.5 * nnint
-                        entot = entot + enint
-                        eetot = eetot + eeint
         return nntot + entot + eetot
 
     def get_elint(self, order):
@@ -376,43 +372,28 @@ class DensityBasedMBEResults(results):
             resi = self.ebmbe_res.res_by_comb[(i,)]
             nucpot_tot += resi.get_nonfrozen_potential(self.job.grid, pot='nuc')
 
-        if issubclass(self.ebmbe_res.res_by_comb[(0,)].__class__, adfresults):
-            entot = (nucpot_tot * self._diffdens_by_order[order-1][0]).integral()
-            entot += 0.5 * (sum(self._coulpot_by_order[:order-1]) * self._diffdens_by_order[order-1][0]).integral()
+        entot = (nucpot_tot * self._diffdens_by_order[order-1][0]).integral()
+        entot += 0.5 * (sum(self._coulpot_by_order[:order-1]) * self._diffdens_by_order[order-1][0]).integral()
+        entot += 0.5 * (sum(self._diffdens_by_order[:order-1])[0] * self._coulpot_by_order[order-1]).integral()
+        eetot = 0.5 * (self._coulpot_by_order[order-1] * self._diffdens_by_order[order-1][0]).integral()
+
+        if self.use_adf_fitcorr:
             entot += 0.5 * (sum(self._fitcorr_by_order[:order-1]) * self._coulpot_by_order[order-1]).integral()
-
-            entot += 0.5 * (sum(self._diffdens_by_order[:order-1])[0] * self._coulpot_by_order[order-1]).integral()
             entot += 0.5 * (sum(self._coulpot_by_order[:order-1]) * self._fitcorr_by_order[order-1]).integral()
-
-            eetot = 0.5 * (self._coulpot_by_order[order-1] * self._diffdens_by_order[order-1][0]).integral()
             eetot += 0.5 * (self._fitcorr_by_order[order-1] * self._coulpot_by_order[order-1]).integral()
-        else:
-            entot = (nucpot_tot * self._diffdens_by_order[order-1][0]).integral()
-            entot += 0.5 * (sum(self._coulpot_by_order[:order-1]) * self._diffdens_by_order[order-1][0]).integral()
-
-            entot += 0.5 * (sum(self._diffdens_by_order[:order-1])[0] * self._coulpot_by_order[order-1]).integral()
-
-            eetot = 0.5 * (self._coulpot_by_order[order-1] * self._diffdens_by_order[order-1][0]).integral()
 
         return entot + eetot
 
-    def get_xccorr(self, order):
+    def eval_func_tot(self, func, order):
         totdens = sum(self._diffdens_by_order[:order])
+        endens = func.eval_energy_n(density=totdens[0].values, densgrad=totdens[1].values)
+        return np.dot(self.job.grid.weights, endens)
 
-        xc_endens = self.job.nadxc.eval_energy_n(density=totdens[0].values,
-                                                 densgrad=totdens[1].values)
-        xctot = np.dot(self.job.grid.weights, xc_endens)
-
-        return xctot - sum(self._xc_by_order[:order])
+    def get_xccorr(self, order):
+        return self.eval_func_tot(self.job.nadxc, order) - sum(self._xc_by_order[:order])
 
     def get_kincorr(self, order):
-        totdens = sum(self._diffdens_by_order[:order])
-
-        kin_endens = self.job.nadkin.eval_energy_n(density=totdens[0].values,
-                                                   densgrad=totdens[1].values)
-        kintot = np.dot(self.job.grid.weights, kin_endens)
-
-        return kintot - sum(self._kin_by_order[:order])
+        return self.eval_func_tot(self.job.nadkin, order) - sum(self._kin_by_order[:order])
 
     def get_dbcorr(self, order):
         if order == 1:
@@ -558,8 +539,4 @@ class DensityBasedMBEJob(metajob):
 
     def metarun(self):
         dbmbe_res = self.create_results_instance()
-
-        if issubclass(self.ebmbe_res.res_by_comb[(0,)].__class__, adfresults):
-            dbmbe_res._fitcorr_by_order = self.ebmbe_res.get_fitcorr_by_order(grid=self.grid)
-
         return dbmbe_res

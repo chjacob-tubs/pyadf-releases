@@ -1,10 +1,11 @@
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2022 by Christoph R. Jacob, Tobias Bergmann,
+# Copyright (C) 2006-2024 by Christoph R. Jacob, Tobias Bergmann,
 # S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Maria Chekmeneva,
 # Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz,
 # Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder,
-# Jetze Sikkema, Lucas Visscher, Johannes Vornweg and Mario Wolter.
+# Jetze Sikkema, Lucas Visscher, Johannes Vornweg, Michael Welzel,
+# and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -33,8 +34,8 @@ from .ADFSinglePoint import use_default_grid
 from .ADF_Densf import densfjob
 from .Errors import PyAdfError
 
-from .Plot.Properties import PlotPropertyFactory
-from .Plot.GridFunctions import GridFunctionDensityWithDerivatives
+from pyadf.PyEmbed.Plot.Properties import PlotPropertyFactory
+from pyadf.PyEmbed.Plot.GridFunctions import GridFunctionDensityWithDerivatives
 
 import copy
 import os.path
@@ -492,7 +493,7 @@ class FrozenDensFragment(fragment):
         from .Utils import pse, Bohr_in_Angstrom
 
         import numpy as np
-        import kf
+        from .kf import kf
         filename = self.get_fragment_filename()
 
         with kf.kffile(filename, buffered=True) as f:
@@ -636,7 +637,7 @@ class FrozenDensFragment(fragment):
         """
         Copies the fragment file to the working directory.
         """
-        from .Plot.FileWriters import GridWriter, GridFunctionWriter
+        from pyadf.PyEmbed.Plot.FileWriters import GridWriter, GridFunctionWriter
 
         self.write_dummy_fragment_file()
 
@@ -1393,7 +1394,7 @@ class adffragmentsjob(adfsinglepointjob):
 
     def get_spin_block(self):
         block = ""
-        if self.get_molecule().get_spin() > 0:
+        if self.get_molecule().get_spin() != 0:
             block += f"SPINPOLARIZATION {self._fragments.get_nonfrozen_molecule().get_spin():2d}"
             block += " \n\n"
         return block

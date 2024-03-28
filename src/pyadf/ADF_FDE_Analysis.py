@@ -1,10 +1,11 @@
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2022 by Christoph R. Jacob, Tobias Bergmann,
+# Copyright (C) 2006-2024 by Christoph R. Jacob, Tobias Bergmann,
 # S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Maria Chekmeneva,
 # Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz,
 # Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder,
-# Jetze Sikkema, Lucas Visscher, Johannes Vornweg and Mario Wolter.
+# Jetze Sikkema, Lucas Visscher, Johannes Vornweg, Michael Welzel,
+# and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -39,7 +40,7 @@ from .BaseJob import metajob
 from .ADFSinglePoint import adfsinglepointjob
 from .ADFFragments import adffragmentsjob, fragment
 from .ADF_FDE import adffdejob
-from .Plot.Grids import adfgrid
+from pyadf.PyEmbed.Plot.Grids import adfgrid
 
 import os
 import glob

@@ -1,10 +1,11 @@
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2022 by Christoph R. Jacob, Tobias Bergmann,
+# Copyright (C) 2006-2024 by Christoph R. Jacob, Tobias Bergmann,
 # S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Maria Chekmeneva,
 # Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz,
 # Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder,
-# Jetze Sikkema, Lucas Visscher, Johannes Vornweg and Mario Wolter.
+# Jetze Sikkema, Lucas Visscher, Johannes Vornweg, Michael Welzel,
+# and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -34,7 +35,7 @@
 """
 from .Errors import PyAdfError
 from .BaseJob import results, job
-from .Plot.GridFunctions import GridFunction1D
+from pyadf.PyEmbed.Plot.GridFunctions import GridFunction1D
 from .Utils import newjobmarker
 import os
 import re
@@ -224,9 +225,9 @@ class diracsinglepointresults(diracresults):
         @rtype: float[3]
         """
         from .Utils import au_in_Debye
-        import numpy
+        import numpy as np
 
-        dipole = numpy.zeros((3,))
+        dipole = np.zeros((3,))
 
         output = self.get_output()
 
@@ -281,9 +282,9 @@ class diracsinglepointresults(diracresults):
         """
         Export the density and potential (GRIDOUT) to an ADF TAPE10-like file.
         """
-        import kf
+        from .kf import kf
         import subprocess
-        from xml2kf import xml2kf
+        from .kf.xml2kf import xml2kf
 
         xml2kf(self.get_gridout_filename(), outfile)
 

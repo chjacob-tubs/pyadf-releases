@@ -1,10 +1,11 @@
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2022 by Christoph R. Jacob, Tobias Bergmann,
+# Copyright (C) 2006-2024 by Christoph R. Jacob, Tobias Bergmann,
 # S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Maria Chekmeneva,
 # Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz,
 # Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder,
-# Jetze Sikkema, Lucas Visscher, Johannes Vornweg and Mario Wolter.
+# Jetze Sikkema, Lucas Visscher, Johannes Vornweg, Michael Welzel,
+# and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -32,7 +33,7 @@ from .Molecule import MoleculeFactory, OBMolecule, RDMolecule
 from .BaseJob import metajob, results
 from .ADFFragments import fragment, fragmentlist, adffragmentsjob
 from .ADFSinglePoint import adfsinglepointjob, adfsinglepointresults
-from .Plot.Grids import cubegrid
+from pyadf.PyEmbed.Plot.Grids import cubegrid
 from functools import reduce
 
 
@@ -808,13 +809,13 @@ class cappedfragmentlist(fragmentlist):
 
                 elif caps == 'hydrogen':
 
-                    import numpy
+                    import numpy as np
 
-                    s1_coord = numpy.array(mol.get_coordinates([mps[1]]))
-                    s2_coord = numpy.array(mol.get_coordinates([mps[2]]))
+                    s1_coord = np.array(mol.get_coordinates([mps[1]]))
+                    s2_coord = np.array(mol.get_coordinates([mps[2]]))
 
-                    h1_coord = s1_coord + 1.34 * ((s2_coord - s1_coord) / numpy.linalg.norm(s2_coord - s1_coord))
-                    h2_coord = s2_coord + 1.34 * ((s1_coord - s2_coord) / numpy.linalg.norm(s1_coord - s2_coord))
+                    h1_coord = s1_coord + 1.34 * ((s2_coord - s1_coord) / np.linalg.norm(s2_coord - s1_coord))
+                    h2_coord = s2_coord + 1.34 * ((s1_coord - s2_coord) / np.linalg.norm(s1_coord - s2_coord))
 
                     m_cap_s = capmolecule()
                     m_cap_s.add_atoms(['H'], h2_coord)
@@ -869,8 +870,8 @@ class mfccresults(results):
 
     def get_dipole_vector(self):
         # pylint: disable-msg=E1101
-        import numpy
-        dipole = numpy.zeros(3)
+        import numpy as np
+        dipole = np.zeros(3)
         for f in self._frags.fragiter():
             dipole += f.results.get_dipole_vector()
         for c in self._frags.capiter():
@@ -919,16 +920,16 @@ class mfccresults(results):
 
         @returns: the Mulliken charges
         """
-        import numpy
+        import numpy as np
 
         mulliken_charges = None
 
         for f in self._frags.fragiter():
             if mulliken_charges is None:
-                mulliken_charges = numpy.trim_zeros(f.results.get_mulliken_charges())
+                mulliken_charges = np.trim_zeros(f.results.get_mulliken_charges())
             else:
                 frag_mulliken_charges = f.results.get_mulliken_charges()
-                mulliken_charges = numpy.concatenate((mulliken_charges, numpy.trim_zeros(frag_mulliken_charges)))
+                mulliken_charges = np.concatenate((mulliken_charges, np.trim_zeros(frag_mulliken_charges)))
 
         return mulliken_charges
 

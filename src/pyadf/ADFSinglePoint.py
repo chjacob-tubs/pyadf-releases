@@ -1,10 +1,11 @@
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2022 by Christoph R. Jacob, Tobias Bergmann,
+# Copyright (C) 2006-2024 by Christoph R. Jacob, Tobias Bergmann,
 # S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Maria Chekmeneva,
 # Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz,
 # Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder,
-# Jetze Sikkema, Lucas Visscher, Johannes Vornweg and Mario Wolter.
+# Jetze Sikkema, Lucas Visscher, Johannes Vornweg, Michael Welzel,
+# and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -35,14 +36,14 @@
 
 
 from .ADFBase import adfjob, adfresults, amssettings
-from .Plot.Grids import adfgrid
+from pyadf.PyEmbed.Plot.Grids import adfgrid
 from .ADF_Densf import densfjob
 
-from .DensityEvaluator import DensityEvaluatorInterface, use_default_grid
+from pyadf.PyEmbed.DensityEvaluator import DensityEvaluatorInterface, use_default_grid
 
-from .Plot.Properties import PlotPropertyFactory
-from .Plot.GridFunctions import GridFunctionFactory
-from .Plot.FileWriters import GridWriter
+from pyadf.PyEmbed.Plot.Properties import PlotPropertyFactory
+from pyadf.PyEmbed.Plot.GridFunctions import GridFunctionFactory
+from pyadf.PyEmbed.Plot.FileWriters import GridWriter
 
 from .Errors import PyAdfError
 from .Molecule import molecule
@@ -71,10 +72,10 @@ class adfsettings(amssettings):
         __str__
     """
 
-    def __init__(self, functional='LDA', accint=4.0, converge=1e-6, ncycles=100, cosmosurf='Delley',
+    def __init__(self, functional='LDA', hfpart=None, accint=4.0, converge=1e-6, ncycles=100,
                  dep=False, ZORA=False, SpinOrbit=False, mix=0.2, unrestricted=False, noncollinear=False,
-                 occupations=None, cosmo=None, lmo=False, basispath=None, zlmfit=False,
-                 printing=False):
+                 occupations=None, cosmo=None, cosmosurf='Delley', lmo=False, basispath=None, zlmfit=False,
+                 printing=False, unrestrictedfragments=False):
         """
         Constructor for adfsettings.
 
@@ -82,6 +83,9 @@ class adfsettings(amssettings):
 
         @param functional: exchange-correlation functional, see L{set_functional}
         @type  functional: str
+        @param hfpart: float specifying a hfpart (exact exchange admixture) between 0 and 1
+          (only applicable for hybrid functionals)
+        @type hfpart: float
         @param accint: integration accuracy, see L{set_integration}
         @type  accint: float
         @param converge: SCF convergence threshold, see L{set_convergence}
@@ -147,15 +151,17 @@ class adfsettings(amssettings):
         self.tapelist = None
         self.dispersion = None
         self.zlmfit = zlmfit
+        self.unrestrictedfragments = None
 
         # and now initialize them using setter methods
-        self.set_functional(functional)
+        self.set_functional(functional, hfpart)
         self.set_integration(accint)
         self.set_convergence(converge)
         self.set_mixing(mix)
         self.set_diis(None)
         self.set_adiis(False)
         self.set_unrestricted(unrestricted)
+        self.set_unrestrictedfragments(unrestrictedfragments)
         self.set_noncollinear(noncollinear)
         self.set_occupations(occupations)
         self.set_cosmo(cosmo)
@@ -208,37 +214,43 @@ class adfsettings(amssettings):
 
         return s
 
-    def set_functional(self, functional):
+    def set_functional(self, functional, hfpart=None):
         """
         Select exchange--correlation functional.
 
         @param functional: string specifying a functional, e.g., LDA, BP86, B3LYP, MO6-L
         @type functional: str
+        @param hfpart: float specifying a hfpart (exact exchange admixture) between 0 and 1
+          (only applicable for hybrid functionals)
+        @type hfpart: float
         """
         self.freeze_accmin = False
 
-        if functional in ['HARTREEFOCK'] or functional.startswith('LDA'):
+        if functional.upper() in ['HARTREEFOCK'] or functional.startswith('LDA'):
             self.functional = functional
-        elif functional in ['SAOP', 'LB94']:
+        elif functional.upper() in ['SAOP', 'LB94']:
             self.functional = 'MODEL ' + functional
-        elif functional in ['B3LYP', 'B3LYP*', 'B1LYP', 'KMLYP', 'O3LYP', 'X3LYP', 'BHandH',
+        elif functional.upper() in ['B3LYP', 'B3LYP*', 'B1LYP', 'KMLYP', 'O3LYP', 'X3LYP', 'BHandH',
                             'BHandHLYP', 'B1PW91', 'mPW1PW', 'mPW1K', 'PBE0', 'OPBE0']:
-            self.functional = 'HYBRID ' + functional
-        elif functional in ['oldPBE']:
+            if hfpart:
+                self.functional = 'HYBRID ' + functional + ' hf=' + str(hfpart)
+            else:
+                self.functional = 'HYBRID ' + functional
+        elif functional.upper() in ['oldPBE']:
             self.functional = 'LDA VWN\n   GGA PBE USEBURKEROUTINES'
-        elif functional in ['M06-L', 'M06L', 'SSB-D', 'TPSS']:
+        elif functional.upper() in ['M06-L', 'M06L', 'SSB-D', 'TPSS']:
             self.functional = 'MetaGGA ' + functional
             # m06l requires tighter integration accuracy, especially in geometry optimizations
             # so here integration is set to a lower limit of 8.0 all the way
-            if functional == 'M06-L' or functional == 'M06L':
+            if functional.upper() == 'M06-L' or functional == 'M06L':
                 self.set_integration(8.0, acclist=[8.0, 8.0])
                 self.freeze_accmin = True
-        elif functional in ['M06-HF', 'M06', 'M06-2X', 'TPSSH']:
+        elif functional.upper() in ['M06-HF', 'M06', 'M06-2X', 'TPSSH']:
             self.functional = 'MetaHybrid ' + functional
-        elif functional in ['CAMYB3LYP']:
-            self.functional = 'HYBRID ' + functional + "\n  xcfun\n  RANGESEP GAMMA=0.34"
-        elif functional in ['CAMB3LYP']:
-            self.functional = 'LibXC CAM-B3LYP\n'
+        elif functional.upper() in ['CAMYB3LYP']:
+            self.functional = 'HYBRID ' + functional + '\n  xcfun\n  RANGESEP GAMMA=0.34'
+        elif functional.upper() in ['CAMB3LYP', 'WB97', 'WB97X']:
+            self.functional = 'LibXC ' + functional + '\n'
         else:
             self.functional = 'GGA ' + functional
 
@@ -355,6 +367,17 @@ class adfsettings(amssettings):
         @type  unrestricted: bool
         """
         self.unrestricted = unrestricted
+
+    def set_unrestrictedfragments(self, unrestrictedfragments):
+        """
+        Fragments calculations with unrestricted fragments.
+
+        See UNRESTRICTEDFRAGMENTS keyword in the ADF manual.
+
+        @param unrestrictedfragments: switch on unrestrictedfragments calculation
+        @type  unrestrictedfragments: bool
+        """
+        self.unrestrictedfragments = unrestrictedfragments
 
     def set_noncollinear(self, noncollinear):
         """
@@ -950,6 +973,24 @@ class adfsinglepointresults(adfresults, DensityEvaluatorInterface):
         """
         return self.get_result_from_tape('Total Energy', 'Total energy')
 
+    def get_nuclear_repulsion_energy(self):
+        """
+        Return the nuclear repulsion energy (as read from TAPE).
+
+        @returns: the nuclear repulsion energy in atomic units
+        @rtype: float
+        """
+        return self.get_result_from_tape('Total Energy', 'Nuclear repulsion energy')
+
+    def get_electrostatic_energy(self):
+        """
+        Return the electrostatic energy (= el.-nuc. + el.-el.).
+
+        @returns: the total energy in atomic units
+        @rtype: float
+        """
+        return self.get_result_from_tape('Total Energy', 'Coulomb energy')
+
     def get_voronoi_charges(self, vdd=False):
         """
         Returns the Voronoi charge at the end of the calculation
@@ -1396,7 +1437,7 @@ class adfsinglepointresults(adfresults, DensityEvaluatorInterface):
         @rtype: L{GridFunctionPotential}
         """
 
-        import numpy
+        import numpy as np
         from .Utils import Bohr_in_Angstrom
 
         # get density on ADF grid
@@ -1404,8 +1445,8 @@ class adfsinglepointresults(adfresults, DensityEvaluatorInterface):
 
         # get ADF grid weights and coordinates and prepare arrays
 
-        weights = numpy.zeros((self.grid.npoints,))
-        coords = numpy.zeros((self.grid.npoints, 3))
+        weights = np.zeros((self.grid.npoints,))
+        coords = np.zeros((self.grid.npoints, 3))
 
         for i, (w, c) in enumerate(zip(self.grid.weightiter(), self.grid.coorditer())):
             weights[i] = w
@@ -1416,8 +1457,8 @@ class adfsinglepointresults(adfresults, DensityEvaluatorInterface):
         print("Densint: ", (weights * densval).sum())
 
         # now calculate Coulomb potential on requested grid
-        coulpot = numpy.zeros(grid.npoints)
-        p = numpy.empty_like(coords)
+        coulpot = np.zeros(grid.npoints)
+        p = np.empty_like(coords)
 
         print("Number of points to calculate: ", grid.npoints)
 
@@ -1428,8 +1469,8 @@ class adfsinglepointresults(adfresults, DensityEvaluatorInterface):
             p[:, 0] = point[0] / Bohr_in_Angstrom
             p[:, 1] = point[1] / Bohr_in_Angstrom
             p[:, 2] = point[2] / Bohr_in_Angstrom
-            dist = numpy.sqrt(((coords - p)**2).sum(axis=1))
-            dist = numpy.where(dist < 1e-3, 1e50 * numpy.ones_like(dist), dist)
+            dist = np.sqrt(((coords - p)**2).sum(axis=1))
+            dist = np.where(dist < 1e-3, 1e50 * np.ones_like(dist), dist)
             dist = 1.0 / dist
 
             coulpot[i] = (weights * dist * densval).sum()
@@ -1682,7 +1723,7 @@ class adfsinglepointjob(adfjob):
 
     def get_spin_block(self):
         block = ""
-        if self.get_molecule().get_spin() > 0:
+        if self.get_molecule().get_spin() != 0:
             block += f"SPINPOLARIZATION {self.get_molecule().get_spin():2d}"
             block += " \n\n"
         return block

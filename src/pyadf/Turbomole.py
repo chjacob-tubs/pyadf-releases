@@ -1,10 +1,11 @@
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2022 by Christoph R. Jacob, Tobias Bergmann,
+# Copyright (C) 2006-2024 by Christoph R. Jacob, Tobias Bergmann,
 # S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Maria Chekmeneva,
 # Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz,
 # Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder,
-# Jetze Sikkema, Lucas Visscher, Johannes Vornweg and Mario Wolter.
+# Jetze Sikkema, Lucas Visscher, Johannes Vornweg, Michael Welzel,
+# and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -49,7 +50,7 @@ Support for various flavours of I{Turbomole} computations.
 
 from .BaseJob import results, job
 from .Utils import f2f
-from .DensityEvaluator import GTODensityEvaluatorMixin
+from pyadf.PyEmbed.DensityEvaluator import GTODensityEvaluatorMixin
 
 from .TurboDefinition import *
 
@@ -628,19 +629,19 @@ class _TurbomoleForceResults(TurbomoleResults):
         If arabic number count atoms and M{x}, M{y} and M{z} carthesian
         directions, then the vector is arranged like this::
 
-            numpy.array([ 1.x, 1.y, 1.z, 2.x, 2.y, 2.z, ... N.x, N.y, N.z ])
+            np.array([ 1.x, 1.y, 1.z, 2.x, 2.y, 2.z, ... N.x, N.y, N.z ])
 
         @returns: Final gradient vector
-        @rtype:   C{numpy.array(float[3 M{N}])}
+        @rtype:   C{np.array(float[3 M{N}])}
         @bug:     Not implemented yet!
         """
 
-        import numpy
+        import numpy as np
         gradient_vector = []
         for atom in self.get_gradient():
             for coordinate in atom:
                 gradient_vector.append(coordinate)
-        return numpy.array(gradient_vector)
+        return np.array(gradient_vector)
 
 
 class TurbomoleSinglePointResults(_TurbomoleDensityResults, _TurbomoleEnergyResults):
@@ -896,9 +897,7 @@ class _TurbomoleAbInitioSettings(TurbomoleSettings):
 
         if self.mp2:
             if self.cc_memory is None:
-                self.set_cc_memory()
-        else:
-            self.mp2_memory = None
+                self.set_cc_memory() # sets to default
 
     def set_basis_set(self, basis_set):
         """
@@ -1081,10 +1080,10 @@ class _TurbomoleAbInitioSettings(TurbomoleSettings):
                  : a list of atomic indices like 1-5,7,10
                  : an element name like "c"
         <radius> : o  - optimized radii only (see above)
-                 : b  - optimized radii are used if defined, or not optimized radii (mostly bondii*1.17) else 
+                 : b  - optimized radii are used if defined, or not optimized radii (mostly bondii*1.17) else
                  : own proposal like 1.256 (in angstrom)
 
-        @param cosmo_radii: string specifying what atomic radii should be used for which atoms (e.g. 'r all o') 
+        @param cosmo_radii: string specifying what atomic radii should be used for which atoms (e.g. 'r all o')
         @type cosmo_radii: string
         @return: input string for cosmoprep radius definition menu
         @rtype: string
@@ -1124,10 +1123,10 @@ class _TurbomoleAbInitioSettings(TurbomoleSettings):
             (default: Angstrom)
         @type bohr: bool
         """
-        import numpy
+        import numpy as np
         from .Utils import Bohr_in_Angstrom
 
-        self.pointcharges = numpy.asarray(pointcharges)
+        self.pointcharges = np.asarray(pointcharges)
 
         # point charge coordinates are stored in bohr; if necessary, convert units
         if not bohr:
@@ -1405,7 +1404,7 @@ class TurbomoleJob(job):
         if nproc > 1:
             runscript += f"export PARNODES={nproc:d} \n\n"
             # Trying to get the results to stdout while it is running.
-            # The results for Turbmole in parallel mode only appear in 
+            # The results for Turbmole in parallel mode only appear in
             # the slave1.output file. For serial mode, this already works.
             runscript += "tail -f --retry slave1.output &\n"
             runscript += "TAILPID=$!\n"
@@ -1745,7 +1744,7 @@ class TurbomoleSinglePointJob(TurbomoleJob):
         # noinspection PyProtectedMember
         self.settings._set_method(method)
         if self.settings.ri is None:
-            if settings.method == 'dft':
+            if self.settings.method == 'dft':
                 self.settings.set_ri(True)
             else:
                 self.settings.set_ri(False)
@@ -1765,7 +1764,7 @@ class TurbomoleSinglePointJob(TurbomoleJob):
 
         # Chose the executing applications.
 
-        if self.settings.ri:
+        if self.settings.ri and self.settings.method == 'dft':
             self.execute.append('ridft')
         else:
             self.execute.append('dscf')

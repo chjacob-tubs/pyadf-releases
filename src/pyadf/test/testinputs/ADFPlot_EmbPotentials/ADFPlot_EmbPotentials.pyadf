@@ -1,0 +1,293 @@
+import os
+from pyadf import *
+
+if 'pyadfenv' not in globals():
+    from pyadf.Initialization import *
+
+import numpy as np
+
+###################################################################
+#
+# PyADF test ADFPlot_EmbPotentials
+#
+# Test calculation of FDE embedding potentials
+#  - extracting embedding potential from FDE calculation
+#  - extracting kinetic-energy component of emb. potential
+#  - calculating embedding potentials from rho_1 and rho_tot
+#  - calculating components of embedding potential from
+#    rho_1 and rho_tot
+#  - calculationg NDSD and CJCORR potentials
+#
+# Test by Christoph Jacob, ETH Zurich and KIT, 2010
+#
+###################################################################
+
+file_h2o_1 = os.path.join(pyadfenv.outdir, 'H2O-1.xyz')
+file_h2o_2 = os.path.join(pyadfenv.outdir, 'H2O-2.xyz')
+
+m_h2o_1 = molecule(file_h2o_1)
+m_h2o_2 = molecule(file_h2o_2)
+
+m_tot = m_h2o_1 + m_h2o_2
+
+m_h2o_1.set_symmetry('NOSYM')
+m_h2o_2.set_symmetry('NOSYM')
+m_tot.set_symmetry('NOSYM')
+
+settings = adfsettings(lmo=True)
+settings.set_save_tapes([21, 10])
+
+# Prepare first water molecule
+r_h2o_1 = adfsinglepointjob(m_h2o_1, 'DZP', settings=settings).run()
+
+# Prepare second water molecule
+r_h2o_2 = adfsinglepointjob(m_h2o_2, 'DZP', settings=settings).run()
+
+# run supermolecule calculation
+r_supermol = adfsinglepointjob(m_tot, 'DZP', settings=settings).run()
+
+# run FDE calculation (second water molecule frozen)
+frags = [fragment(None, [m_h2o_1]),
+         fragment(r_h2o_2, [m_h2o_2], isfrozen=True)]
+
+fde_res = adffragmentsjob(frags, basis="DZP").run()
+
+######################################################################
+# Setup the grid:
+# we use an evenly spaced one-dimensional grid along the y-axis
+######################################################################
+
+agrid = adfgrid(r_supermol)
+
+cgrid = cubegrid(m_tot, spacing=0.02)
+cgrid.set_dimensions([0.0, -1.5, 0.0], [1, 250, 1])
+
+# the values of the grid points along the y-axis
+x = np.arange(-1.50, 3.49, 0.02)
+
+#############################################
+# get densities and squared density gradient
+#############################################
+
+supermol_dens = r_supermol.get_density(grid=cgrid)
+
+dens_1 = fde_res.get_nonfrozen_density(grid=cgrid)
+dens_2 = r_h2o_2.get_density(grid=cgrid)
+
+grad_1 = fde_res.get_sqrgradient(grid=cgrid)
+grad_2 = r_h2o_2.get_sqrgradient(grid=cgrid)
+# squared gradient can also be obtained for localized orbitals:
+# grad_2 = r_h2o_2.get_sqrgradient(grid=cgrid, orbs={'Loc':[1,2,3,4,5]})
+
+# the values of the densities along the y-axis
+
+y = supermol_dens.get_values()[0, :, 0]
+d1 = dens_1.get_values()[0, :, 0]
+d2 = dens_2.get_values()[0, :, 0]
+
+# to create a plot, one could now use:
+# import pylab
+# pylab.plot(x, y)
+#
+# or (for plotting all three densities in one plot):
+# pylab.plot(x, y, 'r-', x, d1, 'b-', x, d2, 'k-')
+
+##############################################################################
+# 0) Get embedding potential and its kinetic-energy component from the
+#    embedding calculation (get_embedding_potential) on the ADF grid.
+#    This uses the ALLFRAGMENTS option by Maya Beyhan in CJDENSF
+##############################################################################
+
+##############################################################################
+# 1) Get embedding potential and its kinetic-energy component from the
+#    embedding calculation (get_embedding_potential). This uses the
+#    ALLFRAGMENTS option by Maya Beyhan in CJDENSF.
+#    This and all of the following is performed on a cubic grid.
+##############################################################################
+
+# total embedding potential (calculated with PW91k)
+embpot1_pw91k = fde_res.get_embedding_potential(grid=cgrid, pot="TOTAL").get_values()[0, :, 0]
+
+# kinetic energy component with different functionals
+kinpot1 = fde_res.get_embedding_potential(grid=cgrid, pot="KIN").get_values()[0, :, 0]
+xcpot1 = fde_res.get_embedding_potential(grid=cgrid, pot="XC").get_values()[0, :, 0]
+nucpot1 = fde_res.get_embedding_potential(grid=cgrid, pot="NUC").get_values()[0, :, 0]
+coulpot1 = fde_res.get_embedding_potential(grid=cgrid, pot="COUL").get_values()[0, :, 0]
+
+kinpot1_tf = fde_res.get_embedding_potential(grid=cgrid, pot="KINPOT THOMASFERMI").get_values()[0, :, 0]
+kinpot1_pw91k = fde_res.get_embedding_potential(grid=cgrid, pot="KINPOT PW91k").get_values()[0, :, 0]
+kinpot1_ndsd = fde_res.get_embedding_potential(grid=cgrid, pot="KINPOT NDSD").get_values()[0, :, 0]
+
+kinpot1_pw91k_cjcorr = fde_res.get_embedding_potential(grid=cgrid, pot="KINPOT PW91k CJCORR").get_values()[0, :, 0]
+
+# embedding potential with TF and NDSD
+print("CJCJ aa")
+embpot1_tf = embpot1_pw91k - kinpot1_pw91k + kinpot1_tf
+print("CJCJ bb")
+embpot1_ndsd = embpot1_pw91k - kinpot1_pw91k + kinpot1_ndsd
+
+##############################################################################
+# 2) Get the embedding potential and its components from individual rho1
+#    and rho_tot densities. (i.e., as v[rho_tot] - v[rho_1])
+#
+#    This differs slightly from the embedding potential calculated for (1)
+#    because we use the supermolecular density for rho_tot (and not rho_1 +
+#    rho_2 - for doing so we would need to be able to calculate the potential
+#    for arbitrary densities, not only for total and orbital densities)
+##############################################################################
+
+########################################
+# components of embedding potential
+########################################
+
+# nuclear part of embedding potential
+nucpot2 = r_h2o_2.get_potential(grid=cgrid, pot='nuc').get_values()[0, :, 0]
+
+# Coulomb part of embedding potential
+coulpot2 = r_h2o_2.get_potential(grid=cgrid, pot='coul').get_values()[0, :, 0]
+
+# XC part of embedding potential
+xcpot2 = r_supermol.get_potential(grid=cgrid, pot='xc')
+xcpot2 = xcpot2 - fde_res.get_potential(grid=cgrid, pot='xc')
+xcpot2 = xcpot2.get_values()[0, :, 0]
+
+# kinetic energy component of embedding potential (Thomas-Fermi)
+kinpot2_tf = r_supermol.get_kinetic_potential(grid=cgrid, func='THOMASFERMI')
+kinpot2_tf = kinpot2_tf - fde_res.get_kinetic_potential(grid=cgrid, func='THOMASFERMI')
+kinpot2_tf = kinpot2_tf.get_values()[0, :, 0]
+
+# kinetic energy component of embedding potential (PW91k)
+kinpot2_pw91k = r_supermol.get_kinetic_potential(grid=cgrid, func='PW91k')
+kinpot2_pw91k = kinpot2_pw91k - fde_res.get_kinetic_potential(grid=cgrid, func='PW91k')
+kinpot2_pw91k = kinpot2_pw91k.get_values()[0, :, 0]
+
+# compare kinetic energy components from (1) and (2)
+diff_kinpot_tf = np.abs(kinpot1_tf - kinpot2_tf).sum() * 0.02
+diff_kinpot_pw91k = np.abs(kinpot1_pw91k - kinpot2_pw91k).sum() * 0.02
+
+print("difference TF kinpot    ", diff_kinpot_tf)
+print("difference PW91k kinpot ", diff_kinpot_pw91k)
+
+if 'unittesting' in pyadfenv.options:
+    testobj.assertTrue(diff_kinpot_tf < 0.1)
+    testobj.assertTrue(diff_kinpot_pw91k < 0.1)
+
+#############################
+# total embedding potential
+#############################
+
+embpot2_tf = nucpot2 + coulpot2 + xcpot2 + kinpot2_tf
+embpot2_pw91k = nucpot2 + coulpot2 + xcpot2 + kinpot2_pw91k
+
+# compare embedding potentials from (1) and (2)
+diff_embpot_tf = np.abs(embpot1_tf - embpot2_tf).sum() * 0.02
+diff_embpot_pw91k = np.abs(embpot1_pw91k - embpot2_pw91k).sum() * 0.02
+
+print("difference TF embpot    ", diff_embpot_tf)
+print("difference PW91k embpot ", diff_embpot_pw91k)
+
+if 'unittesting' in pyadfenv.options:
+    testobj.assertTrue(diff_embpot_tf < 0.1)
+    testobj.assertTrue(diff_embpot_pw91k < 0.1)
+
+
+# plotting a comparison of the the different potentials:
+#
+# pylab.figure(1)
+# pylab.plot(x,kinpot1_tf,'r-',x,kinpot2_tf,'r+', x,kinpot1_pw91k,'g-',x,kinpot2_pw91k,'g+')
+# pylab.figure(2)
+# pylab.plot(x,embpot1_tf,'r-',x,embpot2_tf,'r+', x,embpot1_pw91k,'g-',x,embpot2_pw91k,'g+')
+
+###########################################################
+# NDSD kinetic-energy potential:
+#
+# The NDSD potential depends on both rho_1 and rho_2, and
+# has to be calculated differently
+###########################################################
+
+# FIXME: this function should be moved inside PyADF
+def calc_kinpot_ndsd(rho2, grad2, kinpot2_nadd_tf, kinpot2_vw):
+    """
+    Calculate NDSD kinetic-energy component of embedding potential.
+
+    @param rho2:  density of subsystem 2
+    @param grad2: squared density gradient s of subsystem 2
+    @param kinpot2_nadd_tf: nonadditive TF kinetic-energy potential (v[rho_tot] - v[rho_1])
+    @param kinpot2_vw: vW kinetic energy potential evaluated for subsystem 2 (v[rho_2])
+
+    @returns: NDSD potential
+    """
+    import math
+    import numpy as np
+
+    s2 = grad2.apply_function(np.sqrt) / (rho2**(4. / 3.) * (2.0 * (3.0 * math.pi**2)**(1. / 3.)))
+
+    switch1 = ((s2 * (-1.0) + 0.3).apply_function(lambda xx: np.exp(50.0 * xx)) + 1.)**(-1)
+    switch2 = (((s2 * (-1.0) + 0.9).apply_function(lambda xx: np.exp(50.0 * xx)) + 1.)**(-1)) * (-1.0) + 1.0
+    switch3 = ((rho2 * (-1.0) + 0.7).apply_function(lambda xx: np.exp(50.0 * xx)) + 1.)**(-1)
+    switch = switch1 * switch2 * switch3
+
+    return kinpot2_nadd_tf + switch * kinpot2_vw
+
+
+kinpot_nadd_tf = r_supermol.get_kinetic_potential(grid=cgrid, func='THOMASFERMI')
+kinpot_nadd_tf = kinpot_nadd_tf - fde_res.get_kinetic_potential(grid=cgrid, func='THOMASFERMI')
+kinpot_rho2_vw = r_h2o_2.get_kinetic_potential(grid=cgrid, func='WEIZ')
+
+kinpot2_ndsd = calc_kinpot_ndsd(dens_2, grad_2, kinpot_nadd_tf, kinpot_rho2_vw)
+kinpot2_ndsd = kinpot2_ndsd.get_values()[0, :, 0]
+
+embpot2_ndsd = nucpot2 + coulpot2 + xcpot2 + kinpot2_ndsd
+
+# compare NDSD potentials from (1) and (2)
+diff_kinpot_ndsd = np.abs(kinpot1_ndsd - kinpot2_ndsd).sum() * 0.02
+diff_embpot_ndsd = np.abs(embpot1_ndsd - embpot2_ndsd).sum() * 0.02
+
+print("difference NDSD kinpot ", diff_kinpot_ndsd)
+print("difference NDSD embpot ", diff_embpot_ndsd)
+
+if 'unittesting' in pyadfenv.options:
+    testobj.assertTrue(diff_kinpot_ndsd < 0.1)
+    testobj.assertTrue(diff_embpot_ndsd < 0.1)
+
+
+######################################################################
+# CJCORR kinetic-energy potential:
+# requires the densities as well as the original embedding potential
+######################################################################
+
+# FIXME: this function should be moved to PyADF
+def calc_kinpot_cjcorr(rho1, rho2, embpot, kinpot_nadd):
+    """
+    Calculate the kinetic-energy component of the embedding potential with CJCORR.
+
+    @param rho1: density of subsystem 1
+    @param rho2: density of subsystem 2
+    @param embpot: the full embedding potential (without CJCORR correction)
+    @param kinpot_nadd: the kinetic-energy component of the embedding potential
+    @returns: the CJCORR kinetic-energy component (v_T)
+    """
+    import numpy as np
+
+    switch = (rho1 / (rho2 * 0.1))**2
+    switch = switch.apply_function(lambda xx: np.exp(-xx))
+
+    kinpot_cjcorr = kinpot_nadd - switch * embpot
+    return kinpot_cjcorr
+
+
+embpot1_pw91k = fde_res.get_embedding_potential(grid=cgrid, pot="TOTAL")
+kinpot1_pw91k = fde_res.get_embedding_potential(grid=cgrid, pot="KINPOT PW91k")
+
+kinpot_cj = calc_kinpot_cjcorr(dens_1, dens_2, embpot1_pw91k, kinpot1_pw91k)
+kinpot_cj = kinpot_cj.get_values()[0, :, 0]
+embpot2_cj = nucpot2 + coulpot2 + xcpot2 + kinpot_cj
+
+embpot1_pw91k = nucpot2 + coulpot2 + xcpot2 + kinpot1_pw91k.get_values()[0, :, 0]
+embpot1_cj = nucpot2 + coulpot2 + xcpot2 + kinpot1_pw91k_cjcorr
+
+# compare CJCORR potentials from ADF and CJDENSF
+diff_embpot_cj = np.abs(embpot1_cj - embpot2_cj).sum() * 0.02
+
+if 'unittesting' in pyadfenv.options:
+    testobj.assertTrue(diff_embpot_cj < 0.01)

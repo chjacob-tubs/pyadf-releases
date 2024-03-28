@@ -1,0 +1,22 @@
+import os
+from pyadf import *
+if 'pyadfenv' not in globals():
+    from pyadf.Initialization import *
+
+import numpy as np
+
+h2o = molecule(os.path.join(pyadfenv.outdir, 'H2O.xyz'))
+
+results = dftbfreqjob(h2o, 'DFTB3', 'DFTB.org/3ob-freq-1-2').run()
+
+freqs = results.get_frequencies()
+modes_c = results.get_normalmodes_c()
+
+np.savetxt(os.path.join(pyadfenv.outdir, 'freqs.txt'), freqs)
+np.savetxt(os.path.join(pyadfenv.outdir, 'modes.txt'), modes_c)
+
+freqs_orig = np.loadtxt(os.path.join(pyadfenv.outdir, 'freqs_orig.txt'))
+modes_c_orig = np.loadtxt(os.path.join(pyadfenv.outdir, 'modes_orig.txt'))
+
+testobj.assertAlmostEqual(freqs, freqs_orig, 6)
+testobj.assertAlmostEqual(modes_c, modes_c_orig, 6)

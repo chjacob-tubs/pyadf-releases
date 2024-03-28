@@ -1,0 +1,67 @@
+import numpy as np
+testobj.assertEqual(1, 1)
+with testobj.assertRaises(AssertionError):
+    testobj.assertEqual(1, 2)
+with testobj.assertRaises(AssertionError):
+    testobj.assertEqual(1, 1.00000000000001)
+
+testobj.assertEqual('eins', 'eins')
+with testobj.assertRaises(AssertionError):
+    testobj.assertEqual('eins', 'zwei')
+
+# this uses the standard almostEqual function for the floats
+testobj.assertAlmostEqual(1.9, 1.900000049)
+# testobj.assertAlmostEqual(1.9, 1.90000005) # fails via super().assertAlmostEqual(first, second, places, msg, delta)
+with testobj.assertRaises(AssertionError):
+    testobj.assertAlmostEqual(1.9, 1.90000005)
+
+# this here works only slighlty differently:
+# calling the custom numpy method directly
+testobj.assertAlmostEqualNumpy(1.9, 1.900000145)
+# testobj.assertAlmostEqualNumpy(1.9, 1.90000014501)# fails via self.assertAlmostEqualNumpy(first, second, places, msg)
+with testobj.assertRaises(AssertionError):
+    testobj.assertAlmostEqualNumpy(1.9, 1.90000014501)
+
+# Object type of the first object governs which function is used:
+testobj.assertAlmostEqual([1.9, 2], [1.900000049, 2]) # assertAlmostEqualVectors
+# testobj.assertAlmostEqual([1.9, 2], [1.90000005, 2]) # fails via self.assertAlmostEqualVectors(first, second, places, msg)
+with testobj.assertRaises(AssertionError):
+    testobj.assertAlmostEqual([1.9, 2], [1.90000005, 2])
+
+testobj.assertAlmostEqual(np.array([1.9, 2]), [1.900000145, 2])
+# testobj.assertAlmostEqual(np.array([1.9, 2]), [1.90000014501, 2]) # fails via self.assertAlmostEqualNumpy(first, second, places, msg)
+with testobj.assertRaises(AssertionError):
+    testobj.assertAlmostEqual(np.array([1.9, 2]), [1.90000014501, 2])
+
+testobj.assertAlmostEqual([1.9, 2], np.array([1.900000049, 2]))
+# testobj.assertAlmostEqual([1.9, 2], np.array([1.90000005, 2])) # fails via self.assertAlmostEqualVectors(first, second, places, msg)
+with testobj.assertRaises(AssertionError):
+    testobj.assertAlmostEqual([1.9, 2], np.array([1.90000005, 2]))
+
+testobj.assertAlmostEqual(np.array([1.9, 2]), np.array([1.900000145, 2]))
+# testobj.assertAlmostEqual(np.array([1.9, 2]), [1.90000014501, 2]) # fails via self.assertAlmostEqualNumpy(first, second, places, msg)
+with testobj.assertRaises(AssertionError):
+    testobj.assertAlmostEqual(np.array([1.9, 2]), np.array([1.90000014501, 2]))
+
+testobj.assertTrue(True)
+with testobj.assertRaises(AssertionError):
+    testobj.assertTrue(False)
+testobj.assertFalse(False)
+with testobj.assertRaises(AssertionError):
+    testobj.assertFalse(True)
+testobj.assertIsInstance(1, int)
+with testobj.assertRaises(AssertionError):
+    testobj.assertIsInstance(1, str)
+testobj.assertNotIsInstance('1', int)
+with testobj.assertRaises(AssertionError):
+    testobj.assertNotIsInstance('1', str)
+
+mol = molecule(os.path.join(pyadfenv.outdir, 'water.xyz'))
+lom = molecule(os.path.join(pyadfenv.outdir, 'terwa.xyz'))
+wro = molecule(os.path.join(pyadfenv.outdir, 'wrong.xyz'))
+wroplus = molecule(os.path.join(pyadfenv.outdir, 'wronger.xyz'))
+testobj.assertAlmostEqualMolecules(mol, mol) # same same
+testobj.assertAlmostEqualMolecules(mol, lom) # other order
+testobj.assertAlmostEqualMolecules(mol, wro) # 0.00049
+with testobj.assertRaises(AssertionError):
+    testobj.assertAlmostEqualMolecules(mol, wroplus) # 0.0005

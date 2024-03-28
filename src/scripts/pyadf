@@ -2,11 +2,12 @@
 
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2022 by Christoph R. Jacob, Tobias Bergmann,
+# Copyright (C) 2006-2024 by Christoph R. Jacob, Tobias Bergmann,
 # S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Maria Chekmeneva,
 # Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz,
 # Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder,
-# Jetze Sikkema, Lucas Visscher, Johannes Vornweg and Mario Wolter.
+# Jetze Sikkema, Lucas Visscher, Johannes Vornweg, Michael Welzel,
+# and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -31,7 +32,7 @@ except ImportError:
     profile = None
 
 from pyadf import *
-from pyadfenv import setup_pyadfenv, setup_test_pyadfenv
+from pyadf.Initialization.pyadfenv import setup_pyadfenv, setup_test_pyadfenv
 
 if os.path.basename(sys.argv[0]) == 'pyadf':
     pyadfenv = setup_pyadfenv()
@@ -55,11 +56,13 @@ VersionInfo.print_version_from_git()
 
 print(" *")
 print(" *  PyADF - A Scripting Framework for Multiscale Quantum Chemistry.")
-print(" *  Copyright (C) 2006-2021 by Christoph R. Jacob, Tobias Bergmann,")
-print(" *  S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Thomas Dresselhaus,")
-print(" *  Kevin Focke, Andre S. P. Gomes, Andreas Goetz,Michal Handzlik,")
-print(" *  Karin Kiewisch, Moritz Klammler, Lars Ridder,Jetze Sikkema,")
-print(" *  Lucas Visscher, and Mario Wolter.")
+print(" *  Copyright (C) 2006-2024 by Christoph R. Jacob, Tobias Bergmann,")
+print(" *  S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Maria Chekmeneva,")
+print(" *  Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz,")
+print(" *  Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder,")
+print(" *  Jetze Sikkema, Lucas Visscher, Johannes Vornweg, Michael Welzel,")
+print(" *  and Mario Wolter.")
+
 print(" *")
 print(" *      PyADF is free software: you can redistribute it and/or modify")
 print(" *      it under the terms of the GNU General Public License as published by")
@@ -79,7 +82,7 @@ print()
 
 # directory where the pyadf source is
 print(" Directory of PyADF source:")
-print("     ", os.environ['PYADFHOME'])
+print("     ",         os.path.sep.join(Utils.__file__.split(os.path.sep)[:-3]))
 print()
 
 VersionInfo.print_git_version_info()
@@ -182,7 +185,7 @@ else:
         else:
             print(' There are no results to be saved')
     else:
-        print(" Saving results not requested (use -s or set pyadfenv.option['save_results'])")
+        print(" Saving results not requested (use -s or set pyadfenv.options['save_results'])")
 
 myfiles.cleanup()
 sys.stdout = stdout_save

@@ -1,10 +1,11 @@
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2022 by Christoph R. Jacob, Tobias Bergmann,
+# Copyright (C) 2006-2024 by Christoph R. Jacob, Tobias Bergmann,
 # S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Maria Chekmeneva,
 # Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz,
 # Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder,
-# Jetze Sikkema, Lucas Visscher, Johannes Vornweg and Mario Wolter.
+# Jetze Sikkema, Lucas Visscher, Johannes Vornweg, Michael Welzel,
+# and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -129,7 +130,7 @@ class filemanager(metaclass=Singleton):
         @param filename: the file name
         @type  filename: str
         """
-        return os.path.abspath(filename) in self._files
+        return filename in self._files
 
     def change_to_basedir(self):
         os.chdir(self._cwd)
@@ -861,7 +862,7 @@ class adf_filemanager(filemanager):
 
         import subprocess
         from xml.dom.minidom import parseString
-        import kf
+        from .kf import kf
 
         fn = self.get_results_filename(fileid, 21)
 

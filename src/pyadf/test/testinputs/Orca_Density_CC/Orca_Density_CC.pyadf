@@ -1,0 +1,189 @@
+import os
+from pyadf import *
+if 'pyadfenv' not in globals():
+    from pyadf.Initialization import *
+
+######################################################################
+#
+# PyADF test Orca Coupled Cluster density
+#
+# Test and demonstrate calculation of density and potential
+#
+######################################################################
+import numpy as np
+import xcfun
+
+# Molecule
+m_h2o = molecule(os.path.join(pyadfenv.outdir, 'H2O.xyz'))
+m_h2o.set_symmetry('NOSYM')
+
+# Cube grid
+cgrid = cubegrid(m_h2o, spacing=0.1)
+
+# pyscf grid
+pgrid = pyscfgrid(m_h2o)
+
+###############
+# OOCCD density
+###############
+
+settings = OrcaSettings(method='CCSD', basis="cc-pvdz", ri=False)
+settings.oocc_density = True  # this option turns on ooccd
+
+r_h2o = OrcaSinglePointJob(m_h2o, settings=settings).run()
+
+# With cube grid
+dens_cube = r_h2o.get_density(grid=cgrid)
+
+int_dens_cube = dens_cube.integral()
+print("Integral of density (cube grid): ", int_dens_cube)
+
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(int_dens_cube, 9.839033263885797, 5)
+
+# With pyscfgrid
+dens = r_h2o.get_density(grid=pgrid, order=1)
+
+int_dens = dens[0].integral()
+print("Integral of density (pyscf grid): ", int_dens)
+
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(int_dens, 10.0, 5)
+
+# XC energy
+blyp_func = xcfun.Functional({'BeckeX': 1.0, 'LYP': 1.0})
+endens = blyp_func.eval_energy_n(density=dens[0].values, densgrad=dens[1].values)
+xc_energy_blyp = np.dot(pgrid.weights, endens)
+
+print("XC energy (BLYP, pyscf grid): ", xc_energy_blyp)
+
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(xc_energy_blyp, -9.31970003836753, 6)
+
+#############################
+# OOCCD density simplified Z
+#############################
+
+settings = OrcaSettings(method='CCSD', basis="cc-pvdz", ri=False)
+settings.oocc_density = True  # this option turns on ooccd
+settings.simplified_z = True
+
+r_h2o = OrcaSinglePointJob(m_h2o, settings=settings).run()
+
+# With cube grid
+dens_cube = r_h2o.get_density(grid=cgrid)
+
+int_dens_cube = dens_cube.integral()
+print("Integral of density (cube grid): ", int_dens_cube)
+
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(int_dens_cube, 9.839033263885797, 5)
+
+# With pyscfgrid
+dens = r_h2o.get_density(grid=pgrid, order=1)
+
+int_dens = dens[0].integral()
+print("Integral of density (pyscf grid): ", int_dens)
+
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(int_dens, 10.0, 5)
+
+# XC energy
+blyp_func = xcfun.Functional({'BeckeX': 1.0, 'LYP': 1.0})
+endens = blyp_func.eval_energy_n(density=dens[0].values, densgrad=dens[1].values)
+xc_energy_blyp = np.dot(pgrid.weights, endens)
+
+print("XC energy (BLYP, pyscf grid): ", xc_energy_blyp)
+
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(xc_energy_blyp, -9.319693330665642, 6)
+
+#####################################
+# CCSD density via Brueckner orbitals
+#####################################
+
+settings = OrcaSettings(method='CCSD', basis="cc-pvdz", ri=False)
+settings.brueckner_density = True  # this option turns on ooccd
+
+r_h2o = OrcaSinglePointJob(m_h2o, settings=settings).run()
+
+# With cube grid
+dens_cube = r_h2o.get_density(grid=cgrid)
+
+int_dens_cube = dens_cube.integral()
+print("Integral of density (cube grid): ", int_dens_cube)
+
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(int_dens_cube, 9.838079234700555, 5)
+
+# With pyscfgrid
+dens = r_h2o.get_density(grid=pgrid, order=1)
+
+int_dens = dens[0].integral()
+print("Integral of density (pyscf grid): ", int_dens)
+
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(int_dens, 10.0, 5)
+
+# XC energy
+blyp_func = xcfun.Functional({'BeckeX': 1.0, 'LYP': 1.0})
+endens = blyp_func.eval_energy_n(density=dens[0].values, densgrad=dens[1].values)
+xc_energy_blyp = np.dot(pgrid.weights, endens)
+
+print("XC energy (BLYP, pyscf grid): ", xc_energy_blyp)
+
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(xc_energy_blyp, -9.317747482876385, 6)
+
+##################################
+# HF density from CCSD calculation
+##################################
+
+settings = OrcaSettings(method='CCSD', basis="cc-pvdz", ri=False)
+
+r_h2o = OrcaSinglePointJob(m_h2o, settings=settings).run()
+
+# With cube grid
+dens_cube = r_h2o.get_density(grid=cgrid)
+
+int_dens_cube = dens_cube.integral()
+print("Integral of density (cube grid): ", int_dens_cube)
+
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(int_dens_cube, 9.839723514731437, 5)
+
+# With pyscfgrid
+dens = r_h2o.get_density(grid=pgrid, order=1)
+
+int_dens = dens[0].integral()
+print("Integral of density (pyscf grid): ", int_dens)
+
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(int_dens, 10.0, 5)
+
+# XC energy
+blyp_func = xcfun.Functional({'BeckeX': 1.0, 'LYP': 1.0})
+endens = blyp_func.eval_energy_n(density=dens[0].values, densgrad=dens[1].values)
+xc_energy_blyp = np.dot(pgrid.weights, endens)
+
+print("XC energy (BLYP, pyscf grid): ", xc_energy_blyp)
+
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(xc_energy_blyp, -9.320684652674174, 6)
+
+######################################
+# HF density from standard calculation
+######################################
+
+settings = OrcaSettings(method='HF', basis="cc-pvdz", ri=False)
+
+r_h2o = OrcaSinglePointJob(m_h2o, settings=settings).run()
+
+# With pyscfgrid
+dens_hf = r_h2o.get_density(grid=pgrid)
+
+int_diffdens = (dens[0] - dens_hf).integral(func=lambda x: abs(x))
+print("Integral of difference density (pyscf grid): ", int_diffdens)
+
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(int_diffdens, 0.0, 5)

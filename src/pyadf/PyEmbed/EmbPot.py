@@ -1,10 +1,11 @@
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2022 by Christoph R. Jacob, Tobias Bergmann,
+# Copyright (C) 2006-2024 by Christoph R. Jacob, Tobias Bergmann,
 # S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Maria Chekmeneva,
 # Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz,
 # Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder,
-# Jetze Sikkema, Lucas Visscher, Johannes Vornweg and Mario Wolter.
+# Jetze Sikkema, Lucas Visscher, Johannes Vornweg, Michael Welzel,
+# and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -22,7 +23,7 @@
 import xcfun
 
 from ..Errors import PyAdfError
-from ..Plot.GridFunctions import GridFunctionFactory
+from pyadf.PyEmbed.Plot.GridFunctions import GridFunctionFactory
 
 
 class EmbedXCFunSettings:
@@ -128,8 +129,8 @@ class EmbedXCFunEvaluator:
         else:
             raise NotImplementedError
 
-        import numpy
-        diff_ta = numpy.nan_to_num(diff_ta)
+        import numpy as np
+        diff_ta = np.nan_to_num(diff_ta)
 
         import hashlib
         m = hashlib.md5()
@@ -189,10 +190,10 @@ class EmbedXCFunEvaluator:
         else:
             raise NotImplementedError
 
-        import numpy
+        import numpy as np
         grid = density_t.grid
 
-        energy_nad = numpy.dot(grid.weights, (en_dens_t[:] - en_dens_a[:] - en_dens_b[:]))
+        energy_nad = np.dot(grid.weights, (en_dens_t[:] - en_dens_a[:] - en_dens_b[:]))
 
         return energy_nad
 

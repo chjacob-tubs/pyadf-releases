@@ -1,0 +1,21 @@
+import os
+from pyadf import *
+if 'pyadfenv' not in globals():
+    from pyadf.Initialization import *
+
+import numpy as np
+
+h2o = molecule(os.path.join(pyadfenv.outdir, 'H2O.xyz'))
+
+gs = adfgeometrysettings(converge={'Gradients': '1e-4'})
+
+results = adffreqjob(h2o, 'SZ', geometrysettings=gs).run()
+
+freqs = results.get_frequencies()
+modes_c = results.get_normalmodes_c()
+
+np.savetxt(os.path.join(pyadfenv.outdir, 'freqs.txt'), freqs)
+np.savetxt(os.path.join(pyadfenv.outdir, 'modes.txt'), modes_c)
+
+freqs_orig = np.loadtxt(os.path.join(pyadfenv.outdir, 'freqs_orig.txt'))
+modes_c_orig = np.loadtxt(os.path.join(pyadfenv.outdir, 'modes_orig.txt'))

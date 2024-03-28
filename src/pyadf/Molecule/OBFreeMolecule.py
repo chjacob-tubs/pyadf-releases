@@ -1,10 +1,11 @@
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2022 by Christoph R. Jacob, Tobias Bergmann,
+# Copyright (C) 2006-2024 by Christoph R. Jacob, Tobias Bergmann,
 # S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Maria Chekmeneva,
 # Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz,
 # Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder,
-# Jetze Sikkema, Lucas Visscher, Johannes Vornweg and Mario Wolter.
+# Jetze Sikkema, Lucas Visscher, Johannes Vornweg, Michael Welzel,
+# and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -812,23 +813,23 @@ class OBFreeMolecule(BaseMolecule):
             at.move_by(vec, unit)
 
     def rotate(self, rotmat):
-        import numpy
-        rotmat = numpy.array(rotmat).reshape(3, 3)
+        import numpy as np
+        rotmat = np.array(rotmat).reshape(3, 3)
         for at in self.atoms:
-            at.coords = tuple(numpy.dot(rotmat, numpy.array(at.coords)))
+            at.coords = tuple(np.dot(rotmat, np.array(at.coords)))
 
     def align(self, other, atoms, atoms_other=None):
-        import numpy
+        import numpy as np
 
         def quaternion_fit(coords_r, coords_f):
             # this function is based on the algorithm described in
             # Molecular Simulation 7, 113-119 (1991)
 
-            x = numpy.zeros((3, 3))
+            x = np.zeros((3, 3))
             for r, f in zip(coords_r, coords_f):
-                x = x + numpy.outer(f, r)
+                x = x + np.outer(f, r)
 
-            c = numpy.zeros((4, 4))
+            c = np.zeros((4, 4))
 
             c[0, 0] = x[0, 0] + x[1, 1] + x[2, 2]
             c[1, 1] = x[0, 0] - x[1, 1] - x[2, 2]
@@ -852,14 +853,14 @@ class OBFreeMolecule(BaseMolecule):
             c[2, 3] = x[1, 2] + x[2, 1]
 
             # diagonalize c
-            d, v = numpy.linalg.eig(c)
+            d, v = np.linalg.eig(c)
 
             # extract the desired quaternion
             q = v[:, d.argmax()]
 
             # generate the rotation matrix
 
-            u = numpy.zeros((3, 3))
+            u = np.zeros((3, 3))
             u[0, 0] = q[0] * q[0] + q[1] * q[1] - q[2] * q[2] - q[3] * q[3]
             u[1, 1] = q[0] * q[0] - q[1] * q[1] + q[2] * q[2] - q[3] * q[3]
             u[2, 2] = q[0] * q[0] - q[1] * q[1] - q[2] * q[2] + q[3] * q[3]
@@ -881,8 +882,8 @@ class OBFreeMolecule(BaseMolecule):
         else:
             frag_ref = other.get_fragment(atoms_other)
 
-        com_mv = numpy.array(frag_mv.get_center_of_mass())
-        com_ref = numpy.array(frag_ref.get_center_of_mass())
+        com_mv = np.array(frag_mv.get_center_of_mass())
+        com_ref = np.array(frag_ref.get_center_of_mass())
 
         # move both fragments to center of mass
         frag_ref.translate(-com_ref)
@@ -890,7 +891,7 @@ class OBFreeMolecule(BaseMolecule):
 
         rotmat = quaternion_fit(frag_ref.get_coordinates(), frag_mv.get_coordinates())
 
-        transvec = com_ref - numpy.dot(rotmat, com_mv)
+        transvec = com_ref - np.dot(rotmat, com_mv)
 
         self.rotate(rotmat)
         self.translate(transvec)
@@ -1081,12 +1082,12 @@ class OBFreeMolecule(BaseMolecule):
         return _ret
 
     def get_nuclear_dipole_moment(self, atoms=None):
-        import numpy
+        import numpy as np
         printsum = (atoms is None)
         atoms = self._get_atoms(atoms)
         nucdip = []
         for at in atoms:
-            nucdip.append(numpy.array([at.atnum * at.x * Units.conversion('angstrom', 'bohr'),
+            nucdip.append(np.array([at.atnum * at.x * Units.conversion('angstrom', 'bohr'),
                                        at.atnum * at.y * Units.conversion('angstrom', 'bohr'),
                                        at.atnum * at.z * Units.conversion('angstrom', 'bohr')]))
         if printsum:
@@ -1094,14 +1095,14 @@ class OBFreeMolecule(BaseMolecule):
         return nucdip
 
     def get_nuclear_efield_in_point(self, pointcoord):
-        import numpy
+        import numpy as np
         e = [0.0] * 3
         dummy = Atom(coords=tuple(pointcoord))
         for at in self.atoms:
             dist = dummy.distance_to(at)
             vec = dummy.vector_to(at)
             e = [e + (at.atnum * c) / dist**3 for e, c in zip(e, vec)]
-        return numpy.array(e) * (Units.conversion('bohr', 'angstrom')**2)
+        return np.array(e) * (Units.conversion('bohr', 'angstrom')**2)
 
     def get_nuclear_interaction_energy(self, other):
         inten = 0.0

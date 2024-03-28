@@ -1,0 +1,151 @@
+import os
+from pyadf import *
+
+if 'pyadfenv' not in globals():
+    from pyadf.Initialization import *
+
+import numpy as np
+import xcfun
+
+mol_a = molecule(os.path.join(pyadfenv.outdir, 'H2O.xyz'))
+mol_a.set_symmetry('NOSYM')
+
+mol_b = molecule(os.path.join(pyadfenv.outdir, 'NH3.xyz'))
+mol_b.set_symmetry('NOSYM')
+
+mol = mol_a + mol_b
+
+settings = adfsettings(functional='BLYP', zlmfit=True)
+# use VeryGood (also below) to get good agreement of total and bonding energy
+settings.set_integration(4.0, becke='Normal')
+settings.set_save_tapes([21, 10])
+
+# supermolecular calculation
+res_super = adfsinglepointjob(mol, basis='TZP', core='Large',
+                              settings=settings, options=['TOTALENERGY', 'NumericalQuality Normal']).run()
+
+# calculations for the two fragments
+res_h2o = adfsinglepointjob(mol_a, basis='TZP', core='Large',
+                            settings=settings, options=['TOTALENERGY', 'NumericalQuality Normal']).run()
+res_nh3 = adfsinglepointjob(mol_b, basis='TZP', core='Large',
+                            settings=settings, options=['TOTALENERGY', 'NumericalQuality Normal']).run()
+
+# we use the total energy here (not ADF's bond energy)
+toten_supermol = res_super.get_result_from_tape('Total Energy', 'Total energy')
+toten_h2o = res_h2o.get_result_from_tape('Total Energy', 'Total energy')
+toten_nh3 = res_nh3.get_result_from_tape('Total Energy', 'Total energy')
+
+inten = toten_supermol - toten_h2o - toten_nh3
+print("Interaction energy from supermolecular calc. (Total Energy): ", inten * au_in_eV)
+
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(inten * au_in_eV, -0.27060473030104576, 4)
+
+# now do the same with ADF's bond energy for comparison
+
+toten_supermol = res_super.get_bond_energy()
+toten_h2o = res_h2o.get_bond_energy()
+toten_nh3 = res_nh3.get_bond_energy()
+
+inten = toten_supermol - toten_h2o - toten_nh3
+print("Interaction energy from supermolecular calc. (Bond Energy): ", inten * au_in_eV)
+
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(inten * au_in_eV, -0.2655600708882117, 4)
+
+######################################################################
+# PyEmbed part
+# calculate FDE interaction energy from the fragment calculations
+######################################################################
+
+# use the supermolecular ADF calculation to get a grid for the full system
+agrid = adfgrid(res_super)
+
+#############################################################
+# get potentials and densities of fragments on the grid
+
+# nuclear potential
+nucpot_a = res_h2o.get_potential(agrid, pot='nuc')
+nucpot_b = res_nh3.get_potential(agrid, pot='nuc')
+
+# Coulomb potential (of the electrons)
+elpot_a = res_h2o.get_potential(agrid, pot='coul')
+elpot_b = res_nh3.get_potential(agrid, pot='coul')
+
+# electron density (including 1st derivative)
+dens_a = res_h2o.get_density(agrid, order=1)
+dens_b = res_nh3.get_density(agrid, order=1)
+dens_tot = dens_a + dens_b
+
+# fitted density (for fit correction to electrostatic interaction)
+fitdens_a = res_h2o.get_density(agrid, fit=True)
+fitdens_b = res_nh3.get_density(agrid, fit=True)
+
+fitcorr_a = dens_a[0] - fitdens_a
+fitcorr_b = dens_b[0] - fitdens_b
+
+################################################################
+# electrostatic interaction energy
+
+# nuclear-nuclear interaction energy
+nnint = mol_a.get_nuclear_interaction_energy(mol_b)
+
+# nuclear-electron interaction energy
+enint = (nucpot_a * dens_b[0]).integral() + (nucpot_b * dens_a[0]).integral()
+
+# electron-electron interaction energy
+eeint = 0.5 * (elpot_a * dens_b[0]).integral() + 0.5 * (elpot_b * dens_a[0]).integral()
+
+# fit correction to ee-interaction
+eecorr = 0.5 * (elpot_a * fitcorr_b).integral() + 0.5 * (elpot_b * fitcorr_a).integral()
+
+inten_elstat = nnint + enint + eeint + eecorr
+
+################################################################
+# nonadditive XC energy
+
+fun = xcfun.Functional({'BeckeX': 1.0, 'LYPC': 1.0})
+
+xc_a = np.dot(agrid.weights,
+                 fun.eval_energy_n(density=dens_a[0].values, densgrad=dens_a[1].values))
+xc_b = np.dot(agrid.weights,
+                 fun.eval_energy_n(density=dens_b[0].values, densgrad=dens_b[1].values))
+xc_tot = np.dot(agrid.weights,
+                   fun.eval_energy_n(density=dens_tot[0].values, densgrad=dens_tot[1].values))
+
+inten_xc = xc_tot - xc_a - xc_b
+
+################################################################
+# nonadditive kinetic energy
+
+fun = xcfun.Functional({'pw91k': 1.0})
+
+kin_a = np.dot(agrid.weights,
+                  fun.eval_energy_n(density=dens_a[0].values, densgrad=dens_a[1].values))
+kin_b = np.dot(agrid.weights,
+                  fun.eval_energy_n(density=dens_b[0].values, densgrad=dens_b[1].values))
+kin_tot = np.dot(agrid.weights,
+                    fun.eval_energy_n(density=dens_tot[0].values, densgrad=dens_tot[1].values))
+
+inten_kin = kin_tot - kin_a - kin_b
+
+print("Electrostatic interaction energy: ", inten_elstat * au_in_eV)
+print(" incl. fit correction: ", eecorr * au_in_eV)
+print()
+
+print("Nonadditive XC energy: ", inten_xc * au_in_eV)
+print()
+
+print("Nonadditive kinetic energy: ", inten_kin * au_in_eV)
+print()
+
+inten_tot = inten_elstat + inten_xc + inten_kin
+
+print("Total interaction energy (PyEmbed): ", inten_tot * au_in_eV)
+
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(inten_elstat * au_in_eV, -0.46258769075449185, 4)
+    testobj.assertAlmostEqual(inten_xc * au_in_eV, -0.2318183354695573, 4)
+    testobj.assertAlmostEqual(inten_kin * au_in_eV, 0.5064002682438619, 4)
+
+    testobj.assertAlmostEqual(inten_tot * au_in_eV, -0.1880057579797906, 4)

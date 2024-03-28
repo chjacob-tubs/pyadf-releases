@@ -1,10 +1,11 @@
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2022 by Christoph R. Jacob, Tobias Bergmann,
+# Copyright (C) 2006-2024 by Christoph R. Jacob, Tobias Bergmann,
 # S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Maria Chekmeneva,
 # Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz,
 # Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder,
-# Jetze Sikkema, Lucas Visscher, Johannes Vornweg and Mario Wolter.
+# Jetze Sikkema, Lucas Visscher, Johannes Vornweg, Michael Welzel,
+# and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -97,14 +98,14 @@
      densfjob
 """
 
-import numpy
+import numpy as np
 
 from .ADFBase import scmjob, scmresults
 from .Errors import PyAdfError
 
-from .Plot.Grids import cubegrid
-from .Plot.Properties import PlotProperty
-from .Plot.GridFunctions import GridFunctionFactory
+from pyadf.PyEmbed.Plot.Grids import cubegrid
+from pyadf.PyEmbed.Plot.Properties import PlotProperty
+from pyadf.PyEmbed.Plot.GridFunctions import GridFunctionFactory
 
 
 class densfresults(scmresults):
@@ -158,10 +159,10 @@ class densfresults(scmresults):
             self.prop = self.job.prop
             self._values = None
         elif grid is not None:
-            import numpy
+            import numpy as np
             self.grid = grid
             self.prop = None
-            self._values = numpy.zeros((self.grid.npoints,))
+            self._values = np.zeros((self.grid.npoints,))
         else:
             self.job = None
             self.files = None
@@ -193,7 +194,7 @@ class densfresults(scmresults):
                 values = values.reshape((self.grid.npoints,))
         else:
             components = self.prop.components
-            values = numpy.empty((self.grid.npoints, vl))
+            values = np.empty((self.grid.npoints, vl))
 
             for i, c in enumerate(components):
                 values_comp = self.get_result_from_tape(section, variable + ' ' + c + ss, tape=41)

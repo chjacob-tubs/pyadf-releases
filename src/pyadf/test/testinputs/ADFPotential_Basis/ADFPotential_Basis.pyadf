@@ -1,0 +1,161 @@
+###################################################################
+#
+# PyADF test ADFPotential_Basis
+#
+# Potential reconstruction in basis set (Yang/Wu algorithm)
+#
+# This tests performs a potential reconstruction for an isolated
+# water molecule, starting from the KS potential of the first
+# SCF iteration.
+#
+# The error in the electron density (integrated and dipole moment),
+# in the potential and in the orbital energies are compared. The
+# errors in the potential and the orbital energies are much smaller
+# than for the reconstruction on the grid, because the resulting
+# potential is smooth. However, for the virtual orbitals there are
+# still quite large differences (to be resolved ...)
+#
+# Test by Christoph Jacob, ETH Zurich and KIT, 2009-2010
+#
+###################################################################
+
+import os
+from pyadf import *
+if 'pyadfenv' not in globals():
+    from pyadf.Initialization import *
+
+import numpy as np
+
+###################################################################
+# H2O reference calculation
+###################################################################
+
+h2o = molecule(os.path.join(pyadfenv.outdir, 'H2O.xyz'))
+h2o.set_symmetry('NOSYM')
+
+settings = adfsettings(functional='BP86', accint=4.0, converge=1e-04)
+settings.set_save_tapes([21, 10])
+
+basis = 'TZ2P'
+
+settings.set_ncycles(100)
+refresults = adfsinglepointjob(h2o, basis, settings=settings).run()
+reforbens = refresults.get_result_from_tape('A', 'eps_A')
+agrid = adfgrid(refresults)
+
+# construction of the initial guess for the potential
+# we use the potential after one SCF iteration
+
+settings.set_ncycles(1)
+initial_guess = adfsinglepointjob(h2o, basis, settings=settings).run()
+startpot1 = initial_guess.get_potential(grid=agrid, pot='total')
+
+# check reference dipole moment
+
+dipole_vect = refresults.get_dipole_vector()
+dipole_magn = refresults.get_dipole_magnitude()
+
+print(dipole_vect)
+print(dipole_magn)
+
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(dipole_magn, 0.712684898546, 4)
+    testobj.assertAlmostEqual(dipole_vect, [-5.91484244e-01, -3.97575344e-01, 0.0], 4)
+
+# get reference density
+refdens = refresults.get_density(grid=agrid)
+
+###################################################################
+# potential reconstruction job
+###################################################################
+
+settings.set_ncycles(400)
+
+###############################################################################################################
+# Options:
+#
+# EIGENSHIFT 	-> small eigenvalues of the Hessian are shifted by the argument of EIGENSHIFT
+#                  use a larger value (0.1 ... 0.8) if there are convergence problems
+# LAMBDA	-> maximum value of smoothing parameter lambda in the potential reconstruction (default: 1.0e-03)
+#                  the algorithm in ADF automatically chooses the optimal lambda
+# CONVERGE      -> threshold for the gradient norm: potential reconstruction is stopped when the gradient norm
+# 		   is smaller than the argument of CONVERGE
+#
+# startpot: the starting potential (on an ADF grid) that is used as reference in the potential reconstruction
+#           this has to be added to the reconstructed part (in basis functions) later (see below)
+#
+###############################################################################################################
+
+job = adfsinglepointjob(h2o, basis, settings=settings)
+potops = {'EIGENSHIFT': 0.1, 'LAMBDA': 1.0e-3, 'CONVERGE': 5.0e-4}
+potjob = adfpotentialjob(job, refdens, potoptions=potops, startpot=startpot1)
+potresults = potjob.run()
+
+potorbens = potresults.get_result_from_tape('A', 'eps_A')
+
+# check dipole moment (now only 3 digits wrt reference result)
+
+dipole_vect = potresults.get_dipole_vector()
+dipole_magn = potresults.get_dipole_magnitude()
+
+if 'unittesting' in pyadfenv.options:
+    print(abs(dipole_magn - 0.712686960884))
+    print(abs(dipole_vect[0] + 0.591485178))
+    print(abs(dipole_vect[1] + 0.397577650))
+    print(abs(dipole_vect[2]))
+    testobj.assertTrue(abs(dipole_magn - 0.712686960884) < 0.011)
+    testobj.assertTrue(abs(dipole_vect[0] + 0.591485178) < 0.009)
+    testobj.assertTrue(abs(dipole_vect[1] + 0.397577650) < 0.0065)
+    testobj.assertTrue(abs(dipole_vect[2]) < 0.00001)
+
+# check integral of difference density
+
+dens = potresults.get_density(grid=agrid)
+diff_dens = refdens - dens
+denserror = diff_dens.integral(func=lambda x: abs(x))
+
+print("Error in density: ", denserror)
+
+if 'unittesting' in pyadfenv.options:
+    testobj.assertTrue(denserror < 0.010)
+
+#########################################
+# get the final reconstructed potential #
+#########################################
+#
+#  get_potential(grid=..., pot='reconstructed') returns the basis set dependend part of the final potential
+#
+#  therefore, the startpotential has to be added to this potential
+#
+#  final_potential = startpot1 + basis-dependend part of the potential
+
+pot = potresults.get_potential(grid=agrid, pot="reconstructed") + startpot1
+
+# compare final potential with reference potential
+dens = potresults.get_density(grid=agrid)
+refpot = refresults.get_potential(grid=agrid, pot='total')
+
+# determine shift in reconstructed potential
+diffpot = refpot - pot
+diffpotrho = diffpot * dens
+shift = diffpotrho.integral() / dens.integral()
+
+diffpot = diffpot - shift
+diffpotrho = diffpot * dens
+
+poterror = diffpotrho.integral(func=lambda x: abs(x))
+print("Difference in Potential: ", poterror)
+
+if 'unittesting' in pyadfenv.options:
+    testobj.assertTrue(poterror < 0.051)
+
+# compare orbital energies
+orben_diffs = (reforbens - potorbens - shift) * au_in_eV
+
+print("Occupied orbital energy differences ")
+print(orben_diffs[:5])
+sum_orben_diffs = np.abs(orben_diffs[:5]).sum()
+print(sum_orben_diffs)
+
+print("Virtual orbital energy differences ")
+print(orben_diffs[5:15])

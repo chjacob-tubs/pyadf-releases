@@ -1,10 +1,11 @@
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2022 by Christoph R. Jacob, Tobias Bergmann,
+# Copyright (C) 2006-2024 by Christoph R. Jacob, Tobias Bergmann,
 # S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Maria Chekmeneva,
 # Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz,
 # Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder,
-# Jetze Sikkema, Lucas Visscher, Johannes Vornweg and Mario Wolter.
+# Jetze Sikkema, Lucas Visscher, Johannes Vornweg, Michael Welzel,
+# and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -34,7 +35,7 @@
 
 from .Errors import PyAdfError
 from .BaseJob import results, job
-from .DensityEvaluator import GTODensityEvaluatorMixin
+from pyadf.PyEmbed.DensityEvaluator import GTODensityEvaluatorMixin
 
 import os
 import re
@@ -142,6 +143,26 @@ class nwchemsinglepointresults(nwchemresults, GTODensityEvaluatorMixin):
             en_re = re.compile(r"^ Total CCSD\(T\) energy: *(?P<energy>-?\d+\.\d+)")
         elif self.job.settings.method.upper() == 'CCSD+T(CCSD)':
             en_re = re.compile(r"^ Total CCSD\+T\(CCSD\) energy: *(?P<energy>-?\d+\.\d+)")
+
+        for line in output:
+            m = en_re.match(line)
+            if m:
+                energy = float(m.group("energy"))
+                break
+        return energy
+
+    def get_nuclear_repulsion_energy(self):
+        """
+        Return the nuclear repulsion energy
+
+        @returns: the nuclear repulsion energy in atomic units
+        @rtype: float
+        """
+
+        energy = 0.0
+
+        output = self.get_output()
+        en_re = re.compile(r"^ +Nuclear repulsion energy = *(?P<energy>-?\d+\.\d+)")
 
         for line in output:
             m = en_re.match(line)
@@ -505,6 +526,7 @@ class nwchemsinglepointjob(nwchemjob):
         block = "geometry units angstrom noautoz nocenter noautosym\n"
         block += self.get_molecule().print_coordinates(index=False)
         block += 'end\n'
+        block += 'charge ' + str(self.mol.get_charge()) + '\n'
         return block
 
     def get_basis_block(self):

@@ -1,0 +1,49 @@
+import os
+from pyadf import *
+
+if 'pyadfenv' not in globals():
+    from pyadf.Initialization import *
+
+import numpy as np
+from pyscf import scf, dft
+
+h2o = molecule(os.path.join(pyadfenv.outdir, 'H2O.xyz'))
+
+pyscf_mol = h2o.get_pyscf_obj(basis='cc-pVDZ')
+
+# HF
+mf = scf.RHF(pyscf_mol)
+mf.kernel()
+# print(mf.analyze())
+# print(mf.e_tot)
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(mf.e_tot, -76.02157286166326, 6)
+dip_vec = mf.dip_moment(unit='au')
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(dip_vec, [0.77818955, 0.18058395, -0.07974992], 4)
+    testobj.assertAlmostEqual(np.linalg.norm(dip_vec), 0.8028384612986488, 4)
+del mf
+
+# LDA
+mf = dft.RKS(pyscf_mol)
+mf.xc = 'lda'
+mf.kernel()
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(mf.e_tot, -75.1907876464269, 6)
+dip_vec = mf.dip_moment(unit='au')
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(dip_vec, [0.71346497, 0.16603494, -0.07281396], 4)
+    testobj.assertAlmostEqual(np.linalg.norm(dip_vec), 0.7361397529339788, 4)
+del mf
+
+# BP86
+mf = dft.RKS(pyscf_mol)
+mf.xc = 'bp86'
+mf.kernel()
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(mf.e_tot, -76.41950984624985, 6)
+dip_vec = mf.dip_moment(unit='au')
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(dip_vec, [0.70282928, 0.16353215, -0.07174661], 4)
+    testobj.assertAlmostEqual(np.linalg.norm(dip_vec), 0.7251615938104439, 4)
+del mf

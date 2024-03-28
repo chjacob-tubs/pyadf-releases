@@ -1,0 +1,128 @@
+import os
+from pyadf import *
+if 'pyadfenv' not in globals():
+    from pyadf.Initialization import *
+
+######################################################################
+#
+# PyADF test Orca Density
+#
+# Test and demonstrate calculation of density and potential
+#
+######################################################################
+import numpy as np
+import xcfun
+
+m_h2o = molecule(os.path.join(pyadfenv.outdir, 'H2O.xyz'))
+m_h2o.set_symmetry('NOSYM')
+
+#########################################
+# A) Hartree-Fock / cc-pVDZ
+#########################################
+
+settings = OrcaSettings(method='HF', basis='cc-pVDZ')
+r_h2o = OrcaSinglePointJob(m_h2o, settings=settings).run()
+
+# Cube grid
+cgrid = cubegrid(r_h2o.get_molecule(), spacing=0.1)
+dens_cube = r_h2o.get_density(grid=cgrid)
+
+int_dens_cube = dens_cube.integral()
+print("Integral of density (cube grid): ", int_dens_cube)
+
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(int_dens_cube, 9.839722, 4)
+
+# pyscf grid
+pgrid = pyscfgrid(m_h2o)
+dens = r_h2o.get_density(grid=pgrid)
+
+int_dens = dens.integral()
+print("Integral of density (pyscf grid): ", int_dens)
+
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(int_dens, 10.0, 5)
+
+#########################################
+# B) LDA / cc-pVDZ
+#########################################
+
+settings = OrcaSettings(method='DFT', functional='LDA', basis='cc-pVDZ')
+r_h2o = OrcaSinglePointJob(m_h2o, settings=settings).run()
+
+# pyscf grid
+dens = r_h2o.get_density(grid=pgrid)
+
+int_dens = dens.integral()
+print("Integral of density (pyscf grid): ", int_dens)
+
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(int_dens, 10.0, 5)
+
+# XC energy
+lda_func = xcfun.Functional({'lda': 1.0})
+endens = lda_func.eval_energy_n(density=dens.values)
+xc_energy_lda = np.dot(pgrid.weights, endens)
+
+print("XC energy (LDA, pyscf grid): ", xc_energy_lda)
+
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(xc_energy_lda, -8.770926416222006, 6)
+
+# Electron-nuclear attraction energy
+nucpot = r_h2o.get_potential(grid=pgrid, pot='nuc')
+elnuc_energy = (nucpot * dens).integral()
+
+print("Electron-nuclear energy (LDA, pyscf grid): ", elnuc_energy)
+
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(elnuc_energy, -198.6039658145041, 6)
+
+# Coulomb energy
+coulpot = r_h2o.get_potential(grid=pgrid, pot='coul')
+coulomb_energy = 0.5*(coulpot * dens).integral()
+
+print("Coulomb energy (LDA, pyscf grid): ", coulomb_energy)
+
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(coulomb_energy, 46.71515930741873, 6)
+
+#########################################
+# C) BP86 / cc-pVDZ
+#########################################
+
+settings = OrcaSettings(method='DFT', functional='BP86', basis='cc-pVDZ')
+r_h2o = OrcaSinglePointJob(m_h2o, settings=settings).run()
+
+dens = r_h2o.get_density(grid=pgrid, order=1)
+
+int_dens = dens[0].integral()
+print("Integral of density (pyscf grid): ", int_dens)
+
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(int_dens, 10.0, 5)
+
+# XC energy
+blyp_func = xcfun.Functional({'BeckeX': 1.0, 'LYP': 1.0})
+endens = blyp_func.eval_energy_n(density=dens[0].values, densgrad=dens[1].values)
+xc_energy_blyp = np.dot(pgrid.weights, endens)
+
+print("XC energy (BLYP, pyscf grid): ", xc_energy_blyp)
+
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(xc_energy_blyp, -9.324294489651875, 6)
+
+###############################################
+# D) LDA / cc-pVQZ (to test f and g functions)
+###############################################
+
+settings = OrcaSettings(method='DFT', functional='LDA', basis='cc-pVQZ')
+r_h2o = OrcaSinglePointJob(m_h2o, settings=settings).run()
+
+dens = r_h2o.get_density(grid=pgrid)
+
+int_dens = dens.integral()
+print("Integral of density (pyscf grid): ", int_dens)
+
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(int_dens, 10.0, 4)

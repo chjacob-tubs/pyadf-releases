@@ -1,10 +1,11 @@
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2022 by Christoph R. Jacob, Tobias Bergmann,
+# Copyright (C) 2006-2024 by Christoph R. Jacob, Tobias Bergmann,
 # S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Maria Chekmeneva,
 # Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz,
 # Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder,
-# Jetze Sikkema, Lucas Visscher, Johannes Vornweg and Mario Wolter.
+# Jetze Sikkema, Lucas Visscher, Johannes Vornweg, Michael Welzel,
+# and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -200,11 +201,11 @@
 
 """
 
-__version__ = '1.1'
+__version__ = '1.3'
 from .Utils import VersionInfo
 
 # noinspection PyUnresolvedReferences
-import kf
+from .kf import kf
 
 from .Utils import pse, Bohr_in_Angstrom, au_in_eV, au_in_Debye, conversion
 from .Errors import PyAdfError
@@ -269,7 +270,7 @@ except ImportError:
 from .ADF_FDE_AccurateEmbedding import adfaccurateembeddingjob
 
 from .ADF_Densf import densfjob
-from .Plot.Grids import cubegrid, adfgrid, customgrid
+from pyadf.PyEmbed.Plot.Grids import cubegrid, adfgrid, customgrid, pyscfgrid
 
 from .WFTinDFT import diracfragment, wftindftjob
 

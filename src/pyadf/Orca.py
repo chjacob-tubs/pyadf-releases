@@ -1,11 +1,12 @@
 
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2022 by Christoph R. Jacob, Tobias Bergmann,
+# Copyright (C) 2006-2024 by Christoph R. Jacob, Tobias Bergmann,
 # S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Maria Chekmeneva,
 # Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz,
 # Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder,
-# Jetze Sikkema, Lucas Visscher, Johannes Vornweg and Mario Wolter.
+# Jetze Sikkema, Lucas Visscher, Johannes Vornweg, Michael Welzel,
+# and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -23,7 +24,7 @@
 
 from .Errors import PyAdfError
 from .BaseJob import job
-from .DensityEvaluator import GTODensityEvaluatorMixin
+from pyadf.PyEmbed.DensityEvaluator import GTODensityEvaluatorMixin
 
 
 class OrcaResults(GTODensityEvaluatorMixin):
@@ -323,14 +324,14 @@ class OrcaResults(GTODensityEvaluatorMixin):
                 energy = float(m.group('energy'))
         return energy
 
-    def get_result_from_tape(self, section, variable):
-        # FIXME: this should be removed in favor of a general energy interface.
-        if section == 'Total Energy' and variable == 'Nuclear repulsion energy':
-            what = 'Nuclear Repulsion'
-        else:
-            raise PyAdfError('Unknown Section in Orca get_results_from_tape')
-        result = self.get_scf_energy(what)
-        return result
+    def get_nuclear_repulsion_energy(self):
+        """
+        Return the nuclear repulsion energy (as read from TAPE).
+
+        @returns: the nuclear repulsion energy in atomic units
+        @rtype: float
+        """
+        return self.get_scf_energy('Nuclear Repulsion')
 
     def get_molecule(self):
         from .Molecule import molecule
@@ -503,12 +504,11 @@ class OrcaSettings:
         self.printmos = None
         self.extra_keywords = None
         self.extra_blocks = None
-        self.manual = None
-        self.cc_density = None
+        self.oocc_density = None
+        self.brueckner_density = None
+        self.simplified_z = None
         self.pointcharges = None
-        self.abs_gbw_path = None
         self.ignoreconv = None
-        self.dummy_options = None
 
         # initialize the setter
         self.set_method(method)
@@ -735,15 +735,32 @@ class OrcaSettings:
         block = ''
         block += "%scf\n"
         if self.maxiter is not None:
-            block += f"MaxIter {self.maxiter:d} \n"
+            block += f" MaxIter {self.maxiter:d}\n"
         if self.ignoreconv:
-            block += "IgnoreConv True\n"
+            block += " IgnoreConv True\n"
+        block += "end\n"
+        return block
+
+    def get_mdci_block(self):
+        block = ''
+        block += "%mdci\n"
+        if self.maxiter is not None:
+            block += f" MaxIter {self.maxiter:d}\n"
+        if self.oocc_density:
+            block += " Denmat orbopt\n"
+            block += " density orbopt\n"
+        if self.brueckner_density:
+            block += " Brueckner true\n"
+        if self.simplified_z:
+            block += " ZSimple true\n"
         block += "end\n"
         return block
 
     def get_input_blocks(self):
         blocks = ''
         blocks += self.get_scf_block()
+        if 'CC' in self.method or 'CI' in self.method:
+            blocks += self.get_mdci_block()
 
         if self.extra_blocks is not None:
             blocks += '\n'.join(self.extra_blocks) + '\n'
@@ -877,10 +894,16 @@ class OrcaJob(job):
         runscript += "fi\n"
         runscript += "retcode=$?\n"
 
-        if self.settings.cc_density:
+        if self.settings.oocc_density:
             runscript += "cp INPUT.mdci.optorb INPUT.mdci.optorb.gbw\n"
             runscript += "$ORCA_PATH/orca_2mkl INPUT.mdci.optorb -emolden\n"
+            runscript += "mv INPUT.molden.input molden.old\n"
             runscript += "mv INPUT.mdci.optorb.molden.input INPUT.molden.input\n"
+        elif self.settings.brueckner_density:
+            runscript += "cp INPUT.mdci.brueck INPUT.mdci.brueck.gbw\n"
+            runscript += "$ORCA_PATH/orca_2mkl INPUT.mdci.brueck -emolden\n"
+            runscript += "mv INPUT.molden.input molden.old\n"
+            runscript += "mv INPUT.mdci.brueck.molden.input INPUT.molden.input\n"
         else:
             runscript += "$ORCA_PATH/orca_2mkl INPUT -emolden\n"
 
@@ -891,7 +914,7 @@ class OrcaJob(job):
     def result_filenames(self):
         return ['INPUT.gbw', 'INPUT_property.txt', 'INPUT.engrad', 'INPUT.xyz',
                 'INPUT_trj.xyz', 'INPUT.molden.input', 'INPUT.mdci.optorb',
-                'INPUT.scfp', 'INPUT.hess']
+                'INPUT.scfp', 'INPUT.hess', 'INPUT.inp']
 
     def check_success(self, outfile, errfile):
         f = open(outfile, encoding="utf-8")
@@ -925,50 +948,13 @@ class OrcaJob(job):
             block += "end\n"
         return block
 
-    def get_orcafile(self, nproc=1, checksum=False):
+    def get_orcafile(self, nproc=1):
 
-        try:
-            if not self.settings.manual:
-                orcafile = "! " + ' '.join(self.get_keywords()) + "\n"
-            else:
-                orcafile = ''
-        except AttributeError:
-            orcafile = "! " + ' '.join(self.get_keywords()) + "\n"
-        orcafile += self.get_input_blocks(nproc=nproc) + "\n"
-        # the amount of memory per core should be irrelevant for
-        # the result, so it will be replaced here when a checksum
-        # is set - to work with running calculations, a specific
-        # but otherwise irrelevant value is set for now
-        # same for maxiter
-        if checksum:
-            if '%maxcore' in orcafile:
-                options = orcafile.split('\n')
-                for option in options:
-                    if '%maxcore' in option:
-                        orcafile = orcafile.replace(option,'%maxcore 3900')
-            if 'maxiter' in orcafile:
-                options = orcafile.split('\n')
-                for option in options:
-                    if 'maxiter' in option:
-                        orcafile = orcafile.replace(option, ' maxiter 300') # wahrscheinlich nicht sinnvoll, weil es Wiederholungen unmöglich macht, wo sie notwendig sind
-        # it might make more sense to simply include (only?)
-        # options one actively chooses to ignore in the checksum
-        # generation
-        # in this version, this would have the following form:
-        # settings.dummy_options = {' maxiter': ' 300', '%maxcore': ' 3900'}
-            if self.settings.dummy_options:
-                dum_opts = self.settings.dummy_options
-                options = orcafile.split('\n')
-                for dummy_option in dum_opts:
-                    for option in options:
-                        if dummy_option in option:
-                            orcafile = orcafile.replace(option, dummy_option + dum_opts[dummy_option])
+        orcafile = "! " + ' '.join(self.get_keywords()) + "\n"
+        orcafile += self.get_input_blocks(nproc) + "\n"
 
         if self.settings.pointcharges:
             orcafile += '%pointcharges "pointcharges.pc"\n'
-        if self.settings.abs_gbw_path and not checksum:
-            # orcafile += '!MOREAD\n'
-            orcafile += '%moinp "' + self.settings.abs_gbw_path + '"\n'
 
         orcafile += f"*xyz {self.mol.get_charge():d} {self.mol.get_spin() + 1:d} \n"
         xyz_file = self.mol.get_xyz_file()
@@ -994,7 +980,7 @@ class OrcaJob(job):
         import hashlib
 
         m = hashlib.md5()
-        m.update(self.get_orcafile(checksum=True).encode('utf-8'))
+        m.update(self.get_orcafile().encode('utf-8'))
         return m.hexdigest()
 
     def print_molecule(self):

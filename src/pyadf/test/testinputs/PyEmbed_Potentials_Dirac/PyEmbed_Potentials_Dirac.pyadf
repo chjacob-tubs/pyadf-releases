@@ -1,0 +1,120 @@
+import os
+from pyadf import *
+if 'pyadfenv' not in globals():
+    from pyadf.Initialization import *
+
+from pyadf.PyEmbed.Plot.FileReaders import GridFunctionReader
+
+mol_a = molecule(os.path.join(pyadfenv.outdir, 'H2O.xyz'))
+mol_a.set_symmetry('NOSYM')
+
+mol_b = molecule(os.path.join(pyadfenv.outdir, 'NH3.xyz'))
+mol_b.set_symmetry('NOSYM')
+
+mol = mol_a + mol_b
+
+# supermolecular calculation with ADF
+# only used to get the supermolecular grid
+# (for the FDE calculations of the subsystems,
+#  a smaller grid would be sufficient, but we
+#  use the most simple option here)
+
+settings = adfsettings(functional='BLYP', zlmfit=True)
+settings.set_integration(4.0, becke='Normal')
+settings.set_ncycles(1)  # do not converge SCF, we only need the grid
+settings.set_save_tapes([21, 10])
+
+res_super_adf = adfsinglepointjob(mol, basis='TZP', settings=settings,
+                                  options=['TOTALENERGY', 'NumericalQuality Normal']).run()
+
+# calculations for the two fragments
+settings = diracsettings(method='DFT', functional='BLYP', hamiltonian='Levy', nucmod='point',
+                         properties=['dipole'])
+res_h2o = diracsinglepointjob(mol_a, basis='cc-pVDZ', settings=settings, fdeout=res_super_adf).run()
+res_nh3 = diracsinglepointjob(mol_b, basis='cc-pVDZ', settings=settings, fdeout=res_super_adf).run()
+
+energy_h2o = res_h2o.get_energy()
+dipole_h2o = res_h2o.get_dipole_vector()
+
+print("H2O (Subsystem A): ")
+print("  Total energy: ", energy_h2o)
+print("  Dipole moment: ", dipole_h2o)
+
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(energy_h2o, -76.3983919098, 6)
+    testobj.assertAlmostEqual(dipole_h2o, [-0.358518892, -0.631448847, -0.000261721629], 4)
+
+energy_nh3 = res_nh3.get_energy()
+dipole_nh3 = res_nh3.get_dipole_vector()
+
+print("NH3 (Subsystem B): ")
+print("  Total energy: ", energy_nh3)
+print("  Dipole moment: ", dipole_nh3)
+
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(energy_nh3, -56.522694125, 6)
+    testobj.assertAlmostEqual(dipole_nh3, [-0.597926084, 0.0949763924, 0.000103487903], 4)
+
+###########################################################################
+# PyEmbed part
+# calculate FDE embedding potential with PyEmbed and import it in Dirac
+###########################################################################
+
+# #############################################################
+# # get potentials and densities of fragments on the grid
+#
+# pot_a/pot_b is nuclear plus Coulomb potential
+
+agrid, pot_a, nucpot_a, dens_a = GridFunctionReader.read_density_elpot_xml(res_h2o.get_gridout_filename())
+# noinspection PyRedeclaration
+agrid, pot_b, nucpot_b, dens_b = GridFunctionReader.read_density_elpot_xml(res_nh3.get_gridout_filename())
+
+dens_tot = dens_a + dens_b
+
+embed_settings = EmbedXCFunSettings()
+embed_settings.set_fun_nad_xc({'BeckeX': 1.0, 'LYPC': 1.0})
+embed_settings.set_fun_nad_kin({'PW91k': 1.0})
+
+embed_settings.show_functionals()
+
+embed_eval = EmbedXCFunEvaluator(settings=embed_settings)
+
+embpot_h2o = embed_eval.get_emb_pot(dens_a, dens_b, pot_b)
+embpot_nh3 = embed_eval.get_emb_pot(dens_b, dens_a, pot_a)
+
+################################################
+# now import embedding potential in Dirac
+#
+# 1) H2O active
+
+res_h2o_fde = diracsinglepointjob(mol_a, basis='cc-pVDZ', settings=settings, fdein=embpot_h2o).run()
+
+energy_h2o_fde = res_h2o_fde.get_energy()
+dipole_h2o_fde = res_h2o_fde.get_dipole_vector()
+
+print("H2O (Subsystem A): ")
+# Note: Not sure about the meaning of the total energy for FDE calculations in Dirac.
+#       This probably contains the integral over the embedding potential.
+print("  Total energy: ", energy_h2o_fde)
+print("  Dipole moment: ", dipole_h2o_fde)
+
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(energy_h2o_fde, -76.3968193465, 6)
+    testobj.assertAlmostEqual(dipole_h2o_fde, [-0.490233930, -0.632905444, -0.000316479257], 4)
+
+# 2) NH3 active
+
+res_nh3_fde = diracsinglepointjob(mol_b, basis='cc-pVDZ', settings=settings, fdein=embpot_nh3).run()
+
+energy_nh3_fde = res_nh3_fde.get_energy()
+dipole_nh3_fde = res_nh3_fde.get_dipole_vector()
+
+print("NH3 (Subsystem B): ")
+# Note: Not sure about the meaning of the total energy for FDE calculations in Dirac.
+#       This probably contains the integral over the embedding potential.
+print("  Total energy: ", energy_nh3_fde)
+print("  Dipole moment: ", dipole_nh3_fde)
+
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(energy_nh3_fde, -56.5224094037, 6)
+    testobj.assertAlmostEqual(dipole_nh3_fde, [-0.649427025, 0.112735521, 0.000113174156], 4)

@@ -1,10 +1,11 @@
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2022 by Christoph R. Jacob, Tobias Bergmann,
+# Copyright (C) 2006-2024 by Christoph R. Jacob, Tobias Bergmann,
 # S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Maria Chekmeneva,
 # Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz,
 # Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder,
-# Jetze Sikkema, Lucas Visscher, Johannes Vornweg and Mario Wolter.
+# Jetze Sikkema, Lucas Visscher, Johannes Vornweg, Michael Welzel,
+# and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -823,12 +824,12 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
             array([-0.83057359,  3.97627328,  2.67427198])
 
         """
-        import numpy
-        center = numpy.zeros((3,))
+        import numpy as np
+        center = np.zeros((3,))
         coords = self.get_coordinates()
         molwt = 0
         for atom in range(self.mol.GetNumAtoms()):
-            vec = numpy.array([coords[atom][0], coords[atom][1], coords[atom][2]])
+            vec = np.array([coords[atom][0], coords[atom][1], coords[atom][2]])
             center += self.mol.GetAtomWithIdx(atom).GetMass() * vec
             molwt += self.mol.GetAtomWithIdx(atom).GetMass()
         center = center / molwt
@@ -973,7 +974,7 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
             array([-14.74757385,  75.35910311,  50.43826425])
 
         """
-        import numpy
+        import numpy as np
         voronoinucdip = []
         printsum = False
 
@@ -986,7 +987,7 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
             dip_nuc_x = coord[0] * atomNum / Bohr_in_Angstrom
             dip_nuc_y = coord[1] * atomNum / Bohr_in_Angstrom
             dip_nuc_z = coord[2] * atomNum / Bohr_in_Angstrom
-            voronoinucdip.append(numpy.array([dip_nuc_x, dip_nuc_y, dip_nuc_z]))
+            voronoinucdip.append(np.array([dip_nuc_x, dip_nuc_y, dip_nuc_z]))
 
         if printsum:
             return sum(voronoinucdip)
@@ -1007,30 +1008,30 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
             array([-0.01894430 ,  0.09856731,  0.06584592])
 
         """
-        import numpy
+        import numpy as np
 
         E_x = 0.0
         E_y = 0.0
         E_z = 0.0
         for coord, atomNum in zip(self.get_coordinates(), self.get_atomic_numbers()):
-            dist = numpy.sqrt(
+            dist = np.sqrt(
                 (coord[0] - pointcoord[0])**2 + (coord[1] - pointcoord[1])**2 + (coord[2] - pointcoord[2])**2)
             E_x += atomNum * (coord[0] - pointcoord[0]) / dist**3
             E_y += atomNum * (coord[1] - pointcoord[1]) / dist**3
             E_z += atomNum * (coord[2] - pointcoord[2]) / dist**3
 
-        return numpy.array([E_x, E_y, E_z]) * (Bohr_in_Angstrom * Bohr_in_Angstrom)
+        return np.array([E_x, E_y, E_z]) * (Bohr_in_Angstrom * Bohr_in_Angstrom)
 
     def get_nuclear_interaction_energy(self, other):
         """
         Return the electrostatic interaction energy between the nuclei of this and another molecule.
         """
-        import numpy
+        import numpy as np
 
         inten = 0.0
         for coord1, atomNum1 in zip(self.get_coordinates(), self.get_atomic_numbers()):
             for coord2, atomNum2 in zip(other.get_coordinates(), other.get_atomic_numbers()):
-                dist = numpy.sqrt((coord1[0] - coord2[0])**2 + (coord1[1] - coord2[1])**2 + (coord1[2] - coord2[2])**2)
+                dist = np.sqrt((coord1[0] - coord2[0])**2 + (coord1[1] - coord2[1])**2 + (coord1[2] - coord2[2])**2)
                 dist = dist / Bohr_in_Angstrom
                 inten = inten + atomNum1 * atomNum2 / dist
         return inten
@@ -1666,9 +1667,9 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
         @type  rotmat: numpy 3x3 matrix
         """
 
-        import numpy
-        coords = numpy.array(self.get_coordinates())
-        newcoords = numpy.dot(coords, rotmat.T)
+        import numpy as np
+        coords = np.array(self.get_coordinates())
+        newcoords = np.dot(coords, rotmat.T)
         c = self.mol.GetConformer()
         for atom in range(self.mol.GetNumAtoms()):
             p = c.GetAtomPosition(atom)
@@ -1695,7 +1696,7 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
         @type  atoms_other: list of int
 
         @returns: tuple of rotation matrix and translation vector
-        @rtype:   tuple of: numpy.array((3,3)), numpy.array((3,))
+        @rtype:   tuple of: np.array((3,3)), np.array((3,))
 
         @exampleuse:
 
@@ -1711,17 +1712,17 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
         [ 0.53705000 -2.72789000   2.34056000]
 
         """
-        import numpy
+        import numpy as np
 
         def quaternion_fit(coords_r, coords_f):
             # this function is based on the algorithm described in
             # Molecular Simulation 7, 113-119 (1991)
 
-            x = numpy.zeros((3, 3))
+            x = np.zeros((3, 3))
             for r, f in zip(coords_r, coords_f):
-                x = x + numpy.outer(f, r)
+                x = x + np.outer(f, r)
 
-            c = numpy.zeros((4, 4))
+            c = np.zeros((4, 4))
 
             c[0, 0] = x[0, 0] + x[1, 1] + x[2, 2]
             c[1, 1] = x[0, 0] - x[1, 1] - x[2, 2]
@@ -1745,14 +1746,14 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
             c[2, 3] = x[1, 2] + x[2, 1]
 
             # diagonalize c
-            d, v = numpy.linalg.eig(c)
+            d, v = np.linalg.eig(c)
 
             # extract the desired quaternion
             q = v[:, d.argmax()]
 
             # generate the rotation matrix
 
-            u = numpy.zeros((3, 3))
+            u = np.zeros((3, 3))
             u[0, 0] = q[0] * q[0] + q[1] * q[1] - q[2] * q[2] - q[3] * q[3]
             u[1, 1] = q[0] * q[0] - q[1] * q[1] + q[2] * q[2] - q[3] * q[3]
             u[2, 2] = q[0] * q[0] - q[1] * q[1] - q[2] * q[2] + q[3] * q[3]
@@ -1783,7 +1784,7 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
 
         rotmat = quaternion_fit(frag_ref.get_coordinates(), frag_mv.get_coordinates())
 
-        transvec = com_ref - numpy.dot(rotmat, com_mv)
+        transvec = com_ref - np.dot(rotmat, com_mv)
 
         self.rotate(rotmat)
         self.translate(transvec)

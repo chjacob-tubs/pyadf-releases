@@ -1,10 +1,11 @@
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2022 by Christoph R. Jacob, Tobias Bergmann,
+# Copyright (C) 2006-2024 by Christoph R. Jacob, Tobias Bergmann,
 # S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Maria Chekmeneva,
 # Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz,
 # Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder,
-# Jetze Sikkema, Lucas Visscher, Johannes Vornweg and Mario Wolter.
+# Jetze Sikkema, Lucas Visscher, Johannes Vornweg, Michael Welzel,
+# and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -31,7 +32,7 @@
     adfresults
 """
 
-import kf
+from .kf import kf
 import os
 
 from .Errors import PyAdfError
@@ -231,11 +232,11 @@ class amsresults(scmresults):
         """
         Return the normal modes (not normalized, not mass-weighted)
         """
-        import numpy
+        import numpy as np
         natoms = self.get_result_from_tape('Molecule', 'nAtoms')
         nmodes = self.get_result_from_tape('Vibrations', 'nNormalModes')
 
-        modes_c = numpy.zeros((nmodes, 3 * natoms))
+        modes_c = np.zeros((nmodes, 3 * natoms))
         for i in range(nmodes):
             modes_c[i, :] = self.get_result_from_tape('Vibrations',
                                                       f'NoWeightNormalMode({i + 1:d})')

@@ -1,10 +1,11 @@
 # This file is part of
 # PyADF - A Scripting Framework for Multiscale Quantum Chemistry.
-# Copyright (C) 2006-2022 by Christoph R. Jacob, Tobias Bergmann,
+# Copyright (C) 2006-2024 by Christoph R. Jacob, Tobias Bergmann,
 # S. Maya Beyhan, Julia Brüggemann, Rosa E. Bulo, Maria Chekmeneva,
 # Thomas Dresselhaus, Kevin Focke, Andre S. P. Gomes, Andreas Goetz,
 # Michal Handzlik, Karin Kiewisch, Moritz Klammler, Lars Ridder,
-# Jetze Sikkema, Lucas Visscher, Johannes Vornweg and Mario Wolter.
+# Jetze Sikkema, Lucas Visscher, Johannes Vornweg, Michael Welzel,
+# and Mario Wolter.
 #
 #    PyADF is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -34,7 +35,7 @@ from .BaseJob import metajob
 from .ADFSinglePoint import adfsinglepointjob
 from .ADFFragments import fragment, adffragmentsjob
 from .ADFPotential import adfpotentialjob
-from .Plot.Grids import adfgrid
+from pyadf.PyEmbed.Plot.Grids import adfgrid
 from .Utils import Bohr_in_Angstrom
 from pyadf.Errors import PyAdfError
 
@@ -153,8 +154,8 @@ class adfaccurateembeddingjob(metajob):
             """
             Calculates the center of density of a given density and returns a list [x,y,z].
             """
-            import numpy
-            center = numpy.zeros(3)
+            import numpy as np
+            center = np.zeros(3)
             for w, c, d in zip(dens.grid.weightiter(), dens.grid.coorditer(), dens.valueiter()):
                 center += w * d * c
             return Bohr_in_Angstrom * center
