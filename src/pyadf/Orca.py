@@ -940,9 +940,13 @@ class OrcaJob(job):
     def get_parallel_block(self, nproc):
         block = ''
         if nproc > 1:
-            num_elec = self.mol.get_number_of_electrons()
-            if num_elec < nproc:
-                nproc = num_elec
+            # cc calculations cannot handle the case where there are
+            # more processor cores in use than there are electrons
+            # in the system
+            if 'CC' in self.settings.method:
+                num_elec = self.mol.get_number_of_electrons()
+                if num_elec < nproc:
+                    nproc = num_elec
             block += "%pal\n"
             block += f"nprocs {nproc:d} \n"
             block += "end\n"

@@ -22,7 +22,7 @@
 
 import unittest
 from .pyadf_unittests.PyAdfTestCase import PyAdfTestCase
-from pyadf import Utils
+from importlib.resources import files as resourcefiles
 
 try:
     import cProfile as profile
@@ -74,8 +74,7 @@ class PyADFInputTestCase(PyAdfTestCase):
         os.mkdir(self._tempdirname)
 
         # test directory
-        pyadfhome = os.path.sep.join(Utils.__file__.split(os.path.sep)[:-1])
-        testdir = os.path.join(pyadfhome, 'test', 'testinputs', self._testname)
+        testdir = str(resourcefiles('pyadf.test.testinputs').joinpath(self._testname))
 
         # copy test input to temporary directory
         shutil.copy(os.path.join(testdir, self._testname + ".pyadf"), self._tempdirname)
@@ -127,8 +126,7 @@ def make_testinputs_suite(tests="all", testnames=None, dalton=True, adf=True, di
     suite = unittest.TestSuite()
 
     # test directory
-    pyadfhome = os.path.sep.join(Utils.__file__.split(os.path.sep)[:-1])
-    testdir = os.path.join(pyadfhome, 'test', 'testinputs')
+    testdir = str(resourcefiles('pyadf.test').joinpath('testinputs'))
 
     if testnames is None:
         alltests = os.listdir(testdir)

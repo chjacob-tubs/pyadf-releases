@@ -25,6 +25,7 @@
 import os
 import sys
 import traceback
+from importlib.resources import files as resourcefiles
 
 try:
     import cProfile as profile
@@ -82,7 +83,7 @@ print()
 
 # directory where the pyadf source is
 print(" Directory of PyADF source:")
-print("     ",         os.path.sep.join(Utils.__file__.split(os.path.sep)[:-3]))
+print("     ", resourcefiles('pyadf'))
 print()
 
 VersionInfo.print_git_version_info()

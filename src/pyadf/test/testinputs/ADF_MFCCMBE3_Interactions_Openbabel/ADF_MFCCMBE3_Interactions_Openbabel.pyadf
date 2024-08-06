@@ -1,0 +1,34 @@
+import os
+from pyadf import *
+if 'pyadfenv' not in globals():
+    from pyadf.Initialization import *
+
+mol1 = molecule(os.path.join(pyadfenv.outdir, 'protein.pdb'), 'pdb')
+mol2 = molecule(os.path.join(pyadfenv.outdir, 'ligand.pdb'), 'pdb')
+
+settings = adfsettings(zlmfit=False)
+settings.set_save_tapes([21, 10])
+settings.set_functional('BLYP')
+settings.set_integration(4.0, becke='Normal')
+settings.set_ncycles(300)
+options = ['TOTALENERGY', 'NOSYM', 'NOSYMFIT']
+core = 'None'
+basis = 'SZ'
+caps = 'mfcc'
+mbe2cutoff = None
+mbe3cutoff = None
+
+
+def calculate_mol(mol):
+    res = adfsinglepointjob(mol, settings=settings, core=core, basis=basis, options=options).run()
+    return res
+
+
+frags = cappedfragmentlist()
+frags.partition_protein(mol1, caps=caps, fragsize=1)
+
+mfccmbe_res = MFCCMBE3InteractionJob(frags, mol2, jobfunc=calculate_mol, caps=caps, mbe2cutoff=mbe2cutoff, mbe3cutoff=mbe3cutoff).run()
+inten_mfccmbe = mfccmbe_res.get_total_interaction_energy()
+
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(inten_mfccmbe, -0.00245824898664182, 6)

@@ -188,6 +188,7 @@ class grid:
     def weights(self):
         """
         The weights of the gridpoints in a numpy array. Read-only.
+        The weights are always in the unit bohr^3.
         """
         if self._weights is None:
             self._weights = self._get_weights()
@@ -199,13 +200,13 @@ class grid:
 
         The iteration is performed in the same order as for the
         weights in L{weightiter}
-        The coordinates are give in Angstrom units.
+        The coordinates are given in Angstrom units by default.
 
         @exampleuse:
 
             Iteration over grid points and weights
 
-            >>> for c, w in zip(grid.coorditer(), grid.weightiter()) :
+            >>> for c, w in zip(grid.coorditer(bohr=True), grid.weightiter()) :
             >>>     print "Coordinates of grid point: ", c
             >>>     print "Weight of grid point: ", w
 
@@ -213,25 +214,28 @@ class grid:
         """
         raise NotImplementedError
 
-    def weightiter(self):
+    def weightiter(self, bohr=True):
         """
         Iteratator over the weights of the grid points.
 
         The iteration is performed in the same order as for the
         coordinates in L{coorditer}
-        The coordinates are give in Angstrom units.
+        The weights are given in bohr^3 by default.
 
         @exampleuse:
 
             Iteration over grid points and weights
 
-            >>> for c, w in zip(grid.coorditer(), grid.weightiter()) :
+            >>> for c, w in zip(grid.coorditer(bohr=True), grid.weightiter()) :
             >>>     print "Coordinates of grid point: ", c
             >>>     print "Weight of grid point: ", w
 
         @rtype: iterator
         """
-        return self.weights.__iter__()
+        if bohr:
+            return self.weights.__iter__()
+        else:
+            (self.weights * Units.conversion('bohr', 'angstrom')**3).__iter__()
 
 
 class cubegrid(grid):
@@ -684,9 +688,8 @@ class pyscfgrid(grid):
             self._level = None
         self._pyscf_grid_obj = self._pyscf_grid_obj.run()
         self._coords = self._pyscf_grid_obj.coords
-        self._weights = self._pyscf_grid_obj.weights
 
-        self._npoints = self._coords.shape[0]
+        self._npoints = self.get_number_of_points()
 
     @property
     def checksum(self):
@@ -703,7 +706,7 @@ class pyscfgrid(grid):
         return self._checksum
 
     def get_number_of_points(self):
-        return self._npoints
+        return self._coords.shape[0]
 
     def get_grid_block(self, checksumonly):
         block = " GRID IMPORT TAPE10 \n"
@@ -732,6 +735,9 @@ class pyscfgrid(grid):
         for i in range(self._npoints):
             yield self._coords[i, :] * conv
         return
+
+    def _get_weights(self):
+        return self._pyscf_grid_obj.weights
 
 
 class customgrid(grid):

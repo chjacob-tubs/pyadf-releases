@@ -28,7 +28,7 @@ frags1.partition_protein(mol1, caps=caps, fragsize=1)
 frags2 = cappedfragmentlist()
 frags2.partition_protein(mol2, caps=caps, fragsize=1)
 
-mfccmbe_res = mfccmbe2interactionjob(frags1, frags2, jobfunc=calculate_mol, caps=caps, cutoff=cutoff).run()
+mfccmbe_res = MFCCMBE2InteractionJob(frags1, frags2, jobfunc=calculate_mol, caps=caps, cutoff=cutoff).run()
 inten_mfccmbe = mfccmbe_res.get_total_interaction_energy()
 
 if 'unittesting' in pyadfenv.options:

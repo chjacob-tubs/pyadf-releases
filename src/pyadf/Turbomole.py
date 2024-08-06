@@ -374,6 +374,8 @@ class _TurbomoleEnergyResults(TurbomoleResults):
         else:
             raise PyAdfError('Invalid method in TurbomoleResults.get_energy')
 
+    get_total_energy = get_energy
+
     def get_scf_energy(self):
         """
         Get the final (or, if it is a single point computation, the only)

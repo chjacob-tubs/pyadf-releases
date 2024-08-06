@@ -466,6 +466,10 @@ class cappedfragmentlist(fragmentlist):
     def caps(self):
         return self._caps
 
+    @property
+    def frags(self):
+        return self._frags
+
     def set_charges(self, reschargelist=None):
         """
         sets charges for every cappedfragment
@@ -719,7 +723,7 @@ class cappedfragmentlist(fragmentlist):
             caps = 'mfcc'
 
         if caps == 'mfcc':
-            sp = '[NX3,NX4][C;X4;H1,H2][CX3](=O)[NX3][C;X4;H1,H2][CX3](=O)'
+            sp = '[NX2,NX3,NX4][C;X4;H1,H2][CX3](=O)[NX3][C;X4;H1,H2][CX3](=O)'
             # this SMARTS pattern matches all peptide bonds
             #
             # (in this comment: atom numbering starts at 1;
@@ -730,7 +734,7 @@ class cappedfragmentlist(fragmentlist):
             # part 2 (n-part): atoms 4-5
 
         elif caps == 'hydrogen':
-            sp = '[NX3,NX4][C;X4;H1,H2][CX3](=O)[NX3]([*])[C;X4;H1,H2][CX3](=O)'
+            sp = '[NX2,NX3,NX4][C;X4;H1,H2][CX3](=O)[NX3]([*])[C;X4;H1,H2][CX3](=O)'
             # same as above, but also matches any atom bound to the nitrogen
             # the * might not be a good idea, but [C,H] was not working...
             # (this is needed for the proper calculation of the hydrogen coordinates)
@@ -740,6 +744,7 @@ class cappedfragmentlist(fragmentlist):
 
         maplist = mol.get_smarts_matches(sp)
         for mp in maplist:
+            chainid, resname, resnum = mol.get_atom_resinfo(mp[0])
             if {res_of_atoms[mp[4] - 1], res_of_atoms[mp[2] - 1]} not in non_capped_res:
 
                 capped_bonds.append({mp[2], mp[4]})
@@ -750,8 +755,8 @@ class cappedfragmentlist(fragmentlist):
                     cap_n = mp[4:6] + mol.find_adjacent_hydrogens(mp[4:6])
                     m_cap = mol.get_fragment(cap_o + cap_n)
                     m_cap.set_spin(0)
-                    m_cap.set_residue('CAP', 1, atoms=list(range(1, len(cap_o) + 1)))
-                    m_cap.set_residue('CAP', 2, atoms=list(range(len(cap_o) + 1, len(cap_o + cap_n) + 1)))
+                    m_cap.set_residue('CAP', 1, chain=chainid, atoms=list(range(1, len(cap_o) + 1)))
+                    m_cap.set_residue('CAP', 2, chain=chainid, atoms=list(range(len(cap_o) + 1, len(cap_o + cap_n) + 1)))
 
                     m_cap.add_hydrogens_to_sp3_c(1)
                     m_cap.add_hydrogens_to_sp2_n(len(cap_o) + 1)
@@ -768,8 +773,8 @@ class cappedfragmentlist(fragmentlist):
                     m_cap.add_atoms(['H'], ccap.get_coordinates([4]), bond_to=1)
 
                     m_cap.set_spin(0)
-                    m_cap.set_residue('CAP', 1, atoms=[1])
-                    m_cap.set_residue('CAP', 2, atoms=[2])
+                    m_cap.set_residue('CAP', 1, chain=chainid, atoms=[1])
+                    m_cap.set_residue('CAP', 2, chain=chainid, atoms=[2])
 
                     m_cap.set_symmetry('NOSYM')
 
@@ -790,7 +795,7 @@ class cappedfragmentlist(fragmentlist):
         # SMARTS pattern for disulfde bonds
 
         for mps in maplist_sulfide:
-
+            chainid, resname, resnum = mol.get_atom_resinfo(mps[0])
             if {res_of_atoms[mps[2] - 1], res_of_atoms[mps[1] - 1]} not in non_capped_res:
 
                 capped_bonds.append({mps[1], mps[2]})
@@ -801,8 +806,8 @@ class cappedfragmentlist(fragmentlist):
                     cap_s2 = mps[2:] + mol.find_adjacent_hydrogens(mps[2:])
                     m_cap_s = mol.get_fragment(cap_s1 + cap_s2)
                     m_cap_s.set_spin(0)
-                    m_cap_s.set_residue('SCP', 1, atoms=list(range(1, len(cap_s1) + 1)))
-                    m_cap_s.set_residue('SCP', 2, atoms=list(range(len(cap_s1) + 1, len(cap_s1 + cap_s2) + 1)))
+                    m_cap_s.set_residue('SCP', 1, chain=chainid, atoms=list(range(1, len(cap_s1) + 1)))
+                    m_cap_s.set_residue('SCP', 2, chain=chainid, atoms=list(range(len(cap_s1) + 1, len(cap_s1 + cap_s2) + 1)))
 
                     m_cap_s.add_hydrogens_to_sp3_c(1)
                     m_cap_s.add_hydrogens_to_sp3_c(len(cap_s1) + 2)
@@ -822,8 +827,8 @@ class cappedfragmentlist(fragmentlist):
                     m_cap_s.add_atoms(['H'], h1_coord, bond_to=1)
 
                     m_cap_s.set_spin(0)
-                    m_cap_s.set_residue('SCP', 1, atoms=[1])
-                    m_cap_s.set_residue('SCP', 2, atoms=[2])
+                    m_cap_s.set_residue('SCP', 1, chain=chainid, atoms=[1])
+                    m_cap_s.set_residue('SCP', 2, chain=chainid, atoms=[2])
 
                     m_cap_s.set_symmetry('NOSYM')
 

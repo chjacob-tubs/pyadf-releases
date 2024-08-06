@@ -8,11 +8,15 @@ variables:
     CONDA_ENV_BASE: ci_pyadf
 
 workflow:
-    rules:
+    rules: # these are the rules for any pipelines to start
         - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
         - if: '$CI_PIPELINE_SOURCE == "web"'
+        - if: '$CI_PIPELINE_SOURCE == "schedule"'
 
 default:
+    id_tokens: # mandatory to authenticate with runner, see issue #75
+        SITE_ID_TOKEN:
+            aud: https://gitlab.pyadf.org
     before_script:
         - hostname
         - . /usr/share/modules/init/bash
@@ -32,7 +36,10 @@ stages:
     - obfree
     - cleanup
 
-install_pyadf:
+install_pyadf_static:
+    rules: # these are the rules that lead to the static conda env
+        - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+        - if: '$CI_PIPELINE_SOURCE == "web"'
     before_script:
         - hostname
         - . /usr/share/modules/init/bash
@@ -48,11 +55,29 @@ install_pyadf:
     script:
         - pip install .
 
+install_pyadf_nightly:
+    rules: # these are the rules that lead to conda installing most recent versions
+        - if: '$CI_PIPELINE_SOURCE == "schedule"' # schedules can be created via the web interface
+    before_script:
+        - hostname
+        - . /usr/share/modules/init/bash
+        - . /usr/share/modules/init/setup
+        - module load locvib/master-20221116 # always install the newest version of locvib as well?
+        - module load $CONDA_MODULE_LOAD
+        - conda env list # to see whether there are any left-over conda environments that were missed during cleanup
+        - conda env remove --name $CONDA_ENV --yes
+        - conda create -c conda-forge -n $CONDA_ENV numpy scipy pyscf openbabel xcfun rdkit
+        - conda activate $CONDA_ENV
+    tags:
+        - nodes
+    stage: build
+    script:
+        - pip install .
+
 doctests-openbabel:
     tags:
         - nodes
     stage: general
-    needs: ["install_pyadf"]
     script:
         - test_pyadf --jobrunnerconf $PYADFHOME/src/pyadf/test/test_pyadf.conf --molclass=openbabel --tests=doctests
 
@@ -60,7 +85,6 @@ doctests-rdkit:
     tags:
         - nodes
     stage: general
-    needs: ["install_pyadf"]
     script:
         - test_pyadf --jobrunnerconf $PYADFHOME/src/pyadf/test/test_pyadf.conf --molclass=rdkit --tests=doctests
 
@@ -68,7 +92,6 @@ unittests:
     tags:
         - nodes
     stage: general
-    needs: ["install_pyadf"]
     script:
         - test_pyadf --jobrunnerconf $PYADFHOME/src/pyadf/test/test_pyadf.conf --molclass=openbabel --tests=unittests
 

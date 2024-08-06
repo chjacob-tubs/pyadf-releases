@@ -1,0 +1,55 @@
+import os
+from pyadf import *
+if 'pyadfenv' not in globals():
+    from pyadf.Initialization import *
+
+mol1 = molecule(os.path.join(pyadfenv.outdir, 'beta_strand_1.pdb'), 'pdb')
+
+settings = adfsettings()
+settings.set_save_tapes([21, 10])
+settings.set_functional('BP86')
+settings.set_integration(4.0, becke='Normal')
+settings.set_ncycles(200)
+options = ['TOTALENERGY', 'NOSYM', 'NOSYMFIT']
+core = 'None'
+basis = 'SZ'
+caps = 'mfcc'
+cutoff = 4.0
+order = 2
+
+
+def calculate_mol(mol):
+    res = adfsinglepointjob(mol, settings=settings, core=core, basis=basis, options=options).run()
+    return res
+
+
+settings.set_ncycles(1)
+sp_res = adfsinglepointjob(mol1, settings=settings, core=core, basis=basis, options=options).run()
+agrid = adfgrid(sp_res)
+settings.set_ncycles(200)
+
+frags = cappedfragmentlist()
+frags.partition_protein(mol1, caps=caps, fragsize=1)
+
+# eb-MFCC Job
+eb_mfcc_res = GeneralMFCCJob(frags, jobfunc=calculate_mol).run()
+eb_mfcc_toten = eb_mfcc_res.get_total_energy()
+
+# db-MFCC Job
+db_mfcc_res = DensityBasedMFCCJob(eb_mfcc_res, mol1, agrid).run()
+db_mfcc_toten = db_mfcc_res.get_correction_energy()
+
+# eb-MFCC-MBE(2) Job
+eb_mfccmbe2_res = MFCCMBE2Job(frags, calculate_mol, caps=caps, cutoff=cutoff, order=order).run()
+eb_mfccmbe2_toten = eb_mfccmbe2_res.get_total_energy()
+
+# db-MFCC-MBE(2) Job
+db_mfccmbe2_res = DensityBasedMFCCMBE2Job(eb_mfccmbe2_res, mol1, grid=agrid, order=order).run()
+db_mfccmbe2_toten = db_mfccmbe2_res.get_correction_energy()
+
+
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(eb_mfcc_toten, -830.5897305401791, 6)
+    testobj.assertAlmostEqual(db_mfcc_toten, 0.002238530240987302, 6)
+    testobj.assertAlmostEqual(eb_mfccmbe2_toten, -830.588221931436, 6)
+    testobj.assertAlmostEqual(db_mfccmbe2_toten, -1.7577288627983663e-05, 6)

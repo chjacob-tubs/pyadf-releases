@@ -1,4 +1,4 @@
 conda create -c conda-forge -n SOMENAME xcfun numpy scipy pyscf openbabel rdkit
 conda activate SOMENAME
-conda env export > $PYADFHOME/test/test_env.yml
+conda env export > $YOUR_PYADF_HOME/src/pyadf/test/test_env.yml
 remove last line in the file

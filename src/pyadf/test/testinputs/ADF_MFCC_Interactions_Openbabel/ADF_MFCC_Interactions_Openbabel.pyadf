@@ -26,7 +26,7 @@ def calculate_mol(mol):
 frags = cappedfragmentlist()
 frags.partition_protein(mol1, caps=caps, fragsize=1)
 
-mfcc_res = mfccinteractionjob(frags, mol2, jobfunc=calculate_mol, cutoff=cutoff).run()
+mfcc_res = MFCCInteractionJob(frags, mol2, jobfunc=calculate_mol, cutoff=cutoff).run()
 inten_mfcc = mfcc_res.get_total_interaction_energy()
 
 if 'unittesting' in pyadfenv.options:

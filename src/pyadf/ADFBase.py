@@ -332,9 +332,6 @@ class scmjob(job):
             runscript += "$AMSBIN/" + program + " -n1 " + inp + " || exit $? \n"
         else:
             runscript += f"export NSCM={nproc:d} \n\n"
-            runscript += 'if [ -n "$SLURM_JOB_ID" ]; then \n'
-            runscript += f'   export SCM_MPIOPTIONS="-np {nproc:d}" \n'
-            runscript += 'fi \n'
             runscript += "$AMSBIN/" + program + " " + inp + " || exit $? \n"
         if inputfile is None:
             runscript += self.get_input()

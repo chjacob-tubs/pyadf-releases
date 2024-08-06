@@ -32,6 +32,7 @@ from .BaseJob import metajob, results
 from .ADFBase import adfresults
 
 import numpy as np
+import math
 try:
     import xcfun
 except ImportError:
@@ -222,10 +223,10 @@ class MBEJob(metajob):
         mbe_results = self.create_results_instance()
 
         calculation = 1  # does not represent the number of calculations actually done
-        total_combs = sum(np.math.comb(self.nfrag, i) for i in range(1, self.order + 1))
+        total_combs = sum(math.comb(self.nfrag, i) for i in range(1, self.order + 1))
 
         for order in range(1, self.order + 1):
-            combs_at_lvl = np.math.comb(self.nfrag, order)
+            combs_at_lvl = math.comb(self.nfrag, order)
             for c in itertools.combinations(list(range(self.nfrag)), order):
                 if calculation % self.divisor == self.batch:
                     # actual calculation here

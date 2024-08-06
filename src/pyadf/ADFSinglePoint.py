@@ -175,7 +175,7 @@ class adfsettings(amssettings):
         self.set_exactdensity(False)
         self.set_save_tapes()
         self.set_lshift(None)
-        self.ncycles = ncycles
+        self.set_ncycles(ncycles)
 
     def __str__(self):
         """
@@ -504,7 +504,7 @@ class adfsettings(amssettings):
         @param ncycles: set maximum number of SCF cycles.
         @type  ncycles: int
         """
-        self.ncycles = ncycles
+        self.ncycles = int(ncycles)
 
     def set_dependency(self, use_dep, bas=1e-3, fit=1e-8):
         """
@@ -650,6 +650,8 @@ class adfsettings(amssettings):
                 if re.search('KEEPORBITALS', occ.upper()):
                     occopts.append(occ)
                 elif re.search('SMEARQ', occ.upper()):
+                    occopts.append(occ)
+                elif re.search('INTEGERAUFBAU', occ.upper()):
                     occopts.append(occ)
                 else:
                     occs.append(occ)

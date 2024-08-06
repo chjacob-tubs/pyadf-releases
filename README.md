@@ -154,7 +154,7 @@ and manage your QC software (see section QC dependencies).
 A single test can be run by using:
 
 ```bash
-test_pyadf --kep --save --singletest=Orca_SinglePoint_Dipole
+test_pyadf --keep --save --singletest=Orca_SinglePoint_Dipole
 ```
 
 see also:

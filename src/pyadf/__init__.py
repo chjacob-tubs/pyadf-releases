@@ -201,7 +201,8 @@
 
 """
 
-__version__ = '1.3'
+from importlib.metadata import version as resource_version
+__version__ = resource_version('pyadf')
 from .Utils import VersionInfo
 
 # noinspection PyUnresolvedReferences
@@ -262,8 +263,9 @@ except ImportError:
     pass
 
 try:
-    from .MFCCMBE2 import mfccmbe2results, mfccmbe2job, mfccmbe2interactionresults, mfccmbe2interactionjob,\
-        generalmfccresults, generalmfccjob, mfccinteractionresults, mfccinteractionjob
+    from .MFCCMBE import GeneralMFCCResults, GeneralMFCCJob, DensityBasedMFCCResults, DensityBasedMFCCJob, MFCCInteractionResults, \
+        MFCCInteractionJob, MFCCMBE2Results, MFCCMBE2Job, DensityBasedMFCCMBE2Results, DensityBasedMFCCMBE2Job, \
+        MFCCMBE2InteractionResults, MFCCMBE2InteractionJob, MFCCMBE3InteractionResults, MFCCMBE3InteractionJob
 except ImportError:
     pass
 

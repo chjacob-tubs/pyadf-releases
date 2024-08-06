@@ -28,10 +28,10 @@ frags.partition_protein(helix_mol, caps=caps, fragsize=1)
 reschargelist = [['A1', 1], ['A4', -1]]
 frags.set_charges(reschargelist=reschargelist)
 
-mfcc_res = generalmfccjob(frags, jobfunc=calculate_mol).run()
+mfcc_res = GeneralMFCCJob(frags, jobfunc=calculate_mol).run()
 toten_mfcc = mfcc_res.get_total_energy()
 
-mfccmbe_res = mfccmbe2job(frags, jobfunc=calculate_mol, caps=caps, cutoff=cutoff).run()
+mfccmbe_res = MFCCMBE2Job(frags, jobfunc=calculate_mol, caps=caps, cutoff=cutoff).run()
 toten_mfccmbe = mfccmbe_res.get_total_interaction_energy()
 
 if 'unittesting' in pyadfenv.options:

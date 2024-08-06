@@ -22,11 +22,11 @@ frags = cappedfragmentlist()
 frags.partition_protein(helix_mol, caps=caps, fragsize=1)
 
 # RUN MFCC-MBE(2) JOB
-mfccmbe_res = mfccmbe2job(frags, jobfunc=calculate_mol, caps=caps, cutoff=cutoff).run()
+mfccmbe_res = MFCCMBE2Job(frags, jobfunc=calculate_mol, caps=caps, cutoff=cutoff).run()
 toten_mfccmbe = mfccmbe_res.get_total_interaction_energy()
 
 # RUN MFCC JOB
-mfcc_res = generalmfccjob(frags, jobfunc=calculate_mol).run()
+mfcc_res = GeneralMFCCJob(frags, jobfunc=calculate_mol).run()
 toten_mfcc = mfcc_res.get_total_energy()
 
 

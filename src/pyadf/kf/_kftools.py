@@ -140,7 +140,7 @@ class KFReader:
             elif (vtype == 1) and (self.word == 'q'):
                 ret = np.empty(vlen, dtype=np.int64)
             elif vtype == 2:
-                ret = np.empty(vlen, dtype=np.float_)
+                ret = np.empty(vlen, dtype=np.float64)
             elif vtype == 4:
                 ret = np.empty(vlen, dtype=bool)
             else:
