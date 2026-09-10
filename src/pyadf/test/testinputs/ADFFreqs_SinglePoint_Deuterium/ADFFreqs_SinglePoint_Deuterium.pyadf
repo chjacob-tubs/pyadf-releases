@@ -23,7 +23,8 @@ np.savetxt(os.path.join(pyadfenv.outdir, 'modes.txt'), modes_c)
 
 freqs_orig = np.loadtxt(os.path.join(pyadfenv.outdir, 'freqs_orig.txt'))
 modes_c_orig = np.loadtxt(os.path.join(pyadfenv.outdir, 'modes_orig.txt'))
+overlap = np.dot(modes_c, modes_c_orig.T)
 
 if 'unittesting' in pyadfenv.options:
     testobj.assertAlmostEqual(freqs, freqs_orig, 6)
-    testobj.assertAlmostEqual(modes_c, modes_c_orig, 6)
+    testobj.assertAlmostEqual(np.abs(overlap.diagonal()), np.ones(30), 6)

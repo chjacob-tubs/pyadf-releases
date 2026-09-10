@@ -4,3 +4,4 @@ svn.authors
 *.ipynb_checkpoints
 build/
 src/PyADF.egg-info/
+.idea

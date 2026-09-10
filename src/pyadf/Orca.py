@@ -26,6 +26,9 @@ from .Errors import PyAdfError
 from .BaseJob import job
 from pyadf.PyEmbed.DensityEvaluator import GTODensityEvaluatorMixin
 
+import json
+import numpy as np
+
 
 class OrcaResults(GTODensityEvaluatorMixin):
     """
@@ -290,6 +293,9 @@ class OrcaResults(GTODensityEvaluatorMixin):
             m = en_re.match(line)
             if m:
                 energy = float(m.group('energy'))
+
+        if energy is None:
+            raise PyAdfError('SCF energy not found in Orca output')
         return energy
 
     def get_correlation_energy(self, what):
@@ -322,16 +328,9 @@ class OrcaResults(GTODensityEvaluatorMixin):
             m = en_re.match(line)
             if m:
                 energy = float(m.group('energy'))
+        if energy is None:
+            raise PyAdfError('Correlation energy not found in Orca output')
         return energy
-
-    def get_nuclear_repulsion_energy(self):
-        """
-        Return the nuclear repulsion energy (as read from TAPE).
-
-        @returns: the nuclear repulsion energy in atomic units
-        @rtype: float
-        """
-        return self.get_scf_energy('Nuclear Repulsion')
 
     def get_molecule(self):
         from .Molecule import molecule
@@ -346,14 +345,43 @@ class OrcaResults(GTODensityEvaluatorMixin):
         prop_fn = self.get_prop_filename()
 
         with open(prop_fn) as f:
-            lines = f.readlines()
-        found = None
-        for i, ll in enumerate(lines):
-            if 'Total Dipole moment:' in ll:
-                found = i
-        if found is None:
-            raise PyAdfError('Dipole moment not found in ORCA properties file')
-        vector = [float(ii.split()[1]) for ii in lines[found + 2:found + 5]]
+            properties = json.load(f)
+
+        vector = properties["Geometries"][-1]["Dipole_Moment"][0]["dipoleTotal"]
+        vector = [ii[0] for ii in vector]
+
+        return vector
+
+    def get_gradient(self):
+        """
+        Retrieves the gradient data by reading JSON properties file
+        and returns it as a 2D NumPy array.
+
+        Returns
+        -------
+        numpy.ndarray
+            A 2D NumPy array of shape `(num_atoms, 3)` containing the gradient values.
+            Each row represents the x, y, and z components of the gradient for a single atom.
+
+        """
+        prop_fn = self.get_prop_filename()
+
+        with open(prop_fn) as f:
+            properties = json.load(f)
+        print(json.dumps(properties, indent=4))
+
+        # try whether there is a gradient for the last entry
+        if "Nuclear_Gradient" in properties["Geometries"][-1]:
+            gradient = properties["Geometries"][-1]["Nuclear_Gradient"][0]
+        # in geometry optimizations, no gradient is calculated for the final geometry
+        elif "Nuclear_Gradient" in properties["Geometries"][-2]:
+            gradient = properties["Geometries"][-2]["Nuclear_Gradient"][0]
+        else:
+            raise PyAdfError('Gradient not found in Orca output')
+
+        numatoms = gradient["NAtoms"]
+
+        vector = np.array([ii[0] for ii in gradient["grad"]]).reshape(numatoms, 3)
         return vector
 
     def get_hess_values(self, values):
@@ -396,30 +424,27 @@ class OrcaExcitationResults(OrcaResults):
         super().__init__(j)
         self.resultstype = "Orca excitation (TD-DFT) results"
 
-    def read_cis_results(self):
+    def read_excitation_results(self, representation="Length"):
         import numpy as np
 
         prop_fn = self.get_prop_filename()
 
         with open(prop_fn) as f:
-            lines = f.readlines()
-        found = None
-        for i, ll in enumerate(lines):
-            if ll.startswith('$ CIS_ABS'):
-                found = i
-        if found is None:
+            properties = json.load(f)
+
+        print(json.dumps(properties["Geometries"][-1], indent=4))
+
+        exen_data = None
+        for data in properties["Geometries"][-1]["Absorption_Spectrum"] :
+            if data["Representation"] == "Length":
+                exen_data = data
+                break
+
+        if exen_data is None:
             raise PyAdfError('Excitation results not found in ORCA properties file')
 
-        nroots = int(lines[found + 4].split()[-1])
-
-        cis_results = []
-        for i in range(found + 7, found + 7 + nroots):
-            sequence = lines[i].strip().split()
-            sequence = [float(s) for s in sequence[1:]]
-            cis_results.append(sequence)
-
-        cis_results = np.array(cis_results)
-        return cis_results
+        exen_results = np.array(exen_data["ExcitationEnergies"])
+        return exen_results
 
     def get_excitation_energies(self):
         """
@@ -428,10 +453,7 @@ class OrcaExcitationResults(OrcaResults):
         @return: excitation energies
         @rtype: np.array
         """
-        from .Utils import au_in_eV
-
-        exens = self.read_cis_results()[:, 0]
-        exens = exens * au_in_eV
+        exens = self.read_excitation_results()[:, 0]
 
         return exens
 
@@ -442,7 +464,7 @@ class OrcaExcitationResults(OrcaResults):
         @return: oscillator strengths (dimensionless)
         @rtype: np.array
         """
-        return self.read_cis_results()[:, 1]
+        return self.read_excitation_results()[:, 3]
 
     def get_transition_dipole_vector(self):
         """
@@ -451,7 +473,7 @@ class OrcaExcitationResults(OrcaResults):
         @returns: Numpy array containing transition dipole moments.
         @rtype: np.array(nroots, 3)
         """
-        return self.read_cis_results()[:, 3:]
+        return self.read_excitation_results()[:, [5, 7, 9]]
 
 
 class OrcaSettings:
@@ -459,8 +481,8 @@ class OrcaSettings:
     Class that holds the settings for a orca calculation
     """
 
-    def __init__(self, method='DFT', basis='def2-SVP', functional='LDA', ri=None, disp=False, cpcm=None,
-                 memory=None, converge=None, maxiter=None, printmos=False):
+    def __init__(self, runtype=None, method='DFT', basis='def2-SVP', functional='LDA', ri=None,
+                 disp=False, cpcm=None, memory=None, converge=None, maxiter=None, printmos=False):
         """
         Constructor for OrcaSettings.
 
@@ -492,9 +514,11 @@ class OrcaSettings:
         @type printmos : bool
         """
         # declare all
+        self.runtype = None
         self.method = None
         self.basis = None
         self._functional = None
+        self._xcfun = False
         self.ri = None
         self.disp = None
         self.cpcm = None
@@ -511,6 +535,7 @@ class OrcaSettings:
         self.ignoreconv = None
 
         # initialize the setter
+        self.set_runtype(runtype)
         self.set_method(method)
         self.set_basis(basis)
         if self.method == 'DFT':
@@ -522,6 +547,17 @@ class OrcaSettings:
         self.set_converge(converge)
         self.set_maxiter(maxiter)
         self.set_printmos(printmos)
+
+    def set_runtype(self, runtype):
+        """
+        Select the computational method.
+
+        @param runtype: string identifying the selected runtype
+                        as defined in the orca manual.
+        @type  runtype: str
+        """
+        if runtype is not None: # None is already set
+            self.runtype = runtype.upper()
 
     def set_method(self, method):
         """
@@ -544,11 +580,20 @@ class OrcaSettings:
     @property
     def functional(self):
         if self.method == 'DFT':
-            return self._functional
+            if self._xcfun:
+                return self.get_xcfun_functional()
+            else:
+                return self._functional
         else:
             return None
 
-    def set_functional(self, functional):
+    def get_xcfun_functional(self):
+        if self._functional in ['BP', 'BP86']:
+            return 'gga_x_b88', 'gga_c_p86'
+        else:
+            raise PyAdfError('XFUN functional unknown')
+
+    def set_functional(self, functional, xcfun=False):
         """
         Select the exchange-correlation functional for DFT.
 
@@ -559,6 +604,7 @@ class OrcaSettings:
         """
         if self.method == 'DFT':
             self._functional = functional
+            self._xcfun = xcfun
         else:
             raise PyAdfError('Functional can only be set for DFT calculations')
 
@@ -647,6 +693,8 @@ class OrcaSettings:
         Set additional keywords for the calculation
 
         @param keywords: Avaible keywords. See Orca manual for available keywords.
+                         For keywords that can be set via other setter-functions,
+                         using those is preferable.
         @type  keywords: str or list or None
         @param append: If True, append the extra keywords to those already set.
         @type  append: bool
@@ -711,11 +759,23 @@ class OrcaSettings:
         return s
 
     def get_keywords(self):
-        kws = [self.method]
+        """
+        Get a list of the keywords for the short-style command
+        (the initial command which is introduced by an exclamation
+        mark, see the ORCA manual for reference)
+
+        @returns: a list of strings, which represent the keywords
+        @rtype:   list
+        """
+        kws = [] # keywords are always a list
+        if self.runtype:
+            kws.append(self.runtype)
+        kws.append(self.method)
         if self._functional not in ['PBEh-3C', 'HF-3C']:
             kws.append(self.basis)
         if self.method == 'DFT':
-            kws.append(self.functional)
+            if not self._xcfun:
+                kws.append(self.functional)
         if self.disp:
             kws.append(self.disp)
         if self.ri is not None:
@@ -730,6 +790,25 @@ class OrcaSettings:
         if self.extra_keywords is not None:
             kws = kws + self.extra_keywords
         return kws
+
+    def get_method_block(self):
+        block = ''
+        if self.method == 'DFT' and self._xcfun:
+            xcfun_x, xcfun_c = self.get_xcfun_functional()
+
+            block += "%Method\n"
+            block += " Method DFT\n"
+            block += f" Exchange {xcfun_x}\n"
+            block += f" Correlation {xcfun_c}\n"
+            block += "end\n"
+        return block
+
+    def get_output_block(self):
+        block = ''
+        block += "%Output\n"
+        block += " JSONPropFile True\n"
+        block += "end\n"
+        return block
 
     def get_scf_block(self):
         block = ''
@@ -758,6 +837,9 @@ class OrcaSettings:
 
     def get_input_blocks(self):
         blocks = ''
+        blocks += self.get_output_block()
+        if self._xcfun:
+            blocks += self.get_method_block()
         blocks += self.get_scf_block()
         if 'CC' in self.method or 'CI' in self.method:
             blocks += self.get_mdci_block()
@@ -841,7 +923,7 @@ class OrcaJob(job):
     Corresponding results class: L{OrcaResults}
     """
 
-    def __init__(self, mol, settings=None, deuterium=None):
+    def __init__(self, mol, settings=None, deuterium=None, runtype='SP'):
         """
         Constructor
         """
@@ -854,10 +936,9 @@ class OrcaJob(job):
         else:
             self.settings = settings
 
-        super().__init__()
+        self.settings.set_runtype(runtype)
 
-    def print_jobtype(self):
-        return "Orca job"
+        super().__init__()
 
     def get_molecule(self):
         return self.mol
@@ -912,7 +993,7 @@ class OrcaJob(job):
         return runscript
 
     def result_filenames(self):
-        return ['INPUT.gbw', 'INPUT_property.txt', 'INPUT.engrad', 'INPUT.xyz',
+        return ['INPUT.gbw', 'INPUT.property.json', 'INPUT.engrad', 'INPUT.xyz',
                 'INPUT_trj.xyz', 'INPUT.molden.input', 'INPUT.mdci.optorb',
                 'INPUT.scfp', 'INPUT.hess', 'INPUT.inp']
 
@@ -961,6 +1042,7 @@ class OrcaJob(job):
             orcafile += '%pointcharges "pointcharges.pc"\n'
 
         orcafile += f"*xyz {self.mol.get_charge():d} {self.mol.get_spin() + 1:d} \n"
+        # Job Mol Interface
         xyz_file = self.mol.get_xyz_file()
 
         if self.deuterium is not None:
@@ -986,6 +1068,17 @@ class OrcaJob(job):
         m = hashlib.md5()
         m.update(self.get_orcafile().encode('utf-8'))
         return m.hexdigest()
+
+    def print_jobtype(self):
+        """
+        The class names are descriptive enough so that they
+        can serve as a jobtype descriptor. Has to be defined
+        for every inheritor of job.
+
+        @returns: name of the class
+        @rtype:   str
+        """
+        return self.__class__.__name__
 
     def print_molecule(self):
 
@@ -1025,14 +1118,8 @@ class OrcaSinglePointJob(OrcaJob):
     Corresponding results class: L{OrcaResults}
     """
 
-    def __init__(self, mol, settings=None, deuterium=None):
-        super().__init__(mol, settings, deuterium)
-
-    def print_jobtype(self):
-        return "Orca single point job"
-
-    def get_keywords(self):
-        return ['SP'] + self.settings.get_keywords()
+    def __init__(self, mol, settings=None, deuterium=None, runtype='SP'):
+        super().__init__(mol, settings, deuterium, runtype)
 
 
 class OrcaGeometryOptimizationJob(OrcaJob):
@@ -1042,14 +1129,8 @@ class OrcaGeometryOptimizationJob(OrcaJob):
     Corresponding results class: L{OrcaResults}
     """
 
-    def __init__(self, mol, settings=None, deuterium=None):
-        super().__init__(mol, settings, deuterium)
-
-    def print_jobtype(self):
-        return "Orca geometry optimization job"
-
-    def get_keywords(self):
-        return ['OPT'] + self.settings.get_keywords()
+    def __init__(self, mol, settings=None, deuterium=None, runtype='OPT'):
+        super().__init__(mol, settings, deuterium, runtype)
 
 
 class OrcaFrequenciesJob(OrcaJob):
@@ -1059,14 +1140,8 @@ class OrcaFrequenciesJob(OrcaJob):
     Corresponding results class: L{OrcaResults}
     """
 
-    def __init__(self, mol, settings=None, deuterium=None):
-        super().__init__(mol, settings, deuterium)
-
-    def print_jobtype(self):
-        return "Orca frequencies job"
-
-    def get_keywords(self):
-        return ['FREQ'] + self.settings.get_keywords()
+    def __init__(self, mol, settings=None, deuterium=None, runtype='FREQ'):
+        super().__init__(mol, settings, deuterium, runtype)
 
 
 class OrcaOptFrequenciesJob(OrcaGeometryOptimizationJob):
@@ -1076,14 +1151,8 @@ class OrcaOptFrequenciesJob(OrcaGeometryOptimizationJob):
     Corresponding results class: L{OrcaResults}
     """
 
-    def __init__(self, mol, settings=None, deuterium=None):
-        super().__init__(mol, settings, deuterium)
-
-    def print_jobtype(self):
-        return "Orca optimization and frequencies job"
-
-    def get_keywords(self):
-        return ['OPT FREQ'] + self.settings.get_keywords()
+    def __init__(self, mol, settings=None, deuterium=None, runtype='OPT FREQ'):
+        super().__init__(mol, settings, deuterium, runtype)
 
 
 class OrcaExcitationsJob(OrcaSinglePointJob):
@@ -1093,7 +1162,7 @@ class OrcaExcitationsJob(OrcaSinglePointJob):
     Corresponding results class: L{OrcaResults}
     """
 
-    def __init__(self, mol, settings=None, tddft=None):
+    def __init__(self, mol, settings=None, tddft=None, runtype='SP'):
         """
         Constructor for OrcaExcitationsJob.
 
@@ -1103,7 +1172,7 @@ class OrcaExcitationsJob(OrcaSinglePointJob):
         @param tddft: Orca TDDFT settings
         @type tddft: L{OrcaTDDFTSettings}
         """
-        super().__init__(mol, settings)
+        super().__init__(mol=mol, settings=settings, runtype=runtype)
 
         if tddft is None:
             self.tddft_settings = OrcaTDDFTSettings()
@@ -1112,9 +1181,6 @@ class OrcaExcitationsJob(OrcaSinglePointJob):
 
         if not self.settings.method == 'DFT':
             raise PyAdfError("OrcaExcitationsJob currently only supports TDDFT")
-
-    def print_jobtype(self):
-        return "Orca excitation energy job"
 
     def create_results_instance(self):
         return OrcaExcitationResults(self)
@@ -1138,7 +1204,7 @@ class OrcaExStateGeoOptJob(OrcaExcitationsJob):
     Corresponding results class: L{OrcaResults}
     """
 
-    def __init__(self, mol, settings=None, tddft=None, iroot=1):
+    def __init__(self, mol, settings=None, tddft=None, iroot=1, runtype='OPT'):
         """
         Constructor for OrcaExStateGeoOptJob.
 
@@ -1150,14 +1216,9 @@ class OrcaExStateGeoOptJob(OrcaExcitationsJob):
         @param iroot: Solve geometry for state iroot
         @type iroot: int
         """
-        super().__init__(mol, settings, tddft=tddft)
+        super().__init__(mol, settings, tddft=tddft, runtype=runtype)
+        self.settings.set_functional(self.settings.functional, xcfun=True)
         self.tddft_settings.iroot = iroot
-
-    def print_jobtype(self):
-        return "Orca excited state geometry optimization job"
-
-    def get_keywords(self):
-        return ['OPT'] + self.settings.get_keywords()
 
 
 class OrcaExStateFrequenciesJob(OrcaExcitationsJob):
@@ -1167,7 +1228,7 @@ class OrcaExStateFrequenciesJob(OrcaExcitationsJob):
     Corresponding results class: L{OrcaResults}
     """
 
-    def __init__(self, mol, settings=None, tddft=None, iroot=1):
+    def __init__(self, mol, settings=None, tddft=None, iroot=1, runtype='FREQ'):
         """
         Constructor for OrcaExStateFrequenciesJob.
 
@@ -1179,11 +1240,5 @@ class OrcaExStateFrequenciesJob(OrcaExcitationsJob):
         @param iroot: Solve geometry for state iroot
         @type iroot: int
         """
-        super().__init__(mol, settings, tddft=tddft)
+        super().__init__(mol, settings, tddft=tddft, runtype=runtype)
         self.tddft_settings.iroot = iroot
-
-    def print_jobtype(self):
-        return "Orca excited state frequencies job"
-
-    def get_keywords(self):
-        return ['FREQ'] + self.settings.get_keywords()

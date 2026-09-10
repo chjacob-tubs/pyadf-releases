@@ -346,14 +346,16 @@ class fragment:
         if self.has_frag_results():
             for num_frag, m in enumerate(self._mols):
                 if len(self._mols) > 1:
-                    suffix = "f=" + self.fragname + "/" + str(num_frag + 1)
+                    suffix = "adf.f=" + self.fragname + "|" + str(num_frag + 1)
                 else:
-                    suffix = "f=" + self.fragname
+                    suffix = "adf.f=" + self.fragname
 
-                AtomsBlock += m.print_coordinates(index=False, suffix=suffix)
+                # Job Mol Interface
+                AtomsBlock += m.print_coordinates_for_ams_input(index=False, suffix=suffix)
         else:
             for m in self._mols:
-                AtomsBlock += m.print_coordinates(index=False)
+                # Job Mol Interface
+                AtomsBlock += m.print_coordinates_for_ams_input(index=False)
 
         return AtomsBlock
 
@@ -379,6 +381,15 @@ class fragment:
                 block += self._frag_results.checksum
             else:
                 block += self.get_fragment_filename()
+
+            block += "\n"
+
+        return block
+
+    def get_fdefragments_block(self):
+        block = ""
+        if self.has_frag_results() and (self.isfrozen or self.is_fde_fragment()):
+            block += "  " + self.fragname + "  "
 
             if self.is_fde_fragment():
                 if self._subfrag:
@@ -843,6 +854,13 @@ class fragmentlist:
                 block += frag.get_fragments_block(checksum_only)
         return block
 
+    def get_fdefragments_block(self):
+
+        block = ""
+        for frag in self.__iter__():
+            block += frag.get_fdefragments_block()
+        return block
+
     def get_fragoccupations_block(self):
         block = ""
         for frag in self.__iter__():
@@ -1061,6 +1079,19 @@ class adffragmentsresults(adfsinglepointresults):
 
     def get_frozen_molecule(self):
         return self.job.get_frozen_molecule()
+
+    def get_molecule(self):
+        return self.job.get_molecule()
+
+    def get_nuclear_repulsion_energy(self):
+        """
+        Return the nuclear repulsion energy.
+
+        @returns: the nuclear repulsion energy
+        @rtype:   float
+        """
+        mol = self.get_nonfrozen_molecule()
+        return mol.get_nuclear_repulsion_energy()
 
     #   @use_default_grid
     def get_fragment_density(self, grid=None, fit=False, orbs=None, order=None, frag=None):
@@ -1294,6 +1325,11 @@ class adffragmentsjob(adfsinglepointjob):
         super().__init__(None, basis, core=core, settings=settings,
                          pointcharges=pointcharges, fitbas=fitbas, options=options)
 
+        self.settings.set_tolerate_warnings('FDE in combination with ZlmFit not thoroughly tested. ' + \
+                                            'Consider using STOFIT')
+        if 'RELAXCYCLES' in self._fde:
+            self.settings.set_tolerate_warnings('doing final FDE cycle - FDE NOT converged')
+
         if self._fragments.has_fde_fragments():
             if 'ALLOW PARTIALSUPERFRAGS' not in self._options:
                 self._options.append('ALLOW PARTIALSUPERFRAGS')
@@ -1403,6 +1439,10 @@ class adffragmentsjob(adfsinglepointjob):
         block = " FRAGMENTS\n"
         block += self._fragments.get_fragments_block(self._checksum_only)
         block += " END\n\n"
+        if self._fragments.has_frozen_fragment():
+            block += " FDEFRAGMENTS\n"
+            block += self._fragments.get_fdefragments_block()
+            block += " END\n\n"
         return block
 
     def get_fragoccupations_block(self):

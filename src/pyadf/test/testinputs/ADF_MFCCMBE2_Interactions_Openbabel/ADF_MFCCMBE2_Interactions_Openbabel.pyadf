@@ -32,4 +32,4 @@ mfccmbe_res = MFCCMBE2InteractionJob(frags1, frags2, jobfunc=calculate_mol, caps
 inten_mfccmbe = mfccmbe_res.get_total_interaction_energy()
 
 if 'unittesting' in pyadfenv.options:
-    testobj.assertAlmostEqual(inten_mfccmbe, -0.03157290981624783, 6)
+    testobj.assertAlmostEqual(inten_mfccmbe, -0.05083035950815429, 6)

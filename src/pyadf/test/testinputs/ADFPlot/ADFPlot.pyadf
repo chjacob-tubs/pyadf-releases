@@ -82,7 +82,7 @@ if 'unittesting' in pyadfenv.options:
     testobj.assertAlmostEqual(cube_int, 10.40575, 3)
     testobj.assertAlmostEqual(cube_num_dipole[0], 0.0, 4)
     testobj.assertAlmostEqual(cube_num_dipole[1], 0.0, 4)
-    testobj.assertAlmostEqual(cube_num_dipole[2], 1.7748748, 4)
+    testobj.assertAlmostEqual(cube_num_dipole[2], 1.774777, 4)
 
 # test the squared density gradient
 

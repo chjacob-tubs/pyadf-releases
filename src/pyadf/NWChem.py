@@ -151,26 +151,6 @@ class nwchemsinglepointresults(nwchemresults, GTODensityEvaluatorMixin):
                 break
         return energy
 
-    def get_nuclear_repulsion_energy(self):
-        """
-        Return the nuclear repulsion energy
-
-        @returns: the nuclear repulsion energy in atomic units
-        @rtype: float
-        """
-
-        energy = 0.0
-
-        output = self.get_output()
-        en_re = re.compile(r"^ +Nuclear repulsion energy = *(?P<energy>-?\d+\.\d+)")
-
-        for line in output:
-            m = en_re.match(line)
-            if m:
-                energy = float(m.group("energy"))
-                break
-        return energy
-
     def get_total_energy(self):
         return self.get_energy()
 
@@ -524,6 +504,7 @@ class nwchemsinglepointjob(nwchemjob):
 
     def get_molecule_block(self):
         block = "geometry units angstrom noautoz nocenter noautosym\n"
+        # Job Mol Interface
         block += self.get_molecule().print_coordinates(index=False)
         block += 'end\n'
         block += 'charge ' + str(self.mol.get_charge()) + '\n'

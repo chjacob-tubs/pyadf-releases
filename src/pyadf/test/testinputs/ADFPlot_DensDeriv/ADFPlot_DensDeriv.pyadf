@@ -46,7 +46,7 @@ for typ, grid in [("cub", cgrid), ("adf", agrid)]:
 
     if 'unittesting' in pyadfenv.options:
         if typ == 'adf':
-            testobj.assertAlmostEqual(sqrgrad_int, 18330.621, 2)
+            testobj.assertAlmostEqual(sqrgrad_int, 18331.06, 2)
         testobj.assertAlmostEqual(diffgrad_int, 0.0, 6)
         testobj.assertAlmostEqual(orbdiffgrad_int, 0.0, 6)
 
@@ -97,7 +97,7 @@ for typ, grid in [("cub", cgrid), ("adf", agrid)]:
 
     if 'unittesting' in pyadfenv.options:
         if typ == 'adf':
-            testobj.assertAlmostEqual(lapl_int, 0.000504749, 8)
+            testobj.assertAlmostEqual(lapl_int, 0.00019692557, 8)
         testobj.assertAlmostEqual(difflapl_int, 0.0, 6)
         testobj.assertAlmostEqual(orbdifflapl_int, 0.0, 6)
 

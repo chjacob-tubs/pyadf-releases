@@ -89,6 +89,7 @@ class SerialJobRunner(JobRunner):
 
         f.write(f"#!{self._conf.default_shell} \n\n")
 
+        f.write('export OMP_NUM_THREADS=1\n')
         for mod in self._conf.get_env_modules_for_job(job):
             f.write(f'module load {mod} \n')
         f.write('\n')
@@ -113,7 +114,22 @@ class SerialJobRunner(JobRunner):
         os.remove(rsname)
 
         if retcode != 0:
-            raise PyAdfError("Error running job (non-zero return code)")
+            error_msg = "Error running job (non-zero return code)"
+            try:
+                with open(self._files.outputfilename, 'r') as outfile:
+                    last_5_lines = '\n'.join(outfile.readlines()[-5:])
+                    if last_5_lines:
+                        error_msg += '\nlast five lines of outfile '
+                        error_msg += f'({self._files.outputfilename}):\n'
+                        error_msg += last_5_lines
+                with open(self._files.errfilename, 'r') as errfile:
+                    last_5_lines = '\n'.join(errfile.readlines()[-5:])
+                    if last_5_lines:
+                        error_msg += '\nlast five lines of errfile '
+                        error_msg += f'({self._files.errfilename}):\n'
+                        error_msg += last_5_lines
+            finally:
+                raise PyAdfError(error_msg)
         if not job.check_success(self._files.outputfilename, self._files.errfilename):
             raise PyAdfError("Error running job (check_sucess failed)")
 

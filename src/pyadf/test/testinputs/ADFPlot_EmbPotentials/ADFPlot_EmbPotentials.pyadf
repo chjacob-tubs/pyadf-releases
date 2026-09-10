@@ -121,9 +121,7 @@ kinpot1_ndsd = fde_res.get_embedding_potential(grid=cgrid, pot="KINPOT NDSD").ge
 kinpot1_pw91k_cjcorr = fde_res.get_embedding_potential(grid=cgrid, pot="KINPOT PW91k CJCORR").get_values()[0, :, 0]
 
 # embedding potential with TF and NDSD
-print("CJCJ aa")
 embpot1_tf = embpot1_pw91k - kinpot1_pw91k + kinpot1_tf
-print("CJCJ bb")
 embpot1_ndsd = embpot1_pw91k - kinpot1_pw91k + kinpot1_ndsd
 
 ##############################################################################

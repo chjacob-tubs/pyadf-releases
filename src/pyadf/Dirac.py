@@ -361,6 +361,7 @@ class diracjob(job):
         runscript += "cat DIRAC.inp \n"
 
         runscript += "cat <<eor >MOLECULE.xyz \n"
+        # Job Mol Interface
         runscript += self.get_molecule().get_xyz_file()
         runscript += "eor\n"
         runscript += "cat MOLECULE.xyz \n"

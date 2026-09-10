@@ -107,6 +107,6 @@ for basisset in ['SZ']:
 ###################################################################
 
 if 'unittesting' in pyadfenv.options:
-    testobj.assertAlmostEqual(shieldings_supermol[0], 74.31, 2)
-    testobj.assertAlmostEqual(shifts[0], 17.93, 2)
-    testobj.assertAlmostEqual(shifts_corrected[0], 13.32, 2)
+    testobj.assertAlmostEqual(shieldings_supermol[0], 74.511, 2)
+    testobj.assertAlmostEqual(shifts[0], 17.841, 2)
+    testobj.assertAlmostEqual(shifts_corrected[0], 13.288, 2)

@@ -85,8 +85,8 @@ print("Integrated RMS error:           ", rmserr)
 
 if 'unittesting' in pyadfenv.options:
     testobj.assertAlmostEqual(integ, 0.000000, 4)
-    testobj.assertAlmostEqual(abserr, 0.200471, 4)
-    testobj.assertAlmostEqual(rmserr, 0.029052, 4)
+    testobj.assertAlmostEqual(abserr, 0.200113, 4)
+    testobj.assertAlmostEqual(rmserr, 0.028971, 4)
 
 ###################################################################################
 # now run the FDE calculation with freeze-and-thaw 
@@ -111,5 +111,5 @@ print("Integrated RMS error:           ", rmserr)
 
 if 'unittesting' in pyadfenv.options:
     testobj.assertAlmostEqual(integ, 0.000000, 4)
-    testobj.assertAlmostEqual(abserr, 0.186308, 4)
-    testobj.assertAlmostEqual(rmserr, 0.028706, 4)
+    testobj.assertAlmostEqual(abserr, 0.186425, 4)
+    testobj.assertAlmostEqual(rmserr, 0.028647, 4)

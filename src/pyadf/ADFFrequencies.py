@@ -50,10 +50,13 @@ class adffreq_mixin(adfsinglepointjob):
         if self.deuterium_list is not None:
             for atom in range(1, self.get_molecule().get_number_of_atoms() + 1):
                 if atom in self.deuterium_list:
+                    # Job Mol Interface
                     block += self.get_molecule().print_coordinates(atoms=[atom], index=False, suffix='mass=2.014101778')
                 else:
+                    # Job Mol Interface
                     block += self.get_molecule().print_coordinates(atoms=[atom], index=False)
         else:
+            # Job Mol Interface
             block += self.get_molecule().print_coordinates(index=False)
         block += " END\n"
         return block

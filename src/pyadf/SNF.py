@@ -134,12 +134,24 @@ class SNFJob(TurbomoleJob):
         # our working directory. Since the results object's method always makes
         # temporary files, we simply move them via high level OS operations.
 
-        filenames = ['coord', 'control', 'basis', 'mos']
+        print(self.converged_predecessor.get_result_file_list())
+        if 'mos' in self.converged_predecessor.get_result_file_list():
+            occ_files = ['mos']
+        elif 'alpha' in self.converged_predecessor.get_result_file_list() and 'beta' in self.converged_predecessor.get_result_file_list():
+            occ_files = ['alpha', 'beta']
+
+        filenames = ['coord', 'control', 'basis']
+
+        for occ_file in occ_files:
+            filenames.append(occ_file)
+
         if self.settings.ri:
             filenames.append('auxbasis')
+
         for filename in filenames:
             tempfilename = self.converged_predecessor.get_temp_result_filename(filename)
             shutil.move(tempfilename, filename)
+            print('Made it to here:', filename)
 
         # The next  step is to run  `snfdefine'. We don't care  much about this
         # but simply assemble  a standard input sequence (Answer  `tm' once and

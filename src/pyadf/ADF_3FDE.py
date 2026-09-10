@@ -70,7 +70,7 @@ class CapMoleculeMixin:
         @param atom: the atom number (Atom numbering starts at 1)
         @type atom:  int
         """
-        chain_id, resname, resnum = self.get_atom_resinfo(atom)
+        chain_id, resname, resnum, _ = self.get_atom_resinfo(atom)
 
         if resname == 'CAP':
             # even residue number: capid = 1
@@ -121,22 +121,23 @@ class CapMoleculeMixin:
         # noinspection PyUnresolvedReferences
         symbols = super().get_atom_symbols(atoms, ghosts, prefix_ghosts)
 
-        for i, at in enumerate(atoms):
-            if self.cap_id(at) == 1:
-                symbols[i] = symbols[i] + ".cap1"
-            elif self.cap_id(at) == 2:
-                symbols[i] = symbols[i] + ".cap2"
-            elif self.cap_id(at) == 3:
-                symbols[i] = symbols[i] + ".scap1"
-            elif self.cap_id(at) == 4:
-                symbols[i] = symbols[i] + ".scap2"
+        if prefix_ghosts:
+            for i, at in enumerate(atoms):
+                if self.cap_id(at) == 1:
+                    symbols[i] = symbols[i] + ".cap1"
+                elif self.cap_id(at) == 2:
+                    symbols[i] = symbols[i] + ".cap2"
+                elif self.cap_id(at) == 3:
+                    symbols[i] = symbols[i] + ".scap1"
+                elif self.cap_id(at) == 4:
+                    symbols[i] = symbols[i] + ".scap2"
 
         return symbols
 
     def get_noncap_fragment(self):
         atoms = []
         for i in range(1, self.get_number_of_atoms() + 1):
-            chain_id, resname, resnum = self.get_atom_resinfo(i)
+            chain_id, resname, resnum, _ = self.get_atom_resinfo(i)
 
             if not (resname == 'CAP' or resname == 'SCP'):
                 atoms.append(i)
@@ -332,20 +333,23 @@ class cappedfragment(fragment):
                 raise PyAdfError("Capped fragments must appear only once")
 
             mol = self.mol.get_noncap_fragment()
-            suffix = "f=" + self.fragname
-            atoms_block += mol.print_coordinates(index=False, suffix=suffix)
+            suffix = "adf.f=" + self.fragname
+            # Job Mol Interface
+            atoms_block += mol.print_coordinates_for_ams_input(index=False, suffix=suffix)
 
             for cap_frag, cap_res in zip(self._cap_fragments, self._cap_residue_nums):
                 if cap_res < 5:
                     mol = self.mol.get_residues(restype='CAP', resnum=cap_res)[0]
                     mol = capmolecule(mol)
-                    suffix = "f=" + self.fragname + "   fs=cap" + str(cap_frag.num_cap)
-                    atoms_block += mol.print_coordinates(index=False, suffix=suffix)
+                    suffix = "adf.f=" + self.fragname + "   adf.fs=cap" + str(cap_frag.num_cap)
+                    # Job Mol Interface
+                    atoms_block += mol.print_coordinates_for_ams_input(index=False, suffix=suffix)
                 elif cap_res > 4:
                     mol_s = self.mol.get_residues(restype='SCP', resnum=cap_res)[0]
                     mol_s = capmolecule(mol_s)
-                    suffix = "f=" + self.fragname + "   fs=scap" + str(cap_frag.num_cap)
-                    atoms_block += mol_s.print_coordinates(index=False, suffix=suffix)
+                    suffix = "adf.f=" + self.fragname + "   adf.fs=scap" + str(cap_frag.num_cap)
+                    # Job Mol Interface
+                    atoms_block += mol_s.print_coordinates_for_ams_input(index=False, suffix=suffix)
 
         return atoms_block
 
@@ -367,7 +371,7 @@ class cappedfragment(fragment):
                 capcoords = c.mol.get_coordinates()
                 for atomnum, coords in enumerate(newcoords):
                     if coords in capcoords:
-                        chainid, resname, resnum = newcappedfragment.mol.get_atom_resinfo(atomnum + 1)
+                        chainid, resname, resnum, _ = newcappedfragment.mol.get_atom_resinfo(atomnum + 1)
                         if resname == 'CAP' or resname == 'SCP':
                             tempcapresnums.append(resnum)
             if tempcapresnums:
@@ -393,7 +397,7 @@ class cappedfragment(fragment):
             capcoords = olcap.mol.get_coordinates()
             deletelist = []
             for atomnum, coords in enumerate(newmol.get_coordinates()):
-                chainid, resname, resnum = newmol.get_atom_resinfo(atomnum + 1)
+                chainid, resname, resnum, _ = newmol.get_atom_resinfo(atomnum + 1)
                 if coords in capcoords:
                     if resname == 'CAP' or resname == 'SCP':
                         deletelist.append(atomnum + 1)
@@ -481,7 +485,7 @@ class cappedfragmentlist(fragmentlist):
             natoms = frag.mol.get_number_of_atoms()
             chainresnumlist = []
             for i in range(natoms):
-                chain, resname, resnum = frag.mol.get_atom_resinfo(i+1)
+                chain, resname, resnum, _ = frag.mol.get_atom_resinfo(i+1)
                 if resname not in ['CAP', 'SCP']:
                     chainresnumlist.append(chain + str(resnum))
             charge = 0
@@ -519,6 +523,15 @@ class cappedfragmentlist(fragmentlist):
                 block += frag.get_fragments_block(checksum_only)
         for cap in self.capiter():
             block += cap.get_fragments_block(checksum_only)
+        return block
+
+    def get_fdefragments_block(self):
+        block = ""
+        for frag in self.fragiter():
+            if frag.has_frag_results():
+                block += frag.get_fdefragments_block()
+        for cap in self.capiter():
+            block += cap.get_fdefragments_block()
         return block
 
     def append_cap(self, cap, frag1, frag2):
@@ -744,7 +757,7 @@ class cappedfragmentlist(fragmentlist):
 
         maplist = mol.get_smarts_matches(sp)
         for mp in maplist:
-            chainid, resname, resnum = mol.get_atom_resinfo(mp[0])
+            chainid, resname, resnum, _ = mol.get_atom_resinfo(mp[0])
             if {res_of_atoms[mp[4] - 1], res_of_atoms[mp[2] - 1]} not in non_capped_res:
 
                 capped_bonds.append({mp[2], mp[4]})
@@ -795,7 +808,7 @@ class cappedfragmentlist(fragmentlist):
         # SMARTS pattern for disulfde bonds
 
         for mps in maplist_sulfide:
-            chainid, resname, resnum = mol.get_atom_resinfo(mps[0])
+            chainid, resname, resnum, _ = mol.get_atom_resinfo(mps[0])
             if {res_of_atoms[mps[2] - 1], res_of_atoms[mps[1] - 1]} not in non_capped_res:
 
                 capped_bonds.append({mps[1], mps[2]})

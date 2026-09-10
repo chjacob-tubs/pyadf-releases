@@ -33,7 +33,8 @@ import numpy as np
 h2o = molecule(os.path.join(pyadfenv.outdir, 'H2O.xyz'))
 h2o.set_symmetry('NOSYM')
 
-settings = adfsettings(functional='BP86', accint=4.0, converge=1e-04)
+settings = adfsettings(functional='BP86', converge=1e-04, zlmfit=False)
+settings.set_integration(accint=4.0, becke=False)
 settings.set_save_tapes([21, 10])
 
 basis = 'TZ2P'

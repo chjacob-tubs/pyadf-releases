@@ -22,12 +22,13 @@ default_shell = '/bin/zsh'
 _intel19_mods = ['ifort/19.1.053', 'icc/19.1.053', 'openmpi-intel19/3.1.6']
 _intel20_mods = ['ifort/20.0.088', 'openmpi-intel20/3.1.6']
 _intel22_mods = ['intel-oneapi/compiler/2022.2.0', 'intel-oneapi/mkl/2022.2.0', 'openmpi-intel22/4.1.4']
+_intel25_mods = ['intel-oneapi/compiler/2025.3.2', 'intel-oneapi/mkl/2025.3', 'openmpi-intel25/5.0.10']
 
 env_modules_load = {'scmjob': _intel20_mods + ['adf-openmpi/trunk-20221230'],
-                    'diracjob': _intel22_mods + ['dirac/master-20221231'],
-                    'daltonjob': _intel22_mods + ['dalton/master-20221231'],
+                    'diracjob': _intel25_mods + ['dirac/master-20260425'],
+                    'daltonjob': _intel25_mods + ['dalton/master-20260425'],
                     'TurbomoleJob': ['turbomole/7.6mpi'],
-                    'OrcaJob': ['openmpi/4.1.1', 'orca/5.0.3'],
+                    'OrcaJob': ['openmpi/4.1.8', 'orca/6.1.1'],
                     'nwchemjob': _intel22_mods + ['nwchem/7.0.2'],
                     'MolcasJob': _intel22_mods + ['OpenMolcas/v20.10'],
                     'QEJob': ['openmpi/4.1.4', 'espresso/eqe-master-20210204'],

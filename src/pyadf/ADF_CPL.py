@@ -270,9 +270,9 @@ class cplsettings:
         print('   Nuclear spin-spin coupling constants calculation:')
         print('   (nuclei in INPUT ORDER)\n')
         print('   >> Perturbing nuclei <<')
-        print(mol.print_coordinates(pnuc))
+        print(mol.print_coordinates(pnuc, f_format=(14, 5)))
         print('   >> Responding nuclei <<')
-        print(mol.print_coordinates(rnuc))
+        print(mol.print_coordinates(rnuc, f_format=(14, 5)))
         print('   Operators included in the calculation:')
         for op in self.operators:
             print('   - ' + operators[op])

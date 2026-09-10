@@ -15,31 +15,49 @@ follow these steps:
 
 1. Create and activate a new `conda` environment:
 
-```bash
-conda create -n your_env_name
-conda activate your_env_name
-```
+   ```bash
+   conda create -n your_env_name
+   conda activate your_env_name
+   ```
 
 2. Install `numpy` and other dependencies via `conda`:
 
-```bash
-conda install -c conda-forge numpy scipy xcfun pyscf openbabel rdkit
-```
+   ```bash
+   conda install -c conda-forge numpy scipy xcfun pyscf openbabel rdkit fortranformat
+   ```
 
-3. Install PyADF from the top level folder (where the `setup.py` resides):
+3. You can install PyADF like most other Python packages. There are two recommended
+   ways. Either way, install PyADF from the top level folder (where the `setup.py`
+   resides).
+   1. For a regular "immutable" installation of PyADF, you can use the following
+      command:
 
-```bash
-pip install .
-```
+      ```bash
+      pip install .
+      ```
+
+   2. Or, if you want the installation to be editable "in place" (your cloned
+      PyADF folder) for development, try the ```-e``` or ```--editable``` options
+      as provided by pip.
+
+      ```bash
+      pip install --editable .
+      ```
+
+      This approach is especially useful for development. Make sure that
+      your version of pip and, if applicable, conda are up-to-date so that
+      the stand in files and links created by this method of installation
+      work correctly. If you encounter issues with this approach, see if they
+      persist without the ```--editable``` option and let us know about it.
 
 4. Now you should be able to run the `pyadf` and `test_pyadf` scripts
-from the `conda` environment where you installed PyADF. There are some
-command line options which you can examine using the following commands:
+   from the `conda` environment where you installed PyADF. There are some
+   command line options which you can examine using the following commands:
 
-```bash
-pyadf --help
-test_pyadf --help
-```
+   ```bash
+   pyadf --help
+   test_pyadf --help
+   ```
 
 ### Requirements and Dependencies
 
@@ -48,7 +66,7 @@ There are two types of requirements for PyADF:
 1. PyADF is written in Python and depends on some Python-packages and libraries.
 
 2. PyADF is a scripting framework that can be used with a wide range of quantum chemistry
-software packages.
+   software packages.
 
 #### Python Requirements
 
@@ -57,6 +75,7 @@ software packages.
 especially embedding calculations.
 `openbabel` and `rdkit` are needed for extended functionality while handling molecules,
 but a molecule class that relies on neither exists as well.
+`fortranformat` is needed to manipulate files created by turbomole.
 The `src/pyadf/test/test_env.yml`-file tells you which versions of the Python dependencies
 the provided version of PyADF was most recently tested against.
 

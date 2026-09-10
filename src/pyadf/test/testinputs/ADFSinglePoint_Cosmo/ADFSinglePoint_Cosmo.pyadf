@@ -5,15 +5,15 @@ if 'pyadfenv' not in globals():
 
 
 def check_results_cosmo_hexane(etot, dip_vect, dip_magn):
-    testobj.assertAlmostEqual(etot, -76.35384175, 6)
-    testobj.assertAlmostEqual(dip_magn, 0.7715712187, 6)
-    testobj.assertAlmostEqual(dip_vect, [0.0, 0.0, 0.7715712187], 4)
+    testobj.assertAlmostEqual(etot, -76.3531960, 6)
+    testobj.assertAlmostEqual(dip_magn, 0.770546092, 6)
+    testobj.assertAlmostEqual(dip_vect, [0.0, 0.0, 0.770546092], 4)
 
 
 def check_results_cosmo_water(etot, dip_vect, dip_magn):
-    testobj.assertAlmostEqual(etot, -76.35254034, 6)
-    testobj.assertAlmostEqual(dip_magn, 0.8592634964, 6)
-    testobj.assertAlmostEqual(dip_vect, [0.0, 0.0, 0.8592634964], 4)
+    testobj.assertAlmostEqual(etot, -76.35189734, 6)
+    testobj.assertAlmostEqual(dip_magn, 0.858428886, 6)
+    testobj.assertAlmostEqual(dip_vect, [0.0, 0.0, 0.858428886], 4)
 
 
 h2o = molecule(os.path.join(pyadfenv.outdir, 'water.xyz'))

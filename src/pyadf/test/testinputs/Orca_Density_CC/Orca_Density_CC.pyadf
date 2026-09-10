@@ -39,7 +39,7 @@ int_dens_cube = dens_cube.integral()
 print("Integral of density (cube grid): ", int_dens_cube)
 
 if 'unittesting' in pyadfenv.options:
-    testobj.assertAlmostEqual(int_dens_cube, 9.839033263885797, 5)
+    testobj.assertAlmostEqual(int_dens_cube, 9.839084435283757, 5)
 
 # With pyscfgrid
 dens = r_h2o.get_density(grid=pgrid, order=1)
@@ -58,7 +58,7 @@ xc_energy_blyp = np.dot(pgrid.weights, endens)
 print("XC energy (BLYP, pyscf grid): ", xc_energy_blyp)
 
 if 'unittesting' in pyadfenv.options:
-    testobj.assertAlmostEqual(xc_energy_blyp, -9.31970003836753, 6)
+    testobj.assertAlmostEqual(xc_energy_blyp, -9.319699323880135, 6)
 
 #############################
 # OOCCD density simplified Z
@@ -77,7 +77,7 @@ int_dens_cube = dens_cube.integral()
 print("Integral of density (cube grid): ", int_dens_cube)
 
 if 'unittesting' in pyadfenv.options:
-    testobj.assertAlmostEqual(int_dens_cube, 9.839033263885797, 5)
+    testobj.assertAlmostEqual(int_dens_cube, 9.839082098061645, 5)
 
 # With pyscfgrid
 dens = r_h2o.get_density(grid=pgrid, order=1)
@@ -96,7 +96,7 @@ xc_energy_blyp = np.dot(pgrid.weights, endens)
 print("XC energy (BLYP, pyscf grid): ", xc_energy_blyp)
 
 if 'unittesting' in pyadfenv.options:
-    testobj.assertAlmostEqual(xc_energy_blyp, -9.319693330665642, 6)
+    testobj.assertAlmostEqual(xc_energy_blyp, -9.319693507883176, 6)
 
 #####################################
 # CCSD density via Brueckner orbitals
@@ -114,7 +114,7 @@ int_dens_cube = dens_cube.integral()
 print("Integral of density (cube grid): ", int_dens_cube)
 
 if 'unittesting' in pyadfenv.options:
-    testobj.assertAlmostEqual(int_dens_cube, 9.838079234700555, 5)
+    testobj.assertAlmostEqual(int_dens_cube, 9.838130886778666, 5)
 
 # With pyscfgrid
 dens = r_h2o.get_density(grid=pgrid, order=1)
@@ -133,7 +133,7 @@ xc_energy_blyp = np.dot(pgrid.weights, endens)
 print("XC energy (BLYP, pyscf grid): ", xc_energy_blyp)
 
 if 'unittesting' in pyadfenv.options:
-    testobj.assertAlmostEqual(xc_energy_blyp, -9.317747482876385, 6)
+    testobj.assertAlmostEqual(xc_energy_blyp, -9.317748960046652, 6)
 
 ##################################
 # HF density from CCSD calculation
@@ -150,7 +150,7 @@ int_dens_cube = dens_cube.integral()
 print("Integral of density (cube grid): ", int_dens_cube)
 
 if 'unittesting' in pyadfenv.options:
-    testobj.assertAlmostEqual(int_dens_cube, 9.839723514731437, 5)
+    testobj.assertAlmostEqual(int_dens_cube, 9.839792118637604, 5)
 
 # With pyscfgrid
 dens = r_h2o.get_density(grid=pgrid, order=1)
@@ -169,7 +169,7 @@ xc_energy_blyp = np.dot(pgrid.weights, endens)
 print("XC energy (BLYP, pyscf grid): ", xc_energy_blyp)
 
 if 'unittesting' in pyadfenv.options:
-    testobj.assertAlmostEqual(xc_energy_blyp, -9.320684652674174, 6)
+    testobj.assertAlmostEqual(xc_energy_blyp, -9.320768295679645, 6)
 
 ######################################
 # HF density from standard calculation

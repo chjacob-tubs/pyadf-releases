@@ -50,7 +50,7 @@
 from rdkit import Chem, Geometry
 
 from ..Errors import PyAdfError
-from ..Utils import pse, Bohr_in_Angstrom
+from ..Utils import pse, Bohr_in_Angstrom, Units
 from .BaseMolecule import BaseMolecule
 from .ProteinMolecule import ProteinMoleculeMixin
 
@@ -207,7 +207,7 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
             3)     H       -0.43479        4.75018        3.07278
 
         """
-        return "  Cartesian coordinates: \n" + self.print_coordinates(index=True)
+        return "  Cartesian coordinates: \n" + self.print_coordinates(index=True, f_format=(14, 5))
 
     def __add__(self, other):
         """
@@ -271,13 +271,14 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
 
         # if residue information is present, copy it to the new molecule
         for i in range(self.get_number_of_atoms()):
-            chainid, resname, resnum = self.get_atom_resinfo(i + 1)
+            chainid, resname, resnum, atname = self.get_atom_resinfo(i + 1)
             if (resname is not None) and (resnum is not None):
-                m.set_residue(resname, resnum, chainid, [i + 1])
+                m.set_residue(resname, resnum, chainid, [i + 1], atomids=[atname])
         for i in range(other.get_number_of_atoms()):
-            chainid, resname, resnum = other.get_atom_resinfo(i + 1)
+            chainid, resname, resnum, atname = other.get_atom_resinfo(i + 1)
             if (resname is not None) and (resnum is not None):
-                m.set_residue(resname, resnum, chainid, [self.get_number_of_atoms() + i + 1])
+                m.set_residue(resname, resnum, chainid, [self.get_number_of_atoms() + i + 1],
+                              atomids=[atname])
 
         return m
 
@@ -465,7 +466,7 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
             f = open(filename)
             lines = f.readlines()
             f.close()
-            natoms = self.mol.GetNumAtoms()
+            natoms = self.get_number_of_atoms()
 
             if inputformat == 'xyz':
                 startline = 2
@@ -482,7 +483,7 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
         else:
             raise PyAdfError("Error reading molecule " + inputformat + " " + filename)
 
-        numread = self.mol.GetNumAtoms() - len(self.is_ghost)
+        numread = self.get_number_of_atoms() - len(self.is_ghost)
         self.is_ghost += [ghosts] * numread
 
     def set_RDMol(self, mol):
@@ -522,30 +523,14 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
             to file
 
         """
-        if outputformat == 'mol':
+        if outputformat in ['xyz', 'tmol']:
+            super().write(filename, outputformat)
+        elif outputformat == 'mol':
             Chem.MolToMolFile(self.mol, filename)
         elif outputformat == 'pdb':
             Chem.MolToPDBFile(self.mol, filename, flavor=12)
-        elif outputformat == 'xyz':
-            f = open(filename, 'w')
-            f.write(self.get_xyz_file())
-            f.close()
-        elif outputformat == 'tmol':
-            f = open(filename, 'w')
-            f.write(self.get_tmol_file())
-            f.close()
         else:
             raise PyAdfError("Unknown file format in RDMolecule.write")
-
-    def get_tmol_file(self):
-        ratio = 1.0 / Bohr_in_Angstrom
-
-        tmolfile = '$coord\n'
-        for at, c in zip(self.get_atom_symbols(ghosts=False), self.get_coordinates(ghosts=False)):
-            tmolfile += f'{c[0] * ratio:20.14f} {c[1] * ratio:20.14f} {c[2] * ratio:20.14f} ' \
-                        f'{at.split(".")[0].lower():<8} \n'
-        tmolfile += '$end\n'
-        return tmolfile
 
     def set_symmetry(self, symmetry):
         """
@@ -773,7 +758,7 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
         if return_new_indices:
             return [ai + 1 for ai in new_atoms_indices]
 
-    def get_coordinates(self, atoms=None, ghosts=True):
+    def get_coordinates(self, atoms=None, ghosts=True, unit='angstrom'):
         """
         Give back an array with the coordinates.
 
@@ -799,17 +784,14 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
              [-0.43479, 4.75018, 3.07278]]
 
         """
-
-        if atoms is None:
-            atoms = list(range(1, self.mol.GetNumAtoms() + 1))
-            if not ghosts:
-                atoms = [i for i in atoms if not self.is_ghost[i - 1]]
+        atoms = self.get_atoms(atoms, ghosts=ghosts)
+        ratio = Units.conversion('angstrom', unit)
 
         coords = []
         c = self.mol.GetConformer()
         for i in atoms:
             a = c.GetAtomPosition(i - 1)
-            coords.append([a.x, a.y, a.z])
+            coords.append([a.x*ratio, a.y*ratio, a.z*ratio])
 
         return coords
 
@@ -828,7 +810,7 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
         center = np.zeros((3,))
         coords = self.get_coordinates()
         molwt = 0
-        for atom in range(self.mol.GetNumAtoms()):
+        for atom in range(self.get_number_of_atoms()):
             vec = np.array([coords[atom][0], coords[atom][1], coords[atom][2]])
             center += self.mol.GetAtomWithIdx(atom).GetMass() * vec
             molwt += self.mol.GetAtomWithIdx(atom).GetMass()
@@ -888,11 +870,7 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
             ['C', 'N', 'H']
 
         """
-
-        if atoms is None:
-            atoms = list(range(1, self.mol.GetNumAtoms() + 1))
-            if not ghosts:
-                atoms = [i for i in atoms if not self.is_ghost[i - 1]]
+        atoms = self.get_atoms(atoms, ghosts=ghosts)
 
         symbols = []
         for i in atoms:
@@ -934,10 +912,7 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
 
         """
 
-        if atoms is None:
-            atoms = list(range(1, self.mol.GetNumAtoms() + 1))
-            if not ghosts:
-                atoms = [i for i in atoms if not self.is_ghost[i - 1]]
+        atoms = self.get_atoms(atoms, ghosts=ghosts)
 
         nums = []
         for i in atoms:
@@ -949,7 +924,7 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
 
         return nums
 
-    def get_nuclear_dipole_moment(self, atoms=None):
+    def get_nuclear_dipole_moment(self, atoms=None, ghosts=True):
         """
         Gets the nuclear contribution to the dipole moment in atomic units.
         If an atomlist is given, the nuclear contribution is given atomwise.
@@ -979,8 +954,8 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
         printsum = False
 
         if atoms is None:
-            atoms = list(range(1, self.mol.GetNumAtoms() + 1))
             printsum = True
+        atoms = self.get_atoms(atoms, ghosts=ghosts)
 
         for coord, atomNum in zip(self.get_coordinates(atoms=atoms),
                                   self.get_atomic_numbers(atoms=atoms)):
@@ -1021,20 +996,6 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
             E_z += atomNum * (coord[2] - pointcoord[2]) / dist**3
 
         return np.array([E_x, E_y, E_z]) * (Bohr_in_Angstrom * Bohr_in_Angstrom)
-
-    def get_nuclear_interaction_energy(self, other):
-        """
-        Return the electrostatic interaction energy between the nuclei of this and another molecule.
-        """
-        import numpy as np
-
-        inten = 0.0
-        for coord1, atomNum1 in zip(self.get_coordinates(), self.get_atomic_numbers()):
-            for coord2, atomNum2 in zip(other.get_coordinates(), other.get_atomic_numbers()):
-                dist = np.sqrt((coord1[0] - coord2[0])**2 + (coord1[1] - coord2[1])**2 + (coord1[2] - coord2[2])**2)
-                dist = dist / Bohr_in_Angstrom
-                inten = inten + atomNum1 * atomNum2 / dist
-        return inten
 
     def get_fragment(self, atoms):
         """
@@ -1101,9 +1062,10 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
         return m
 
     def residue_iter(self):
+        """residue_iter."""
         reslist = []
         for at in range(1, self.get_number_of_atoms() + 1):
-            chain_id, res_name, res_num = self.get_atom_resinfo(at)
+            chain_id, res_name, res_num, _ = self.get_atom_resinfo(at)
             if (chain_id, res_name, res_num) not in reslist:
                 reslist.append((chain_id, res_name, res_num))
                 yield chain_id, res_name, res_num
@@ -1189,14 +1151,14 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
 
             >>> an = RDMolecule('an.pdb', 'pdb')
             >>> print(an.get_atom_resinfo(10))
-            ('B', 'TIP', 2)
+            ('B', 'TIP', 2, ' OH2')
         """
         res = self.mol.GetAtomWithIdx(atom - 1).GetPDBResidueInfo()
 
         if res is not None:
-            return res.GetChainId(), res.GetResidueName(), res.GetResidueNumber()
+            return res.GetChainId(), res.GetResidueName(), res.GetResidueNumber(), res.GetName()
         else:
-            return None, None, None
+            return None, None, None, None
 
     def get_chain_info(self):
         """
@@ -1237,7 +1199,7 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
 
         return chains, chain_offsets
 
-    def get_residx_of_atoms(self, atoms=None, chaininfo=None):
+    def get_residx_of_atoms(self, atoms=None, chaininfo=None, ghosts=True):
         """
         Return a list giving the residue index of each atom.
 
@@ -1260,17 +1222,16 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
         else:
             ci = chaininfo
 
-        if atoms is None:
-            atoms = list(range(1, self.get_number_of_atoms() + 1))
+        atoms = self.get_atoms(atoms, ghosts=ghosts)
 
         res_list = []
         for at in atoms:
-            chain_id, res_name, res_num = self.get_atom_resinfo(at)
+            chain_id, res_name, res_num, _ = self.get_atom_resinfo(at)
             residx = self.get_residx_from_resinfo(chain_id, res_name, res_num, chaininfo=ci)
             res_list.append(residx)
         return res_list
 
-    def get_resnums_of_atoms(self, atoms=None):
+    def get_resnums_of_atoms(self, atoms=None, ghosts=True):
         """
         Return a list giving the residue number of given atoms.
 
@@ -1290,12 +1251,11 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
             >>> print(mol.get_resnums_of_atoms(atoms=[1,8,9,18,19,27]))
             [21, 21, 22, 22, 23, 23]
         """
-        if atoms is None:
-            atoms = list(range(1, self.get_number_of_atoms() + 1))
+        atoms = self.get_atoms(atoms, ghosts=ghosts)
 
         res_list = []
         for at in atoms:
-            chain_id, res_name, res_num = self.get_atom_resinfo(at)
+            _, _, res_num, _ = self.get_atom_resinfo(at)
             res_list.append(res_num)
         return res_list
 
@@ -1365,7 +1325,7 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
         """
         atomlist = []
         for at in range(1, self.get_number_of_atoms() + 1):
-            chain_id, res_name, res_num = self.get_atom_resinfo(at)
+            chain_id, res_name, res_num, _ = self.get_atom_resinfo(at)
             if (chain is None or chain_id == chain) and \
                     (restype is None or res_name == restype) and \
                     (resnums is None or res_num in resnums):
@@ -1560,6 +1520,10 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
         return adjacent
 
     def get_smarts_matches(self, smartspattern):
+        """get_smarts_matches.
+
+        :param smartspattern:
+        """
         sp = Chem.MolFromSmarts(smartspattern)
         mol_wo_implicit_h = Chem.RemoveHs(self.mol, implicitOnly=True, sanitize=False)
         for i in range(mol_wo_implicit_h.GetNumAtoms()):
@@ -1568,7 +1532,7 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
         maplist = [[a + 1 for a in mp] for mp in mol_wo_implicit_h.GetSubstructMatches(sp)]
         return maplist
 
-    def set_residue(self, restype, resnum, chain=None, atoms=None):
+    def set_residue(self, restype, resnum, chain=None, atoms=None, ghosts=True, atomids=None):
         """
         Set the residue information for the given atoms (or all, if not given).
 
@@ -1581,6 +1545,9 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
         @param atoms: the numbers of the atoms belonging to this residue
                       (atom numbering starts at 1)
         @type  atoms: list on ints
+        @param atomids:
+            Optional list of atom IDs for the residue. If None, element symbols are used.
+        @type  atomids: list of str or None
 
         @exampleuse:
 
@@ -1596,17 +1563,19 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
 
         """
 
-        if not atoms:
-            atoms = list(range(1, self.mol.GetNumAtoms() + 1))
+        atoms = self.get_atoms(atoms, ghosts=ghosts)
         if chain is None:
             chain = ""
 
-        for i in atoms:
+        for j, i in enumerate(atoms):
             a = self.mol.GetAtomWithIdx(i - 1)
-            if a.GetPDBResidueInfo() is not None:
-                atomname = a.GetPDBResidueInfo().GetName()
+            if atomids is not None:
+                atomname = atomids[j]
             else:
-                atomname = f'{a.GetSymbol():>3} '
+                if a.GetPDBResidueInfo() is not None:
+                    atomname = a.GetPDBResidueInfo().GetName()
+                else:
+                    atomname = f'{a.GetSymbol():>3} '
             a.SetMonomerInfo(Chem.AtomPDBResidueInfo(atomname,
                                                      residueName=restype,
                                                      residueNumber=resnum,
@@ -1649,7 +1618,7 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
 
         """
         c = self.mol.GetConformer()
-        for atom in range(self.mol.GetNumAtoms()):
+        for atom in range(self.get_number_of_atoms()):
             p = c.GetAtomPosition(atom)
             p.x += vec[0]
             p.y += vec[1]
@@ -1671,7 +1640,7 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
         coords = np.array(self.get_coordinates())
         newcoords = np.dot(coords, rotmat.T)
         c = self.mol.GetConformer()
-        for atom in range(self.mol.GetNumAtoms()):
+        for atom in range(self.get_number_of_atoms()):
             p = c.GetAtomPosition(atom)
             p.x = newcoords[atom][0]
             p.y = newcoords[atom][1]
@@ -1715,6 +1684,11 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
         import numpy as np
 
         def quaternion_fit(coords_r, coords_f):
+            """quaternion_fit.
+
+            :param coords_r:
+            :param coords_f:
+            """
             # this function is based on the algorithm described in
             # Molecular Simulation 7, 113-119 (1991)
 
@@ -1791,112 +1765,6 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
 
         return rotmat, transvec
 
-    def print_coordinates(self, atoms=None, index=True, suffix=""):
-        """
-        Returns a string for printing the atomic coordinates.
-
-        This method returns a string representation of the
-        atomic coordinates.
-        This string can be used for printing, the method
-        does not print anything itself.
-
-        The (optional) arguments make it possible to select
-        specific atoms for printing and to modify the output
-        format.
-
-        @param atoms:
-            A list with the numbers of atoms that should be
-            included. (The numbering of the atoms starts at 1).
-            If C{None}, all atoms are included (default)
-        @type atoms: list of int's
-
-        @param index:
-            If C{True}, the number of the atom is included
-            (see example below)
-        @type index: bool
-
-        @param suffix:
-            A suffix that is appended to each line
-            (see example below)
-        @type suffix: str
-
-        @returns:
-            String representation of atomic coordinates
-        @rtype: str
-
-        @exampleuse:
-            Simple printing of the coordinates:
-
-            >>> mol = RDMolecule('h2o.xyz')
-            >>> print(mol.print_coordinates())
-            1)     H       -0.21489        3.43542        2.17104
-            2)     O       -0.89430        3.96159        2.68087
-            3)     H       -0.43479        4.75018        3.07278
-
-        @exampleuse:
-            Printing of selected atoms:
-
-            >>> mol = RDMolecule('h2o.xyz')
-            >>> print(mol.print_coordinates(atoms=[2]))
-            2)     O       -0.89430        3.96159        2.68087
-
-        @exampleuse:
-            Printing without atom numbering:
-
-            >>> mol = RDMolecule('h2o.xyz')
-            >>> print(mol.print_coordinates(index=False))
-            H       -0.21489        3.43542        2.17104
-            O       -0.89430        3.96159        2.68087
-            H       -0.43479        4.75018        3.07278
-
-        @exampleuse:
-            Printing with a suffix:
-
-            >>> mol = RDMolecule('h2o.xyz')
-            >>> print(mol.print_coordinates(index=False, suffix='f=frag1'))
-            H       -0.21489        3.43542        2.17104    f=frag1
-            O       -0.89430        3.96159        2.68087    f=frag1
-            H       -0.43479        4.75018        3.07278    f=frag1
-
-        @note:
-            Coordinates are always printed in Angstrom units.
-
-        """
-
-        lines = ""
-        if atoms is None:
-            atoms = list(range(1, self.mol.GetNumAtoms() + 1))
-
-        coords = self.get_coordinates(atoms)
-        symbs = self.get_atom_symbols(atoms, prefix_ghosts=True)
-
-        for i in range(len(atoms)):
-            symb = symbs[i]
-            c = coords[i]
-
-            if index:
-                line = f"  {atoms[i]:3d}) {symb:>8} {c[0]:14.5f} {c[1]:14.5f} {c[2]:14.5f}"
-            else:
-                line = f"  {symb:>8} {c[0]:14.5f} {c[1]:14.5f} {c[2]:14.5f}"
-
-            line += "    " + suffix + "\n"
-            lines += line
-
-        return lines
-
-    def get_xyz_file(self):
-        """
-        Return an xyz file of the molecule.
-
-        @rtype: str
-        """
-        xyz = str(self.mol.GetNumAtoms()) + '\n\n'
-        c = self.mol.GetConformer()
-        for a in self.mol.GetAtoms():
-            p = c.GetAtomPosition(a.GetIdx())
-            xyz += f'{a.GetSymbol():<3} {p.x:14.5f} {p.y:14.5f} {p.z:14.5f}\n'
-        return xyz
-
     def get_dalton_molfile(self, basis):
         """
         Returns the content of a Dalton-style molecule file.
@@ -1920,31 +1788,7 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
             Charge=8.00000000 Atoms=1
             O1         -0.89430000        3.96159000        2.68087000
         """
-
-        molfile = 'BASIS\n'
-        molfile += basis + '\n'
-        molfile += 'This Dalton molecule file was generated by PyADF\n'
-        molfile += ' Homepage: https://www.pyadf.org\n'
-
-        # determine number of atomtypes
-        atsyms = self.get_atom_symbols()
-        atyps = list(dict.fromkeys(atsyms))
-        num_atomtypes = len(atyps)
-
-        # FIXME: hardcoding NO SYMMETRY here
-        molfile += f'Angstrom Nosymmetry Atomtypes={num_atomtypes:d}\n'
-
-        for atyp in atyps:
-
-            atoms = [i + 1 for i, at in enumerate(atsyms) if at == atyp]
-            coords = self.get_coordinates(atoms)
-
-            molfile += f"Charge={pse.get_atomic_number(atyp):.1f} Atoms={len(coords):d}\n"
-            for i, a in enumerate(coords):
-                line = f"{atyp + str(i + 1):<4} {a[0]:14.5f} {a[1]:14.5f} {a[2]:14.5f} \n"
-                molfile += line
-
-        return molfile
+        return super().get_dalton_molfile(basis)
 
     def distance(self, other):
         """
@@ -1976,20 +1820,6 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
             d = (c[0] - point[0])**2 + (c[1] - point[1])**2 + (c[2] - point[2])**2
             dists.append(d)
         return math.sqrt(min(dists))
-
-    def write_dalton_molfile(self, filename, basis):
-        """
-        Write the molecule to a Dalton-style molecule file.
-
-        @param filename: The name of the file to be written.
-        @type  filename: str
-        @param basis: The basis set to use (for all atoms).
-        @type  basis: str
-        """
-
-        f = open(filename, 'w')
-        f.write(self.get_dalton_molfile(basis))
-        f.close()
 
     def get_cube_header(self):
         """
@@ -2078,9 +1908,29 @@ class RDMolecule(ProteinMoleculeMixin, BaseMolecule):
 
         return molhash
 
+    def get_atoms(self, atomlist, ghosts=True):
+        """get_atoms.
+
+        :param atomlist: either a list of atom numbers or None
+        :returns atoms: a list of atom numbers
+        """
+        if atomlist is None:
+            atoms = list(range(1, self.get_number_of_atoms() + 1))
+        else:
+            atoms = atomlist
+
+        if not ghosts:
+            atoms = [i for i in atoms if not self.is_ghost[i - 1]]
+
+        return atoms
+
 
 # noinspection PyUnusedLocal
 def _setUp_doctest(test):
+    """_setUp_doctest.
+
+    :param test:
+    """
 
     import os
 
@@ -2245,6 +2095,10 @@ H       2.30387296      -4.48773848      -1.41554000
 
 # noinspection PyUnusedLocal
 def _tearDown_doctest(test):
+    """_tearDown_doctest.
+
+    :param test:
+    """
     # pylint: disable-msg=W0613
 
     import os

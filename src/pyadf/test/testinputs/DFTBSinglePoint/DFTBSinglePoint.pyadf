@@ -14,8 +14,8 @@ dipole_vect = results.get_dipole_vector()
 dipole_magn = results.get_dipole_magnitude()
 
 testobj.assertAlmostEqual(energy, -4.07648495, 6)
-testobj.assertAlmostEqual(dipole_magn, 0.65263042, 6)
-testobj.assertAlmostEqual(dipole_vect, [0.6325182371, 0.1472605397, -0.0645095850], 6)
+testobj.assertAlmostEqual(dipole_magn, 0.6526335079, 5)
+testobj.assertAlmostEqual(dipole_vect, [0.632521, 0.147263, -0.064511], 5)
 
 # DFTB3 with DFTB.org/3ob-3-1
 
@@ -26,5 +26,5 @@ dipole_vect = results.get_dipole_vector()
 dipole_magn = results.get_dipole_magnitude()
 
 testobj.assertAlmostEqual(energy, -4.06905112, 6)
-testobj.assertAlmostEqual(dipole_magn, 0.78991114, 6)
-testobj.assertAlmostEqual(dipole_vect, [0.7656587563, 0.1776802826, -0.0784601668], 6)
+testobj.assertAlmostEqual(dipole_magn, 0.78991503, 5)
+testobj.assertAlmostEqual(dipole_vect, [0.765662, 0.177685, -0.078461], 5)

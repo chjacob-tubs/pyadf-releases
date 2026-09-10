@@ -53,7 +53,7 @@ class adfgradientsresults(adfsinglepointresults):
     def __init__(self, j=None):
         super().__init__(j)
 
-    def get_gradients(self, energytype=''):
+    def get_gradient(self, energytype=''):
         nnuc = self.get_result_from_tape('Geometry', 'nnuc')
         if energytype == '':
             grad = self.get_result_from_tape('GeoOpt', 'Gradients_CART')

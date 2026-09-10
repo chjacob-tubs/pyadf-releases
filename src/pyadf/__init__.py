@@ -201,8 +201,7 @@
 
 """
 
-from importlib.metadata import version as resource_version
-__version__ = resource_version('pyadf')
+__version__ = '1.4'
 from .Utils import VersionInfo
 
 # noinspection PyUnresolvedReferences
@@ -211,6 +210,7 @@ from .kf import kf
 from .Utils import pse, Bohr_in_Angstrom, au_in_eV, au_in_Debye, conversion
 from .Errors import PyAdfError
 from .Molecule import molecule, MoleculeFactory
+from .ArraySaver import ArraySaver
 
 from .Files import adf_filemanager
 from .JobRunnerConfiguration import JobRunnerConfiguration

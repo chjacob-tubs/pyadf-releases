@@ -41,12 +41,12 @@ dipole_vect = fde_res.get_dipole_vector()
 dipole_magn = fde_res.get_dipole_magnitude()
 
 if 'unittesting' in pyadfenv.options:
-    testobj.assertAlmostEqual(toten, -76.348276877631, 6)
+    testobj.assertAlmostEqual(toten, -76.3527295075694, 6)
 
-    testobj.assertAlmostEqual(dipole_magn, 0.789627586, 6)
+    testobj.assertAlmostEqual(dipole_magn, 0.78733569, 6)
     testobj.assertAlmostEqual(dipole_vect[0], 0.0, 6)
     testobj.assertAlmostEqual(dipole_vect[1], 0.0, 6)
-    testobj.assertAlmostEqual(dipole_vect[2], 0.789627586, 6)
+    testobj.assertAlmostEqual(dipole_vect[2], 0.78733569, 6)
 
 ###################################################################
 # B) FDE run imported density and potential via DensFragment
@@ -79,9 +79,9 @@ dipole_vect = fde_res.get_dipole_vector()
 dipole_magn = fde_res.get_dipole_magnitude()
 
 if 'unittesting' in pyadfenv.options:
-    testobj.assertAlmostEqual(toten, -76.348276877631, 6)
+    testobj.assertAlmostEqual(toten, -76.35272950756949, 6)
 
-    testobj.assertAlmostEqual(dipole_magn, 0.789627586, 6)
+    testobj.assertAlmostEqual(dipole_magn, 0.78733569, 6)
     testobj.assertAlmostEqual(dipole_vect[0], 0.0, 6)
     testobj.assertAlmostEqual(dipole_vect[1], 0.0, 6)
-    testobj.assertAlmostEqual(dipole_vect[2], 0.789627586, 6)
+    testobj.assertAlmostEqual(dipole_vect[2], 0.78733569, 6)

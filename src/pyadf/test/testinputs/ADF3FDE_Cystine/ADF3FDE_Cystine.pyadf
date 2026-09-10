@@ -75,9 +75,9 @@ print("MFCC:          ", elnuc_mfcc - elnuc_super)
 print("3-FDE:         ", elnuc_fde - elnuc_super)
 print()
 
-testobj.assertAlmostEqual(elnuc_super, -1261649.2421456522, 4)
-testobj.assertAlmostEqual(elnuc_mfcc - elnuc_super, 11.236410663, 4)
-testobj.assertAlmostEqual(elnuc_fde - elnuc_super, 18.465914039, 4)
+testobj.assertAlmostEqual(elnuc_super, -1261660.9931459, 4)
+testobj.assertAlmostEqual(elnuc_mfcc - elnuc_super, 6.77989279, 4)
+testobj.assertAlmostEqual(elnuc_fde - elnuc_super, 9.286509803, 4)
 
 # second, test dipole moments
 
@@ -87,9 +87,9 @@ print("MFCC:          ", mfcc_dipole)
 print("3-FDE:         ", fde_dipole)
 print()
 
-testobj.assertAlmostEqual([-0.38075328, -0.45339284,  0.17361213], supermol_dipole, 4)
-testobj.assertAlmostEqual([-0.37046405, -0.46913567,  0.19081197], mfcc_dipole, 4)
-testobj.assertAlmostEqual([-0.41064078, -0.46165079,  0.22611683], fde_dipole, 4)
+testobj.assertAlmostEqual([-0.36095243, -0.45562956,  0.15639703], supermol_dipole, 4)
+testobj.assertAlmostEqual([-0.35246037, -0.46676451,  0.17523596], mfcc_dipole, 4)
+testobj.assertAlmostEqual([-0.39050559, -0.47195959,  0.21057708], fde_dipole, 4)
 
 # now finally test 3-FDE difference densities and potential
 
@@ -102,5 +102,5 @@ print(" fde Diff Dens Int        : ", diff_dens.integral())
 print(" fde Diff Dens Int (Sqr.) : ", sqrt_error)
 print(" fde Diff Dens Int (Abs.) : ", abs_error)
 
-testobj.assertAlmostEqual(sqrt_error, 0.00635101, 5)
-testobj.assertAlmostEqual(abs_error,  0.07764864, 5)
+testobj.assertAlmostEqual(sqrt_error, 0.004840839, 5)
+testobj.assertAlmostEqual(abs_error,  0.05874889, 5)

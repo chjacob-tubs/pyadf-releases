@@ -140,9 +140,9 @@ inten_tot_pyembed = embed_eval.get_interaction_energy(dens_a, nucpot_a, elpot_a,
 inten_tot_pyembed = inten_tot_pyembed + nnint
 
 if 'unittesting' in pyadfenv.options:
-    testobj.assertAlmostEqual(inten_elstat * au_in_eV, -0.402291865952313, 4)
+    testobj.assertAlmostEqual(inten_elstat * au_in_eV, -0.4022211934129731, 4)
     testobj.assertAlmostEqual(inten_xc * au_in_eV, -0.1723855742854333, 4)
     testobj.assertAlmostEqual(inten_kin * au_in_eV, 0.3821874157745374, 4)
 
-    testobj.assertAlmostEqual(inten_tot * au_in_eV, -0.1925013162886444, 4)
-    testobj.assertAlmostEqual(inten_tot_pyembed * au_in_eV, -0.1925013162886444, 4)
+    testobj.assertAlmostEqual(inten_tot * au_in_eV, -0.19242675219568214, 4)
+    testobj.assertAlmostEqual(inten_tot_pyembed * au_in_eV, -0.1924267521958755, 4)

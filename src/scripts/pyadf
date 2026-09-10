@@ -41,6 +41,17 @@ else:
     # noinspection PyUnresolvedReferences
     pyadfenv = setup_test_pyadfenv(pyadfinput, testing_molclass, testing_jobrunnerconf, testing_save_results)
 
+f = open(pyadfenv.inputname, encoding='utf-8')
+for ll in f.readlines():
+    # this is a hidden option to emulate setting environment options from the
+    # console
+    if ll.startswith('pyadfenv.options['):
+        exec(ll)
+    # for other options or scripts that go over several lines
+    elif ll.startswith('pyadf_exec_first = '):
+        exec(ll)
+        exec(pyadf_exec_first)
+
 stdout_save = sys.stdout
 stderr_save = sys.stderr
 
@@ -91,10 +102,10 @@ VersionInfo.print_git_version_info()
 pyadfenv.print_summary()
 
 # print the input file
-f = open(pyadfenv.inputname, encoding='utf-8')
 for ll in f.readlines():
     if ll.strip(' \n\r') != "":
-        print(ll, end=' ')
+        print(' ' + ll, end='')
+
 print(" " + 40 * "-")
 print()
 f.close()
@@ -125,6 +136,9 @@ DefaultJobRunner(conf=job_runner_conf)
 
 # initialize KF module
 kf.setup_kf_environment(DefaultJobRunner().get_environ_for_local_command(scmjob))
+
+# initialize ArraySaver
+arrayvault = ArraySaver()
 
 print(" " + 40 * "-")
 DefaultJobRunner().print_configuration()
@@ -187,6 +201,8 @@ else:
             print(' There are no results to be saved')
     else:
         print(" Saving results not requested (use -s or set pyadfenv.options['save_results'])")
+
+arrayvault.cleanup()
 
 myfiles.cleanup()
 sys.stdout = stdout_save

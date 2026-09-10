@@ -34,7 +34,7 @@ print("Number of points: ", pgrid.get_number_of_points())
 
 if 'unittesting' in pyadfenv.options:
     testobj.assertAlmostEqual(int_dens_pgrid, 10, 5)
-    testobj.assertAlmostEqual(pgrid.get_number_of_points(), 34312, -1)
+    testobj.assertAlmostEqual(pgrid.get_number_of_points(), 33704, -1)
 
 #########################################
 # B) PySCF lvl 3 Grid
@@ -67,7 +67,7 @@ print("Number of points: ", pgrid_lvl.get_number_of_points())
 if 'unittesting' in pyadfenv.options:
     testobj.assertAlmostEqual(int_dens_pgrid_lvl, 10, 5)
     testobj.assertNotEqual(int_dens_pgrid, int_dens_pgrid_lvl)
-    testobj.assertAlmostEqual(pgrid_lvl.get_number_of_points(), 60830, -1)
+    testobj.assertAlmostEqual(pgrid_lvl.get_number_of_points(), 59680, -1)
 
 #########################################
 # D) PySCF lvl 2 Grid
@@ -83,7 +83,7 @@ print("Number of points: ", pgrid_lvl.get_number_of_points())
 if 'unittesting' in pyadfenv.options:
     testobj.assertAlmostEqual(int_dens_pgrid_lvl, 10, 5)
     testobj.assertNotEqual(int_dens_pgrid, int_dens_pgrid_lvl)
-    testobj.assertAlmostEqual(pgrid_lvl.get_number_of_points(), 22328, -1) # roughly equivalent to ADF in number of points
+    testobj.assertAlmostEqual(pgrid_lvl.get_number_of_points(), 21952, -1) # roughly equivalent to ADF in number of points
 
 #########################################
 # E) Cube Grid
@@ -96,8 +96,8 @@ int_dens_cube = dens_cube.integral()
 print("Integral of density (cube grid): ", int_dens_cube)
 
 if 'unittesting' in pyadfenv.options:
-    testobj.assertAlmostEqual(int_dens_cube, 9.839722, 4)
-    testobj.assertAlmostEqual(cgrid.get_number_of_points(), 21756, -1) # alsor roughly equivalent
+    testobj.assertAlmostEqual(int_dens_cube, 9.839792, 4)
+    testobj.assertAlmostEqual(cgrid.get_number_of_points(), 21756, -1)  # also roughly equivalent
 
 #########################################
 # F) ADF Grid (old standard)

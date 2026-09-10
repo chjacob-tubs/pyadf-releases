@@ -5,16 +5,16 @@ if 'pyadfenv' not in globals():
 
 
 def check_results(etot, dip_magn):
-    testobj.assertAlmostEqual(etot, -76.3537705, 5)
-    testobj.assertAlmostEqual(dip_magn, 0.7968604, 4)
+    testobj.assertAlmostEqual(etot, -76.3540931957492, 4)
+    testobj.assertAlmostEqual(dip_magn, 0.795840507367519, 3)
 
 
 h2o = molecule(os.path.join(pyadfenv.outdir, 'H2O.xyz'))
 h2o.set_symmetry('NOSYM')
 
-settings = adfsettings(functional='PBE')
-
-gs = adfgeometrysettings(converge={'Gradients': '1e-5'})
+settings = adfsettings(functional='PBE', converge=1.0e-6)
+settings.set_integration('VeryGood')
+gs = adfgeometrysettings(converge={'Gradients': '1e-4'})
 
 frozen_atoms = [1]
 

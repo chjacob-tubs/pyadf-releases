@@ -23,6 +23,9 @@ sett.set_functional('PW91')
 sett.set_ZORA(True)
 sett.set_mixing(0.03)
 
+sett.set_tolerate_warnings('Restricted Open-Shell calculation, Unrestricted setup may be needed')
+sett.set_tolerate_warnings('partially occupied orbitals')
+
 lan_core = {'Ce': '4d'}
 sol_core = {'O': '1s'}
 
@@ -45,5 +48,5 @@ s2 = results.get_s2()
 print(s2)
 
 if 'unittesting' in pyadfenv.options:
-    testobj.assertAlmostEqual([-0.86762282, -0.38991088, 2.57971968], dipole, 6)
-    testobj.assertAlmostEqual(s2, 0.77363, 4)
+    testobj.assertAlmostEqual([-0.8686012, -0.390775096, 2.58170066], dipole, 6)
+    testobj.assertAlmostEqual(s2, 0.77747, 4)

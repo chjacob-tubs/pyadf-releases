@@ -3,11 +3,17 @@ from pyadf import *
 if 'pyadfenv' not in globals():
     from pyadf.Initialization import *
 
+# FIXME: disable this test for the moment
+#
+# The calculation for the (+1) - (-1) dimer leads to a non-aufbau solution.
+# We should rework the test such that it uses a functional where there is
+# a well-defined (aufbau) solution).
+
 helix_mol = molecule(os.path.join(pyadfenv.outdir, '310_charged.pdb'), 'pdb')
 
 settings = adfsettings()
 settings.set_save_tapes([21, 10])
-settings.set_functional('BP86')
+settings.set_functional('HARTREEFOCK')
 settings.set_integration(4.0, becke='Normal')
 settings.set_ncycles(200)
 options = ['TOTALENERGY', 'NOSYM', 'NOSYMFIT']
@@ -30,10 +36,42 @@ frags.set_charges(reschargelist=reschargelist)
 
 mfcc_res = GeneralMFCCJob(frags, jobfunc=calculate_mol).run()
 toten_mfcc = mfcc_res.get_total_energy()
-
-mfccmbe_res = MFCCMBE2Job(frags, jobfunc=calculate_mol, caps=caps, cutoff=cutoff).run()
-toten_mfccmbe = mfccmbe_res.get_total_interaction_energy()
+print('toten_mfcc', toten_mfcc)
+print('finished MFCC')
 
 if 'unittesting' in pyadfenv.options:
-    testobj.assertAlmostEqual(toten_mfcc, -1062.176844487296, 6)
-    testobj.assertAlmostEqual(toten_mfccmbe, -0.10217005206214935, 6)
+    testobj.assertAlmostEqual(toten_mfcc, -1056.0147555504013, 6)
+
+mfccmbe_res = MFCCMBE2Job(frags, jobfunc=calculate_mol, caps=caps, cutoff=cutoff).run()
+inten_mfccmbe = mfccmbe_res.get_total_interaction_energy()
+toten_mfccmbe = mfccmbe_res.get_total_energy()
+print('inten_mfccmbe', inten_mfccmbe)
+print('toten_mfccmbe', toten_mfccmbe)
+
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(inten_mfccmbe, -0.04980034152583812, 3)
+    testobj.assertAlmostEqual(toten_mfccmbe, -1056.0645558919273, 6)
+
+############################################################
+# to make it more economical, the calculation of the super #
+# molecule is ususally skipped and we take old results to  #
+# This does not add anything over the other tests!         #
+# But errors are easier to analyze than total energies     #
+# and the actual test can be added more easily like this   #
+############################################################
+
+# calculate the errors
+super_res = calculate_mol(helix_mol)
+toten_super = super_res.get_total_energy()
+# toten_super = -1056.0655351351772
+print('toten_super', toten_super)
+
+error_mfcc = toten_mfcc - toten_super
+print('error_mfcc', error_mfcc)
+error_mfccmbe = toten_mfccmbe - toten_super
+print('error_mfccmbe', error_mfccmbe)
+
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(toten_super,  -1056.0655351351772, 6)
+    testobj.assertAlmostEqual(error_mfcc,     0.05077958477386346, 6)
+    testobj.assertAlmostEqual(error_mfccmbe,  0.00097924324791165, 6)

@@ -21,8 +21,8 @@ results = OrcaOptFrequenciesJob(h2o, settings=settings, deuterium=het_h_list).ru
 freqs = results.get_frequencies()
 ints = results.get_ir_intensities()
 
-freqs_ref = [1193.75, 2633.49, 2749.23]
-ints_ref = [26.03688717, 1.30111869, 10.09832257]
+freqs_ref = [1193.76, 2633.74, 2749.46]
+ints_ref = [26.0221627, 1.30269321, 10.09486037]
 
 testobj.assertAlmostEqual(freqs, freqs_ref, 1)
 testobj.assertAlmostEqual(ints, ints_ref, 2)

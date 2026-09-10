@@ -72,6 +72,6 @@ for name, grid in [('adfgrid', adfgrid(r_tot)), ('cubegrid', cubegrid(r_tot.get_
 
     if 'unittesting' in pyadfenv.options:
         if name == 'adfgrid':
-            testobj.assertAlmostEqual(int_diff, 0.13820, 4)
+            testobj.assertAlmostEqual(int_diff, 0.139316, 4)
         else:
-            testobj.assertAlmostEqual(int_diff, 0.13680, 4)
+            testobj.assertAlmostEqual(int_diff, 0.137801, 4)

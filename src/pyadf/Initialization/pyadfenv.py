@@ -77,8 +77,10 @@ def setup_pyadfenv():
                       dest="profile", help="run using the python profiler")
     parser.add_option("--molclass", choices=["openbabel", "rdkit", "obfree"], default=None,
                       help="select molecule class to use [available: openbabel, obfree, rdkit]")
-    parser.add_option("--jobrunnerconf", "-c", action="store", type='string', metavar='FILE', default=None,
-                      dest="jobrunnerconf", help="set job runner configuration file [default: $HOME/.pyadfconfig]")
+    parser.add_option("--jobrunnerconf", "-c", action="store", type='string',
+                      metavar='FILE or LABEL', default=None, dest="jobrunnerconf",
+                      help="set job runner configuration file [default: $HOME/.pyadfconfig, " +
+                      "possible LABELS: TESTDEFAULT, EXAMPLE]")
 
     (options, args) = parser.parse_args()
 
@@ -97,7 +99,19 @@ def setup_pyadfenv():
     if options.jobrunnerconf is None:
         opts['jobrunner_conffile'] = options.jobrunnerconf
     else:
-        opts['jobrunner_conffile'] = os.path.abspath(options.jobrunnerconf)
+        opt = options.jobrunnerconf
+
+        # Shortcuts for other files can be set here in the form of label-string-pairs. The labels are
+        # all capitalized, but the user input is accepted in lower-case as well
+        labels = {
+                 'TESTDEFAULT': str(resourcefiles('pyadf.test').joinpath('test_pyadf.conf')),
+                 'EXAMPLE': str(resourcefiles('pyadf.config').joinpath('jobrunner_config_example.py')),
+                 }
+
+        if opt.upper() in list(labels.keys()):
+            opt = labels[opt.upper()]
+
+        opts['jobrunner_conffile'] = os.path.abspath(opt)
 
     if not (options.restartdir is None):
         opts['restartdir'] = os.path.abspath(options.restartdir)

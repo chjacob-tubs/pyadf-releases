@@ -150,14 +150,14 @@ print('FDE(1) {:12.6f} {:12.6f} {:12.6f}'.format(
     norm(diff_fde[1].dmu), (100 / 16) * diff_fde[1].abserr, (100 / 16) * diff_fde[1].rmserr))
 
 if 'unittesting' in pyadfenv.options:
-    testobj.assertAlmostEqual(norm(diff_frags.dmu), 0.887642, 3)
-    testobj.assertAlmostEqual((100 / 16) * diff_frags.abserr, 1.179858, 3)
-    testobj.assertAlmostEqual((100 / 16) * diff_frags.rmserr, 0.210640, 3)
+    testobj.assertAlmostEqual(norm(diff_frags.dmu), 0.8905458, 3)
+    testobj.assertAlmostEqual((100 / 16) * diff_frags.abserr, 1.189127, 3)
+    testobj.assertAlmostEqual((100 / 16) * diff_frags.rmserr, 0.211745, 3)
 
-    testobj.assertAlmostEqual(norm(diff_fde[0].dmu), 0.647227, 3)
-    testobj.assertAlmostEqual((100 / 16) * diff_fde[0].abserr, 0.893237, 3)
+    testobj.assertAlmostEqual(norm(diff_fde[0].dmu), 0.6449350, 3)
+    testobj.assertAlmostEqual((100 / 16) * diff_fde[0].abserr, 0.897960, 3)
     testobj.assertAlmostEqual((100 / 16) * diff_fde[0].rmserr, 0.153081, 3)
 
-    testobj.assertAlmostEqual(norm(diff_fde[1].dmu), 0.639685, 3)
-    testobj.assertAlmostEqual((100 / 16) * diff_fde[1].abserr, 0.879402, 3)
+    testobj.assertAlmostEqual(norm(diff_fde[1].dmu), 0.6372852, 3)
+    testobj.assertAlmostEqual((100 / 16) * diff_fde[1].abserr, 0.883253, 3)
     testobj.assertAlmostEqual((100 / 16) * diff_fde[1].rmserr, 0.152593, 3)

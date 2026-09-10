@@ -48,7 +48,8 @@ def run_potjob(refresults, potproj, projchange):
 
     startpot1, dum = get_startpot(refresults, agrid)
 
-    settings = adfsettings(functional='OLYP', accint=12.0, converge=1e-04)
+    settings = adfsettings(functional='OLYP', converge=1e-04, zlmfit=False)
+    settings.set_integration(accint=12, becke=False)
     settings.set_save_tapes([21, 10])
     settings.set_ncycles(1000)
     settings.set_unrestricted(True)
@@ -147,7 +148,8 @@ def main():
     # A) reference calculation (BP86 for Ar atom)
     ###################################################################
 
-    settings = adfsettings(functional='OLYP', accint=12.0, converge=1e-04)
+    settings = adfsettings(functional='OLYP', converge=1e-04, zlmfit=False)
+    settings.set_integration(accint=12.0, becke=False)
     settings.set_save_tapes([21, 10])
     settings.set_ncycles(100)
     settings.set_unrestricted(True)
@@ -272,7 +274,8 @@ def main():
     # B) reference calculation (HF for Ar atom)
     ###################################################################
 
-    settings = adfsettings(functional='HARTREEFOCK', accint=12.0, converge=1e-04)
+    settings = adfsettings(functional='HARTREEFOCK', converge=1e-04, zlmfit=False)
+    settings.set_integration(accint=12.0, becke=False)
     settings.set_save_tapes([21, 10])
     settings.set_ncycles(100)
     settings.set_unrestricted(True)

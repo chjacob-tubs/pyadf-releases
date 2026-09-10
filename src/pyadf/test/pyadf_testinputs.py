@@ -92,6 +92,7 @@ class PyADFInputTestCase(PyAdfTestCase):
 
     def tearDown(self):
 
+        self.checkAndClearExceptions()
         os.chdir(self._cwd)
 
         if not self._keep:
@@ -153,7 +154,8 @@ def make_testinputs_suite(tests="all", testnames=None, dalton=True, adf=True, di
             if tests == 'dalton':
                 use_test = ('dalton' in testname.lower())
             elif tests == 'adf' and not openbabel:
-                use_test = (('adf' in testname.lower()) and not (('openbabel' in testname.lower()) or ('3fde' in testname.lower())))
+                use_test = (('adf' in testname.lower()) and not (('openbabel' in testname.lower())
+                                                                 or ('3fde' in testname.lower())))
             elif tests == 'adf':
                 use_test = ('adf' in testname.lower())
             elif tests == 'dirac':

@@ -271,6 +271,7 @@ class scmjob(job):
         Constructor for adfjob.
         """
         super().__init__()
+        self.settings = None
         self._checksum_only = False
 
     def create_results_instance(self):
@@ -314,12 +315,13 @@ class scmjob(job):
 
         @param nproc: Number of processes to use.
         @type  nproc: int
-        @param program: The program to run (by default: adf).
+        @param program: The program to run (by default: ams).
         @type  program: str
         @param inputfile: The input file to use. If None (default), L{get_input} is called.
         @type  inputfile: str or C{None}
         """
         runscript = ''
+
         if inputfile is None:
             inp = "<<eor"
             runscript += "cat <<eor\n"
@@ -365,6 +367,12 @@ class scmjob(job):
                 all_warnings.append(warning)
         f.close()
         print()
+        if all_warnings and ('all' not in self.settings.tolerate_warnings):
+            for warning in all_warnings:
+                if warning.strip() not in self.settings.tolerate_warnings:
+                    raise PyAdfError('Found warnings, '
+                                     + 'tolerate_warnings not set:\n'
+                                     + '*\n*'.join(all_warnings))
 
         for warning in all_warnings:
             if "NOT CONVERGED" in warning:
@@ -430,19 +438,29 @@ class amsjob(scmjob):
 
     def get_atoms_block(self):
         block = " ATOMS [Angstrom]\n"
-        block += self.get_molecule().print_coordinates(index=False)
+        # Job Mol Interface
+        block += self.get_molecule().print_coordinates_for_ams_input(index=False)
         block += " END\n"
         return block
 
     def get_system_block(self):
         block = "SYSTEM\n"
-        if self.symmetrize:
-            block += " SYMMETRIZE\n"
-            if self.get_molecule().symmetry is not None:
-                block += f" SYMMETRY {self.get_molecule().symmetry} \n"
         block += self.get_atoms_block()
         block += self.get_charge_block()
-        block += self.get_efield_block()
+
+        efield_block = self.get_efield_block()
+        block += efield_block
+
+        if self.symmetrize:
+            block += " Modify\n"
+            if self.get_molecule().symmetry is not None:
+                # FIXME: AMS currently cannot handle Symmetrization in calculations with embedding.
+                # For now, we just dont symmetrize in these cases.
+                if len(efield_block) == 0:
+                    block += f" SymmetrizeMoleculeTo {self.get_molecule().symmetry} \n"
+            else:
+                block += " Symmetrize Yes\n"
+            block += " End\n"
         block += "END\n\n"
         return block
 

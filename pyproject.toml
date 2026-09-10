@@ -1,0 +1,64 @@
+# General python packaging guide: https://packaging.python.org/en/latest/
+# setuptools documentation: https://setuptools.pypa.io/en/latest/
+[build-system]
+requires = [
+    "setuptools>=42",
+    "wheel",
+]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "PyADF"
+dynamic = [
+    "version",
+]
+description = "PyADF - A Scripting Framework for Multiscale Quantum Chemistry"
+requires-python = ">=3.8"
+license = {text = "GPLv3"}
+authors = [
+    {name = "Christoph Jacob and others", email = "c.jacob@tu-braunschweig.de"}
+]
+readme = {file = "README.md", content-type = "text/markdown"}
+keywords = [
+    "quantum",
+    "chemistry",
+    "scripting",
+    "multiscale",
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+]
+dependencies = [
+    "numpy",
+    "scipy",
+]
+
+[project.urls]
+homepage = "https://github.com/chjacob-tubs/pyadf-releases"
+
+[project.optional-dependencies]
+quantum = [
+    "h5py",
+    "pyscf",
+    "xcfun",
+    "fortranformat",
+]
+molecules = [
+    "openbabel",
+    "rdkit",
+]
+
+[tool.setuptools]
+script-files = [
+    "src/scripts/pyadf",
+    "src/scripts/test_pyadf",
+]
+
+[tool.setuptools.dynamic]
+version = {attr = "pyadf.__version__"}
+
+[tool.setuptools.packages.find]
+where = [
+    "src",
+]

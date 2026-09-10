@@ -74,8 +74,8 @@ class adfsettings(amssettings):
 
     def __init__(self, functional='LDA', hfpart=None, accint=4.0, converge=1e-6, ncycles=100,
                  dep=False, ZORA=False, SpinOrbit=False, mix=0.2, unrestricted=False, noncollinear=False,
-                 occupations=None, cosmo=None, cosmosurf='Delley', lmo=False, basispath=None, zlmfit=False,
-                 printing=False, unrestrictedfragments=False):
+                 occupations=None, cosmo=None, cosmosurf='Delley', lmo=False, basispath=None, zlmfit=True,
+                 printing=False, unrestrictedfragments=False, tolerate_warnings=False):
         """
         Constructor for adfsettings.
 
@@ -119,8 +119,6 @@ class adfsettings(amssettings):
         # first declare all instance variables here
         self.functional = None
         self.accint = 0.0
-        self.freeze_accmin = None
-        self.acclist = None
         self.int_special = None
         self.becke = None
         self.converge = None
@@ -152,6 +150,8 @@ class adfsettings(amssettings):
         self.dispersion = None
         self.zlmfit = zlmfit
         self.unrestrictedfragments = None
+        self.tolerate_warnings = \
+            ['Inter-node communication is slow! You may want to run on fewer nodes (or even one).']
 
         # and now initialize them using setter methods
         self.set_functional(functional, hfpart)
@@ -176,6 +176,7 @@ class adfsettings(amssettings):
         self.set_save_tapes()
         self.set_lshift(None)
         self.set_ncycles(ncycles)
+        self.set_tolerate_warnings(tolerate_warnings)
 
     def __str__(self):
         """
@@ -190,7 +191,10 @@ class adfsettings(amssettings):
         else:
             s += " Non-Relativistic \n\n"
         s += "   XC functional   : " + self.functional + "\n"
-        s += f"   Integration     : accint {self.accint:<6.1f} \n"
+        if self.becke:
+            s += f"   Integration     : Becke {self.becke} \n"
+        else:
+            s += f"   Integration     : accint {self.accint:<6.1f} \n"
         for i in self.int_special:
             s += "                   : " + i + f" {self.int_special[i]:<6.1f} \n"
         s += f"   SCF convergence : {self.converge[0]:<6.1e} \n"
@@ -224,8 +228,6 @@ class adfsettings(amssettings):
           (only applicable for hybrid functionals)
         @type hfpart: float
         """
-        self.freeze_accmin = False
-
         if functional.upper() in ['HARTREEFOCK'] or functional.startswith('LDA'):
             self.functional = functional
         elif functional.upper() in ['SAOP', 'LB94']:
@@ -240,11 +242,6 @@ class adfsettings(amssettings):
             self.functional = 'LDA VWN\n   GGA PBE USEBURKEROUTINES'
         elif functional.upper() in ['M06-L', 'M06L', 'SSB-D', 'TPSS']:
             self.functional = 'MetaGGA ' + functional
-            # m06l requires tighter integration accuracy, especially in geometry optimizations
-            # so here integration is set to a lower limit of 8.0 all the way
-            if functional.upper() == 'M06-L' or functional == 'M06L':
-                self.set_integration(8.0, acclist=[8.0, 8.0])
-                self.freeze_accmin = True
         elif functional.upper() in ['M06-HF', 'M06', 'M06-2X', 'TPSSH']:
             self.functional = 'MetaHybrid ' + functional
         elif functional.upper() in ['CAMYB3LYP']:
@@ -266,46 +263,56 @@ class adfsettings(amssettings):
         """
         self.dispersion = dispersion
 
-    def set_integration(self, accint, acclist=None, int_special=None, dishul=None, becke=None):
+    def set_integration(self, accint=4.0, becke=None, int_special=None):
         """
         ADF numerical integration settings.
 
-        For details, see INTEGRATION key in the ADF manual.
+        By default, a Becke integration grid of Normal quality is used.
+        Different qualities ('Basic|Normal|Good|VeryGood|Excellent') can
+        be selected. The parameter accint is kept for campatibility with
+        old versions (3.0:Basic | 4.0:Normal | 5.0:Good | 6.0: VeryGood |
+        7.0:Excellent).
+        With becke=False, the old Voronoi grid can be selected.
 
         @param accint: general integration accuracy parameter
         @type  accint: float
 
-        @param acclist: FIXME ADD DOCUMENTATION
+        @param becke: Whether to use a Becke integration grid (specify accuracy)
+        @type becke: str or None
 
         @param int_special: additional special integration options, see ADF manual
         @type int_special: dict
-
-        @param dishul: DISHUL option, see ADF manual
-        @type  dishul: None or float
-
-        @param becke: Whether to use a Becke integration grid (specify accuracy)
-        @type becke: str or None
         """
-        if self.freeze_accmin:
-            if accint < self.accint:
-                return
-            if acclist is not None:
-                if acclist[0] < self.acclist[0] or acclist[1] < self.acclist[1]:
-                    return
+        # old Voronoi integration grid
+        if isinstance(becke, bool) and not becke:
+            self.becke = False
+            self.accint = accint
+        # Becke integration grid
+        else:
+            if isinstance(becke, str):
+                self.becke = becke
+            elif isinstance(accint, str):
+                self.becke = accint
+            elif isinstance(accint, float):
+                self.accint = None
+                if accint < 3.5:
+                    self.becke = 'Basic'
+                elif accint < 4.5:
+                    self.becke = 'Normal'
+                elif accint < 5.5:
+                    self.becke = 'Good'
+                elif accint < 6.5:
+                    self.becke = 'VeryGood'
+                else:
+                    self.becke = 'Excellent'
+            else:
+                self.accint = None
+                self.becke = 'Normal'
 
-        self.accint = accint
-        self.acclist = []
-        if acclist is not None:
-            self.acclist = acclist
         if int_special is None:
             self.int_special = {}
         else:
             self.int_special = int_special
-
-        if dishul is not None:
-            self.int_special['dishul'] = dishul
-
-        self.becke = becke
 
     def set_convergence(self, converge=1.0e-6, convlist=None):
         """
@@ -564,6 +571,24 @@ class adfsettings(amssettings):
         else:
             self.save_tapes = ''
 
+    def set_tolerate_warnings(self, tolerate_warnings):
+        """
+        Whether warnings generally lead to an exception.
+
+        @param tolerate_warnings: list of warnings to tolerate,
+                                  'all' will tolerate all warnings
+        @type tolerate_warnings: bool
+        """
+        if isinstance(tolerate_warnings, bool):
+            if tolerate_warnings:
+                self.tolerate_warnings = ['all']
+            else:
+                self.tolerate_warnings = []
+        elif isinstance(tolerate_warnings, list):
+            self.tolerate_warnings += tolerate_warnings
+        else:
+            self.tolerate_warnings.append(tolerate_warnings)
+
     def get_settings_block(self):
         """
         Generate the block in the ADF input related to the settings.
@@ -592,11 +617,9 @@ class adfsettings(amssettings):
         sblock += " END\n\n"
 
         # integration
-        if self.becke is None:
+        if not self.becke:
             sblock += " INTEGRATION \n"
             sblock += f"  accint {self.accint:4.1f} "
-            for a in self.acclist:
-                sblock += f"{a:4.1f} "
             sblock += " \n"
             for s in self.int_special:
                 sblock += f"  {s} {self.int_special[s]:4.1f}\n"
@@ -975,15 +998,6 @@ class adfsinglepointresults(adfresults, DensityEvaluatorInterface):
         """
         return self.get_result_from_tape('Total Energy', 'Total energy')
 
-    def get_nuclear_repulsion_energy(self):
-        """
-        Return the nuclear repulsion energy (as read from TAPE).
-
-        @returns: the nuclear repulsion energy in atomic units
-        @rtype: float
-        """
-        return self.get_result_from_tape('Total Energy', 'Nuclear repulsion energy')
-
     def get_electrostatic_energy(self):
         """
         Return the electrostatic energy (= el.-nuc. + el.-el.).
@@ -1340,21 +1354,17 @@ class adfsinglepointresults(adfresults, DensityEvaluatorInterface):
             return res.get_gridfunction()
 
     @use_default_grid
-    def _get_nuclear_potential(self, grid=None, orbs=None):
+    def _get_nuclear_potential(self, grid=None, atoms=None):
         """
         Returns the nuclear potential.
 
         @param grid: The grid to use. For details, see L{Plot.Grids}.
         @type  grid: subclass of L{grid}
-        @param orbs:
-            Used for calculating the potential from the density of selected orbitals.
-            A dictionary of the form {"irrep":[nums]} containing the
-            orbitals to include. Use irrep "Loc" for localized orbitals.
-        @type orbs: dict
 
         @rtype: L{GridFunctionPotential}
         """
-        return self.get_potential(grid, pot='nuc', orbs=orbs)
+        pot_gf = self.get_molecule().get_nuclear_potential(grid, atoms=atoms)
+        return pot_gf
 
     @use_default_grid
     def _get_coulomb_potential(self, grid=None, orbs=None):
@@ -1653,6 +1663,7 @@ class adfsinglepointjob(adfjob):
                         print("ADF calculation not converged, but proceeding because ncycles=1 was selected.")
                         return True
             raise
+
         return True
 
     def create_results_instance(self):
@@ -1725,7 +1736,7 @@ class adfsinglepointjob(adfjob):
 
     def get_spin_block(self):
         block = ""
-        if self.get_molecule().get_spin() != 0:
+        if self.get_molecule().get_spin() != 0 and not self.settings.noncollinear:
             block += f"SPINPOLARIZATION {self.get_molecule().get_spin():2d}"
             block += " \n\n"
         return block
@@ -1833,11 +1844,13 @@ class adfsinglepointjob(adfjob):
                 block += "  MultipolePotential \n"
                 block += "   Coordinates \n"
                 for i in self.pc:
-                    block += "    {:14.5f} {:14.5f} {:14.5f} {:14.5f}\n".format(*i)
+                    # Job Mol Interface
+                    block += "    {:21.14f} {:21.14f} {:21.14f} {:21.14f}\n".format(*i)
                 block += "   END\n"
                 block += "  END\n"
             if self.efield is not None:
-                block += "  ElectricField     {:14.5f} {:14.5f} {:14.5f} [a.u.]\n".format(*self.efield)
+                # Job Mol Interface
+                block += "  ElectricField     {:21.14f} {:21.14f} {:21.14f} [a.u.]\n".format(*self.efield)
             block += " END\n\n"
         return block
 

@@ -5,6 +5,8 @@ if 'pyadfenv' not in globals():
 
 import numpy as np
 
+pyadfenv.options['save_results'] = True
+
 mol = molecule(os.path.join(pyadfenv.outdir, 'water.xyz'))
 
 # first, we do a Turbomole geometry optimization

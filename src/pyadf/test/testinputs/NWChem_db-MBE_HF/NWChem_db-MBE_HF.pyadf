@@ -97,14 +97,14 @@ for i in range(max_order):
 print()
 
 if 'unittesting' in pyadfenv.options:
-    print(tot_energy_eb_by_order, [-227.25064791557298, -227.34251867151798, -227.3375835865])
+    print(tot_energy_eb_by_order)
     testobj.assertAlmostEqual(tot_energy_eb_by_order,
-                              [-227.37010610198803, -227.50025414306003, -227.48532704693204], 6)
-    print(int_energy_eb_by_order, [0, -0.09187075594499561, -0.08693567092699084])
+                              [-227.370107439597, -227.50025414306003, -227.48532704693204], 6)
+    print(int_energy_eb_by_order)
     testobj.assertAlmostEqual(int_energy_eb_by_order,
-                              [0, -0.13014804107200462, -0.11522094494401358], 6)
-    print(int_energy_supermol, -0.08693567092700505)
-    testobj.assertAlmostEqual(int_energy_supermol, -0.11522094494398516, 6)
+                              [0, -0.13014695564100975, -0.1152200898760043], 6)
+    print(int_energy_supermol)
+    testobj.assertAlmostEqual(int_energy_supermol, -0.1152200898760043, 6)
 
 ###############################################
 # B) density-based MBE
@@ -161,7 +161,7 @@ dens_by_order = dbmbe_res._dens_by_order
 if 'unittesting' in pyadfenv.options:
     testobj.assertAlmostEqual(dens_by_order[0].integral(), 30.0, 5)
     testobj.assertAlmostEqual(tot_energy_db_by_order,
-                              [-227.4351579406442, -227.48342540062657, -227.4853276598466], 6)
+                              [-227.43515787573762, -227.48342525963074, -227.48532752947182], 6)
     testobj.assertAlmostEqual(int_energy_db_by_order,
-                              [-0.06505183863717434, -0.11331929861955814, -0.11522155785948485], 6)
-    testobj.assertAlmostEqual(int_energy_supermol, -0.11522094494398516, 6)
+                              [-0.06505043614060924, -0.11331782003372837, -0.11522008987481058], 6)
+    testobj.assertAlmostEqual(int_energy_supermol, -0.1152200898760043, 6)

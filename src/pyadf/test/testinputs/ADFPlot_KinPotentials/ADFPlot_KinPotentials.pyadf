@@ -47,7 +47,7 @@ if 'unittesting' in pyadfenv.options:
     # there is still (quite a large) difference because of
     # constant shift and basis set incompleteness
     # (see master thesis of Sam Fux)
-    testobj.assertAlmostEqual(int_diff, 684.1995, 2)
+    testobj.assertAlmostEqual(int_diff, 503.4893754, 2)
 
 ############################################################################
 # kinetic potential for a water molecule

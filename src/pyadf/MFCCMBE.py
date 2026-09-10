@@ -1304,7 +1304,7 @@ class DensityBasedMFCCMBE2Job(metajob):
         newmol = mol
         deletelist = []
         for atomnum, coords in enumerate(newmol.get_coordinates()):
-            chainid, resname, resnum = newmol.get_atom_resinfo(atomnum + 1)
+            chainid, resname, resnum, _ = newmol.get_atom_resinfo(atomnum + 1)
             if resname == 'CAP' or resname == 'SCP':
                 deletelist.append(atomnum + 1)
         newmol.delete_atoms(deletelist)
@@ -3236,8 +3236,8 @@ class MFCCMBE3InteractionJob(metajob):
         @param frag2: frag/cap 2
         @type  frag2: cappedfragment()
         """
-        chain_id1, resname1, resnum1 = frag1.mol.get_atom_resinfo(1)
-        chain_id2, resname2, resnum2 = frag2.mol.get_atom_resinfo(1)
+        chain_id1, _, _, _ = frag1.mol.get_atom_resinfo(1)
+        chain_id2, _, _, _ = frag2.mol.get_atom_resinfo(1)
         key = (combi[0], chain_id1, combi[1], chain_id2)
         return key
 
@@ -3351,7 +3351,7 @@ class MFCCMBE3InteractionJob(metajob):
         for i, frag in enumerate(self.fraglist):
             print('>  Calculating Fragment', i + 1, 'of', self.nfrag)
 
-            chain_id, resname, resnum = frag.mol.get_atom_resinfo(1)  # 'A', 'ALA', 1
+            chain_id, *_ = frag.mol.get_atom_resinfo(1)  # 'A', 'ALA', 1
             key = (i, chain_id)  # (0, 'A')
 
             # check if fragment-ligand distance is in cutoff range
@@ -3393,7 +3393,7 @@ class MFCCMBE3InteractionJob(metajob):
         for i, cap in enumerate(self.caplist):
             print('>  Calculating Cap', i + 1, 'of', self.ncap)
 
-            chain_id, resname, resnum = cap.mol.get_atom_resinfo(1)  # 'A', 'ALA', 1
+            chain_id, *_ = cap.mol.get_atom_resinfo(1)  # 'A', 'ALA', 1
             key = (i, chain_id)  # (0, 'A')
 
             # check if cap-ligand distance is in cutoff range

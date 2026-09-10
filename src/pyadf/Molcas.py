@@ -331,6 +331,7 @@ class MolcasJob(job):
     def get_runscript(self, nproc=1):
         runscript = ""
         runscript += "cat <<eor >molcasjob.xyz\n"
+        # Job Mol Interface
         runscript += self.mol.get_xyz_file()
         runscript += "eor\n"
         runscript += "cat molcasjob.xyz\n"

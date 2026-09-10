@@ -36,6 +36,7 @@ class Atom:
         self.mol = mol
         self.ghost = ghost
         self.bonds = bonds or []
+        self.id = None
         self.properties = other
 
         ratio = Units.conversion(unit, 'angstrom')
@@ -56,6 +57,9 @@ class Atom:
         if self.ghost:
             symbol = 'Gh.' + symbol
         return f'{symbol:>5} {self.x:14.5f} {self.y:14.5f} {self.z:14.5f}'
+
+    def __int__(self):
+        return self.id
 
     @property
     def x(self):
@@ -181,7 +185,7 @@ class OBFreeMolecule(BaseMolecule):
             self.read(filename, inputformat)
 
     def __str__(self):
-        s = '  Cartesian coordinates: \n' + self.print_coordinates(index=True)
+        s = '  Cartesian coordinates: \n' + self.print_coordinates(index=True, f_format=(14, 5))
         s += '  Bonds: \n'
         for bond in self.bonds:
             s += str(bond) + '\n'
@@ -259,13 +263,10 @@ class OBFreeMolecule(BaseMolecule):
 
     def unset_atoms_id(self):
         for at in self.atoms:
-            try:
-                del at.id
-            except AttributeError:
-                pass
+            at.id = None
 
     def get_fragment(self, atoms, ghosts=True):
-        atoms = self._get_atoms(atoms)
+        atoms = self.get_atoms(atoms)
         atoms = [atom for atom in atoms if ghosts or not atom.ghost]
         m = OBFreeMolecule()
         for atom in atoms:
@@ -293,7 +294,7 @@ class OBFreeMolecule(BaseMolecule):
             self.add_atom(newatom, adjacent=bond_to)
 
     def delete_atoms(self, atoms):
-        atoms = self._get_atoms(atoms)
+        atoms = self.get_atoms(atoms)
         for at in atoms:
             self.delete_atom(at)
 
@@ -305,7 +306,6 @@ class OBFreeMolecule(BaseMolecule):
             at.ghost = True
         return m
 
-    # I don't like this, should be done with property()
     def get_number_of_atoms(self):
         return len(self.atoms)
 
@@ -327,20 +327,12 @@ class OBFreeMolecule(BaseMolecule):
     def get_spin(self):
         return self.spin
 
-    def print_coordinates(self, atoms=None, index=True, suffix=''):
-        lines = ''
-        atoms = self._get_atoms(atoms)
-        for i, at in enumerate(atoms):
-            symb = at.symbol
-            if at.ghost:
-                symb = 'Gh.' + symb
-            if index:
-                line = f"  {i + 1:3d}) {symb:>8} {at.x:14.5f} {at.y:14.5f} {at.z:14.5f}"
-            else:
-                line = f"  {symb:>8} {at.x:14.5f} {at.y:14.5f} {at.z:14.5f}"
-
-            line += "    " + suffix + "\n"
-            lines += line
+    def print_coordinates(self, *args, **kwargs):
+        if kwargs.get('index', True):
+            self.set_atoms_id()
+        lines = super().print_coordinates(*args, **kwargs)
+        if kwargs.get('index', True):
+            self.unset_atoms_id()
         return lines
 
     def readxyz(self, f, frame):
@@ -377,9 +369,6 @@ class OBFreeMolecule(BaseMolecule):
         if fr > 0:
             raise MoleculeError(f'readxyz: There are only {frame - fr:d} frames in {f.name}')
         f.close()
-
-    def writexyz(self, f):
-        f.write(self.get_xyz_file())
 
     def readmol(self, f, frame):
         if frame != 1:
@@ -596,17 +585,9 @@ class OBFreeMolecule(BaseMolecule):
                 if len(lst) < 4:
                     raise MoleculeError('readtmol: error reading tmol file')
                 num = PT.get_atomic_number(lst[3])
-                self.add_atom(Atom(atnum=num, coords=(lst[0], lst[1], lst[2]), unit='bohr'))
+                self.add_atom(Atom(atnum=num, unit='bohr', coords=(lst[0], lst[1], lst[2])))
             elif '$coord' in line:
                 in_coord_block = True
-
-    def writetmol(self, f):
-        ratio = Units.conversion('angstrom', 'bohr')
-
-        f.write('$coord\n')
-        for at in self.atoms:
-            f.write(f'{at.x * ratio:20.14f} {at.y * ratio:20.14f} {at.z * ratio:20.14f} {at.symbol.lower():<8} \n')
-        f.write('$end\n')
 
     def read(self, filename, inputformat='xyz', frame=1):
         if inputformat in self._iodict:
@@ -624,7 +605,9 @@ class OBFreeMolecule(BaseMolecule):
             raise MoleculeError('read: Unsupported file format')
 
     def write(self, filename, outputformat='xyz'):
-        if outputformat in self._iodict:
+        if outputformat in ['xyz', 'tmol']:
+            super().write(filename, outputformat)
+        elif outputformat in self._iodict:
             try:
                 f = open(filename, 'w')
             except OSError:
@@ -682,18 +665,6 @@ class OBFreeMolecule(BaseMolecule):
 
         return molhash
 
-    def get_xyz_file(self):
-        lines = str(len(self.atoms)) + '\n'
-        if 'comment' in self.properties:
-            comment = self.properties['comment']
-            if isinstance(comment, list):
-                comment = comment[0]
-            lines += comment
-        lines += '\n'
-        for at in self.atoms:
-            lines += str(at) + '\n'
-        return lines
-
     def get_cube_header(self):
         lines = ''
 
@@ -701,43 +672,29 @@ class OBFreeMolecule(BaseMolecule):
         ratio = Units.conversion('angstrom', 'bohr')
 
         for at in self.atoms:
+            # Job Mol Interface
             if not at.ghost:
                 lines += f'{at.atnum:5d}{0.0:12.6f}" + ' \
                          f'f"{at.x * ratio:12.6f}{at.y * ratio:12.6f}{at.z * ratio:12.6f}\n'
         return lines
 
-    def get_dalton_molfile(self, basis):
-        lines = 'BASIS\n' + basis + '\nThis Dalton molecule file was generated by PyADF\n' + \
-                ' Homepage: https://www.pyadf.org\n'
-        types = {at.atnum for at in self.atoms}
-        lines += f'Angstrom Nosymmetry Atomtypes={len(types):d}\n'
-        for tp in types:
-            atoms = [at for at in self.atoms if at.atnum == tp]
-            lines += f'Charge={tp:.1f} Atoms={len(atoms):d}\n'
-            for i, at in enumerate(atoms):
-                lines += f'{at.symbol + str(i + 1):<4} {at.x:14.5f} {at.y:14.5f} {at.z:14.5f} \n'
-        return lines
-
-    def write_dalton_molfile(self, filename, basis):
-        f = open(filename, 'w')
-        f.write(self.get_dalton_molfile(basis))
-        f.close()
-
-    def get_coordinates(self, atoms=None, ghosts=True):
-        atoms = self._get_atoms(atoms)
+    def get_coordinates(self, atoms=None, ghosts=True, unit='angstrom'):
+        import numpy as np
+        atoms = self.get_atoms(atoms)
+        ratio = Units.conversion('angstrom', unit)
         # without list() maybe?
-        return [list(at.coords) for at in atoms if ghosts or not at.ghost]
+        return [list(np.array(at.coords)*ratio) for at in atoms if ghosts or not at.ghost]
 
     def get_atom_symbols(self, atoms=None, ghosts=True, prefix_ghosts=False):
-        atoms = self._get_atoms(atoms)
+        atoms = self.get_atoms(atoms, ghosts=ghosts)
 
         def pref(arg):
             return 'Gh.' * int(prefix_ghosts and arg.ghost)
 
-        return [pref(at) + at.symbol for at in atoms if ghosts or not at.ghost]
+        return [pref(at) + at.symbol for at in atoms]
 
     def get_atomic_numbers(self, atoms=None, ghosts=True):
-        atoms = self._get_atoms(atoms)
+        atoms = self.get_atoms(atoms)
         return [at.atnum * int(not at.ghost) for at in atoms if ghosts or not at.ghost]
 
     def get_mass(self):
@@ -907,7 +864,7 @@ class OBFreeMolecule(BaseMolecule):
 
         if atom is not None:
             mol = copy.deepcopy(self)
-            atom = mol._get_atoms([atom])
+            atom = mol.get_atoms([atom])
             vec = (displacement * int(coordinate == 'x'),
                    displacement * int(coordinate == 'y'),
                    displacement * int(coordinate == 'z'))
@@ -920,7 +877,7 @@ class OBFreeMolecule(BaseMolecule):
         return self.find_adjacent_atoms(atoms, atnum=1)
 
     def find_adjacent_atoms(self, atoms, atnum=None):
-        atoms = self._get_atoms(atoms)
+        atoms = self.get_atoms(atoms)
         adjacent = []
         for at in atoms:
             for b in at.bonds:
@@ -1084,12 +1041,12 @@ class OBFreeMolecule(BaseMolecule):
     def get_nuclear_dipole_moment(self, atoms=None):
         import numpy as np
         printsum = (atoms is None)
-        atoms = self._get_atoms(atoms)
+        atoms = self.get_atoms(atoms)
         nucdip = []
         for at in atoms:
             nucdip.append(np.array([at.atnum * at.x * Units.conversion('angstrom', 'bohr'),
-                                       at.atnum * at.y * Units.conversion('angstrom', 'bohr'),
-                                       at.atnum * at.z * Units.conversion('angstrom', 'bohr')]))
+                                    at.atnum * at.y * Units.conversion('angstrom', 'bohr'),
+                                    at.atnum * at.z * Units.conversion('angstrom', 'bohr')]))
         if printsum:
             return sum(nucdip)
         return nucdip
@@ -1104,23 +1061,16 @@ class OBFreeMolecule(BaseMolecule):
             e = [e + (at.atnum * c) / dist**3 for e, c in zip(e, vec)]
         return np.array(e) * (Units.conversion('bohr', 'angstrom')**2)
 
-    def get_nuclear_interaction_energy(self, other):
-        inten = 0.0
-        for at1 in self.atoms:
-            for at2 in other.atoms:
-                dist = at1.distance_to(at2) * Units.conversion('angstrom', 'bohr')
-                inten = inten + at1.atnum * at2.atnum / dist
-        return inten
-
     # Backwards compatibility:
-    def _get_atoms(self, atomlist):
+    def get_atoms(self, atomlist, ghosts=True):
         # translate index list into atom list
         if atomlist is None:
-            return self.atoms
+            return [at for at in self.atoms if ghosts or not at.ghost]
         else:
             if isinstance(atomlist, list):
                 if len(atomlist) > 0 and isinstance(atomlist[0], int):
-                    return [self.atoms[i - 1] for i in atomlist]
+                    return [self.atoms[i - 1] for i in atomlist
+                            if ghosts or not self.atoms[i - 1].ghost]
                 else:
                     return atomlist
             else:
@@ -1136,5 +1086,5 @@ class OBFreeMolecule(BaseMolecule):
     def get_all_bonds(self):
         return [[self.atoms.index(bond.atom1) + 1, self.atoms.index(bond.atom2) + 1] for bond in self.bonds]
 
-    _iodict = {'xyz': (readxyz, writexyz), 'mol': (readmol, writemol), 'mol2': (readmol2, writemol2),
-               'pdb': (readpdb, writepdb), 'tmol': (readtmol, writetmol)}
+    _iodict = {'xyz': (readxyz, None), 'mol': (readmol, writemol), 'mol2': (readmol2, writemol2),
+               'pdb': (readpdb, writepdb), 'tmol': (readtmol, None)}

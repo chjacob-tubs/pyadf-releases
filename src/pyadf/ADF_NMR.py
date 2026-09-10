@@ -265,8 +265,14 @@ class adfnmrjob(scmjob):
         print("   SCF taken from ADF job ", self.adfresults.fileid, " (results id)")
         print()
         print("   Shielding will be calculated for nuclei : ")
-        print(self.adfresults.get_molecule().print_coordinates(self.nucs))
+        print(self.adfresults.get_molecule().print_coordinates(self.nucs, f_format=(14, 5)))
         print()
+
+        if self.ghosts is not None:
+            print("   Shielding will be calculated for ghost sites : ")
+            for i, g in enumerate(self.ghosts):
+                print(f"   {i + 1:3d}) {g[0]:14.5f} {g[1]:14.5f} {g[2]:14.5f}")
+            print()
 
         if self.u1k is not None:
             print("   U1K  set to : ", self.u1k)
@@ -285,12 +291,6 @@ class adfnmrjob(scmjob):
             print("   Calc set to : ", self.out)
         else:
             print("   Calc set to :  All")
-
-        if self.ghosts is not None:
-            print("   Shielding will be calculated for ghost sites : ")
-            for i, g in enumerate(self.ghosts):
-                print(f"   {i + 1:3d}) {g[0]:14.5f} {g[1]:14.5f} {g[2]:14.5f}")
-            print()
 
         if self.analysis is not None:
             print("   Analysis is set to : ", self.analysis)

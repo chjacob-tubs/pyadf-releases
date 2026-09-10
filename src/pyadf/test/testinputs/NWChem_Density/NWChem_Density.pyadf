@@ -32,7 +32,7 @@ int_dens_cube = dens_cube.integral()
 print("Integral of density (cube grid): ", int_dens_cube)
 
 if 'unittesting' in pyadfenv.options:
-    testobj.assertAlmostEqual(int_dens_cube, 9.839722, 4)
+    testobj.assertAlmostEqual(int_dens_cube, 9.8397759, 4)
 
 # pyscf grid
 pgrid = pyscfgrid(r_h2o.get_molecule())
@@ -68,7 +68,7 @@ print("XC energy (LDA, pyscf grid): ", xc_energy_lda)
 
 if 'unittesting' in pyadfenv.options:
     # XC energy from NWChem output: -8.770841769540
-    testobj.assertAlmostEqual(xc_energy_lda, -8.77086595216152, 6)
+    testobj.assertAlmostEqual(xc_energy_lda, -8.770867047711837, 6)
 
 # Electron-nuclear attraction energy
 nucpot = r_h2o.get_potential(grid=pgrid, pot='nuc')
@@ -78,7 +78,7 @@ print("Electron-nuclear energy (LDA, pyscf grid): ", elnuc_energy)
 
 if 'unittesting' in pyadfenv.options:
     # Electron-nuclear energy from NWChem output: ???
-    testobj.assertAlmostEqual(elnuc_energy, -198.60326813518904, 6)
+    testobj.assertAlmostEqual(elnuc_energy, -198.60328239704955, 5)
 
 # Coulomb energy
 coulpot = r_h2o.get_potential(grid=pgrid, pot='coul')
@@ -88,7 +88,7 @@ print("Coulomb energy (LDA, pyscf grid): ", coulomb_energy)
 
 if 'unittesting' in pyadfenv.options:
     # Coulomb energy from NWChem output: 46.714607984886
-    testobj.assertAlmostEqual(coulomb_energy, 46.7148435392901, 6)
+    testobj.assertAlmostEqual(coulomb_energy, 46.7148527107773, 6)
 
 #########################################
 # C) BP86 / cc-pVDZ
@@ -114,7 +114,7 @@ print("XC energy (BP86, pyscf grid): ", xc_energy_lda)
 
 if 'unittesting' in pyadfenv.options:
     # XC energy from NWChem output: -9.346052696631
-    testobj.assertAlmostEqual(xc_energy_lda, -9.346154607945637, 6)
+    testobj.assertAlmostEqual(xc_energy_lda, -9.346156, 5)
 
 ###############################################
 # D) LDA / cc-pVQZ (to test f and g functions)

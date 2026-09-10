@@ -29,9 +29,9 @@ ehomo = results.get_orbital_energy(orb='HOMO')
 elumo = results.get_orbital_energy(orb='LUMO')
 eorb = results.get_orbital_energy(orb=3, irrep='A1')
 
-testobj.assertAlmostEqual(ehomo, -1.606737, 3)
-testobj.assertAlmostEqual(elumo, 7.7403346, 3)
-testobj.assertAlmostEqual(eorb, -3.707, 3)
+testobj.assertAlmostEqual(ehomo, -1.595915, 3)
+testobj.assertAlmostEqual(elumo, 7.7427423, 3)
+testobj.assertAlmostEqual(eorb, -3.6863, 3)
 
 cgrid = cubegrid(results.get_molecule(), spacing=0.1)
 agrid = adfgrid(results)

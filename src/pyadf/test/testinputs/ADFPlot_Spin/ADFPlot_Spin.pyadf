@@ -43,10 +43,10 @@ for name, grid in [('agrid', agrid), ('cgrid', cgrid)]:
             testobj.assertAlmostEqual(densint_tot, 16.0, 4)
             testobj.assertAlmostEqual(densint_spin, 2.0, 4)
         else:
-            testobj.assertAlmostEqual(densint_a, 9.4872982, 4)
-            testobj.assertAlmostEqual(densint_b, 7.5696267, 4)
-            testobj.assertAlmostEqual(densint_tot, 17.0569249, 4)
-            testobj.assertAlmostEqual(densint_spin, 1.9176715, 4)
+            testobj.assertAlmostEqual(densint_a, 9.4874019, 4)
+            testobj.assertAlmostEqual(densint_b, 7.5698615, 4)
+            testobj.assertAlmostEqual(densint_tot, 17.0572634, 4)
+            testobj.assertAlmostEqual(densint_spin, 1.9175404, 4)
 
     pot_tot = results.get_potential(grid=grid, pot='total')
 
@@ -58,11 +58,11 @@ for name, grid in [('agrid', agrid), ('cgrid', cgrid)]:
 
     if 'unittesting' in pyadfenv.options:
         if name == 'agrid':
-            testobj.assertAlmostEqual(en_a, -120.100655274, 6)
-            testobj.assertAlmostEqual(en_b, -112.706598753, 6)
+            testobj.assertAlmostEqual(en_a, -120.117936496, 6)
+            testobj.assertAlmostEqual(en_b, -112.723532563, 6)
         else:
-            testobj.assertAlmostEqual(en_a, -686.969070031, 6)
-            testobj.assertAlmostEqual(en_b, -679.703786439, 6)
+            testobj.assertAlmostEqual(en_a, -686.998304846, 6)
+            testobj.assertAlmostEqual(en_b, -679.750843226, 6)
 
     pot_nuc = results.get_potential(grid=grid, pot='nuc')
     pot_coul = results.get_potential(grid=grid, pot='coul')
@@ -78,8 +78,8 @@ for name, grid in [('agrid', agrid), ('cgrid', cgrid)]:
 
     if 'unittesting' in pyadfenv.options:
         if name == 'agrid':
-            testobj.assertAlmostEqual(en_a, -120.100655274, 6)
-            testobj.assertAlmostEqual(en_b, -112.706598753, 6)
+            testobj.assertAlmostEqual(en_a, -120.117936496, 6)
+            testobj.assertAlmostEqual(en_b, -112.723532563, 6)
         else:
-            testobj.assertAlmostEqual(en_a, -686.969070031, 6)
-            testobj.assertAlmostEqual(en_b, -679.703786439, 6)
+            testobj.assertAlmostEqual(en_a, -686.998304846, 6)
+            testobj.assertAlmostEqual(en_b, -679.750843226, 6)

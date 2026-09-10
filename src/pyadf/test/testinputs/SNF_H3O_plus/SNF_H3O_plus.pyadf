@@ -1,0 +1,59 @@
+import os
+from pyadf import *
+if 'pyadfenv' not in globals():
+    from pyadf.Initialization import *
+
+import numpy as np
+
+# Second, we calculate NO2(+) (closed-shell)
+
+mol = molecule(os.path.join(pyadfenv.outdir, 'h3o_plus.xyz'))
+mol.set_charge(+1)
+
+# first, we do a Turbomole geometry optimization
+
+settings = TurbomoleGeometryOptimizationSettings(verbose_level=2)
+settings.set_dft_grid('m4')
+settings.set_scfconv(9)
+settings.set_convergence_criterion(5)
+
+# default settings: RI-DFT/BP
+settings.set_basis_set('def2-SVP')
+
+res = TurbomoleGeometryOptimizationJob(mol, method='dft', settings=settings).run()
+
+opt_mol = res.get_molecule()
+print(opt_mol)
+
+opt_energy = res.get_energy()
+print("Final Total Energy: ", opt_energy)
+
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(opt_energy, -76.64932310221, 5)
+
+    ref_mol = molecule(os.path.join(pyadfenv.outdir, 'h3o_plus_ref.xyz'))
+    testobj.assertAlmostEqualMolecules(opt_mol, ref_mol)
+
+# now for the SNF part
+
+snf_res = SNFJob(res).run()
+freqs = snf_res.get_wave_numbers()
+ints = snf_res.get_ir_ints()
+
+modes_mw = snf_res.get_vibs().modes.modes_mw
+
+print("Vibrational frequencies [cm-1]: ", freqs)
+print("IR intensities: ", ints)
+print("Normal Modes: ", modes_mw)
+
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(freqs, [783.94861, 1581.81071, 1581.88721,
+                                      3466.25031, 3571.1756, 3571.40009], 2)
+    testobj.assertAlmostEqual(ints, [464.02644447, 97.04435784, 97.04738567,
+                                     52.63889201, 487.42301871, 487.48312076], 2)
+
+    modes_mw_orig = np.loadtxt(os.path.join(pyadfenv.outdir, 'modes_orig.dat'))
+    overlap = np.dot(modes_mw, modes_mw_orig.T)
+
+    testobj.assertAlmostEqual(np.abs(overlap.diagonal()), np.ones(6), 4)
+

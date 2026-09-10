@@ -5,13 +5,13 @@ if 'pyadfenv' not in globals():
 
 import numpy as np
 
-fde_settings = adfsettings()
+fde_settings = adfsettings(zlmfit=False)
 fde_settings.set_save_tapes([21, 10])
 fde_settings.set_functional('BLYP')
 # fde_settings.set_functional('BP86')
 fde_settings.ncycles = 1000
 fde_settings.set_occupations(['KEEPORBITALS=' + str(fde_settings.ncycles)])
-fde_settings.set_integration(accint=4.0, acclist=[4.0, 4.0])
+fde_settings.set_integration(accint=4.0, becke=False)
 
 # other options
 basis_active = "DZP"
@@ -30,8 +30,9 @@ m_tot = m_h2o + m_nh3
 
 print(m_tot.print_coordinates())
 
-adf_settings = adfsettings(functional='BLYP')
+adf_settings = adfsettings(functional='BLYP', zlmfit=False)
 # adf_settings = adfsettings(functional='BP86')
+adf_settings.set_integration(accint=4.0, becke=False)
 adf_settings.set_save_tapes([21, 10])
 
 r_tot = adfsinglepointjob(m_tot, basis_active, settings=adf_settings, options=['NOSYMFIT']).run()

@@ -43,7 +43,8 @@ def run_potjob(refresults, potproj, projchange=None):
 
     startpot1 = get_startpot(refresults, agrid)
 
-    settings = adfsettings(functional='BP86', accint=12.0, converge=1e-04)
+    settings = adfsettings(functional='BP86', converge=1e-04, zlmfit=False)
+    settings.set_integration(accint=12.0, becke=False)
     settings.set_save_tapes([21, 10])
     settings.set_ncycles(1000)
 
@@ -113,7 +114,8 @@ def main():
     # A) reference calculation (BP86 for Ar atom)
     ###################################################################
 
-    settings = adfsettings(functional='BP86', accint=12.0, converge=1e-04)
+    settings = adfsettings(functional='BP86', converge=1e-04, zlmfit=False)
+    settings.set_integration(accint=12.0, becke=False)
     settings.set_save_tapes([21, 10])
     settings.set_ncycles(100)
 
@@ -219,7 +221,8 @@ def main():
     # B) reference calculation (HF for Ar atom)
     ###################################################################
 
-    settings = adfsettings(functional='HARTREEFOCK', accint=12.0, converge=1e-04)
+    settings = adfsettings(functional='HARTREEFOCK', converge=1e-04, zlmfit=False)
+    settings.set_integration(accint=12.0, becke=False)
     settings.set_save_tapes([21, 10])
     settings.set_ncycles(100)
 

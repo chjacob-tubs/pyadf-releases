@@ -113,6 +113,7 @@ class adfaccurateembeddingjob(metajob):
 
         self.basis = basis
         self.settings = settings
+        self.settings.zlmfit = False
 
         self.potoptions = potoptions
 

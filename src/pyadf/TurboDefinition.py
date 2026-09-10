@@ -619,6 +619,7 @@ class TurboDefinition(TurboObject):
 
         """
 
+        from .Turbomole import TurbomoleGeometryOptimizationSettings
         import tempfile
 
         toadd = ''
@@ -630,7 +631,12 @@ class TurboDefinition(TurboObject):
         elif self.settings.disp == 'dft-d2':
             toadd += '$disp' + '\n'
         elif self.settings.disp == 'dft-d3':
-            toadd += '$disp3' + '\n'
+            # toadd += '$disp3' + '\n'
+            # without bj is no longer supported since there
+            # are little to no use cases
+            toadd += '$disp3 -bj' + '\n'
+        elif self.settings.disp == 'dft-d3bj':
+            toadd += '$disp3 -bj' + '\n'
         else:
             raise PyAdfError("Unknown value `" + str(self.settings.disp) + "' for dispersion correction.")
 
@@ -646,9 +652,30 @@ class TurboDefinition(TurboObject):
             for i in range(self.settings.num_pointcharges):
                 toadd += ' '.join(map(str, self.settings.pointcharges[i, :])) + '\n'
 
+        # If there are any of these options, it is either True or False
+        if isinstance(self.settings, TurbomoleGeometryOptimizationSettings):
+            if self.settings.relax is not None:
+                self._report("Adding options for Relax ($optimize-block) to the control file.", 2)
+                toadd += '$optimize \n'
+                if self.settings.relax_internal:
+                    toadd += f'    internal on \n'
+                else:
+                    toadd += f'    internal off \n'
+                if self.settings.relax_redundant:
+                    toadd += f'    redundant on \n'
+                else:
+                    toadd += f'    redundant off \n'
+                if self.settings.relax_cartesian:
+                    toadd += f'    cartesian on \n'
+                else:
+                    toadd += f'    cartesian off \n'
+
         with tempfile.NamedTemporaryFile(mode='a', delete=False) as tf:
             with open('control') as infile:
                 for line in infile:
+                    if isinstance(self.settings, TurbomoleGeometryOptimizationSettings):
+                        if 'dqmax' in line and self.settings.dqmax:
+                            line = line.replace(str(0.3), str(self.settings.dqmax))
                     line = line.replace('$end', toadd + '$end')
                     tf.write(line + '\n')
             tf.file.close()
@@ -989,6 +1016,12 @@ class TurboDefinition(TurboObject):
                                  + "changed. I can't find an explanation for "
                                  + "`func' (to select the DFT functional) but "
                                  + "I have used it.", -3)
+
+                if self._checkfor("SPECIFIED FUNCTIONAL not SUPPORTED. RESET TO DEFAULT."):
+                    success = False
+                    self._report(sanitizeprompt + "ERROR: `define did not recognize the specified "
+                                 + "functional. Please check the manual for the correct name "
+                                 + " of your desired functional.",-3)
 
                 if self._checkfor("grid : TO CHANGE GRID SIZE"):
                     self._report(sanitizeprompt + "`define' still seems to "

@@ -30,4 +30,4 @@ mfcc_res = MFCCInteractionJob(frags, mol2, jobfunc=calculate_mol, cutoff=cutoff)
 inten_mfcc = mfcc_res.get_total_interaction_energy()
 
 if 'unittesting' in pyadfenv.options:
-    testobj.assertAlmostEqual(inten_mfcc, -0.03902549361578167, 6)
+    testobj.assertAlmostEqual(inten_mfcc, -0.0590716618200986, 6)

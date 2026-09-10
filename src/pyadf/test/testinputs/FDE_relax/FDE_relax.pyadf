@@ -34,5 +34,5 @@ dipole_magn = fde_res.get_dipole_magnitude()
 ###################################################################
 
 if 'unittesting' in pyadfenv.options:
-    testobj.assertAlmostEqual(dipole_magn, 0.833191254, 6)
-    testobj.assertAlmostEqual(dipole_vect, [0.0, 0.0, 0.833191254], 4)
+    testobj.assertAlmostEqual(dipole_magn, 0.83249712, 6)
+    testobj.assertAlmostEqual(dipole_vect, [0.0, 0.0, 0.83249712], 4)

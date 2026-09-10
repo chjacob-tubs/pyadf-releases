@@ -290,6 +290,10 @@ class densfjob(scmjob):
             if ('Loc' not in self.prop.opts['orbs']) and \
                     not (list(self.prop.opts['orbs'].keys()) == ['A']):
                 raise PyAdfError('CJDENSF only working for NSYM=1 (irrep A) orbitals')
+            print("CJCJ", self.prop.pclass, self.prop.ptype, adfres.job.settings.zlmfit)
+            if (self.prop.pclass == 'potential' and self.prop.ptype == 'coul'
+                    and adfres.job.settings.zlmfit):
+                raise PyAdfError('Orbital Coulomb potenial not working in CJDENSF with Zlmfit')
 
         if self.prop.pclass == 'potential':
             if 'func' in self.prop.opts:

@@ -3,7 +3,7 @@ variables:
     USER: legit
     PYADFHOME: $CI_BUILDS_DIR/$CI_PROJECT_PATH
     PYADF_NPROC: 4
-    CONDA_MODULE_LOAD: python/anaconda3-2022.5
+    CONDA_MODULE_LOAD: python/miniforge3-25.3.0
     CONDA_ENV: "pipeline_${CI_PIPELINE_ID}"
     CONDA_ENV_BASE: ci_pyadf
 
@@ -25,8 +25,13 @@ default:
         - conda activate $CONDA_ENV
         - module load locvib/master-20221116
         - export PYADF_NPROC
+        - export OMP_NUM_THREADS=$PYADF_NPROC
         - export PYTHONUNBUFFERED=1
         - export PYADF_TEST_LINEBREAKS=1
+        - export TMPDIR=/scratch/$USER/ci-pipeline_${CI_PIPELINE_ID}/${CI_JOB_ID}
+        - mkdir -p $TMPDIR
+        - cd $TMPDIR
+        - echo "Running in directory " $TMPDIR
 
 stages:
     - build
@@ -46,7 +51,10 @@ install_pyadf_static:
         - . /usr/share/modules/init/setup
         - module load locvib/master-20221116
         - module load $CONDA_MODULE_LOAD
-        - conda env remove --name $CONDA_ENV --yes
+        - |-
+            if conda env list | grep -q $CONDA_ENV; then
+                conda env remove --name $CONDA_ENV --yes
+            fi
         - conda env create --name $CONDA_ENV --file $PYADFHOME/src/pyadf/test/test_env.yml
         - conda activate $CONDA_ENV
     tags:
@@ -64,9 +72,11 @@ install_pyadf_nightly:
         - . /usr/share/modules/init/setup
         - module load locvib/master-20221116 # always install the newest version of locvib as well?
         - module load $CONDA_MODULE_LOAD
-        - conda env list # to see whether there are any left-over conda environments that were missed during cleanup
-        - conda env remove --name $CONDA_ENV --yes
-        - conda create -c conda-forge -n $CONDA_ENV numpy scipy pyscf openbabel xcfun rdkit
+        - |-
+            if conda env list | grep -q $CONDA_ENV; then
+                conda env remove --name $CONDA_ENV --yes
+            fi
+        - conda create -c conda-forge -n $CONDA_ENV numpy '"libopenblas=*=*openmp*"' scipy pyscf h5py openbabel xcfun rdkit fortranformat
         - conda activate $CONDA_ENV
     tags:
         - nodes
@@ -79,21 +89,21 @@ doctests-openbabel:
         - nodes
     stage: general
     script:
-        - test_pyadf --jobrunnerconf $PYADFHOME/src/pyadf/test/test_pyadf.conf --molclass=openbabel --tests=doctests
+        - test_pyadf --jobrunnerconf TESTDEFAULT --molclass=openbabel --tests=doctests
 
 doctests-rdkit:
     tags:
         - nodes
     stage: general
     script:
-        - test_pyadf --jobrunnerconf $PYADFHOME/src/pyadf/test/test_pyadf.conf --molclass=rdkit --tests=doctests
+        - test_pyadf --jobrunnerconf TESTDEFAULT --molclass=rdkit --tests=doctests
 
 unittests:
     tags:
         - nodes
     stage: general
     script:
-        - test_pyadf --jobrunnerconf $PYADFHOME/src/pyadf/test/test_pyadf.conf --molclass=openbabel --tests=unittests
+        - test_pyadf --jobrunnerconf TESTDEFAULT --molclass=openbabel --tests=unittests
 
 misc:
     tags:
@@ -101,7 +111,7 @@ misc:
     stage: openbabel
     needs: ["unittests"]
     script:
-        - test_pyadf --keep --timings --jobrunnerconf $PYADFHOME/src/pyadf/test/test_pyadf.conf --molclass=openbabel --noturbomole --noorca --nodirac --nodalton --noadf --nonwchem --noespresso --nomolcas --nodoctests --nounittests
+        - test_pyadf --keep --timings --jobrunnerconf TESTDEFAULT --molclass=openbabel --noturbomole --noorca --nodirac --nodalton --noadf --nonwchem --noespresso --nomolcas --nodoctests --nounittests
 
 turbomole:
     tags:
@@ -109,7 +119,7 @@ turbomole:
     stage: openbabel
     needs: ["unittests"]
     script:
-        - test_pyadf --keep --timings --jobrunnerconf $PYADFHOME/src/pyadf/test/test_pyadf.conf --molclass=openbabel --tests=turbomole --nodoctests --nounittests
+        - test_pyadf --keep --timings --jobrunnerconf TESTDEFAULT --molclass=openbabel --tests=turbomole --nodoctests --nounittests
 
 orca:
     tags:
@@ -117,7 +127,7 @@ orca:
     stage: openbabel
     needs: ["unittests"]
     script:
-        - test_pyadf --keep --timings --jobrunnerconf $PYADFHOME/src/pyadf/test/test_pyadf.conf --molclass=openbabel --test=orca --nodoctests --nounittests
+        - test_pyadf --keep --timings --jobrunnerconf TESTDEFAULT --molclass=openbabel --test=orca --nodoctests --nounittests
 
 dirac:
     tags:
@@ -125,7 +135,7 @@ dirac:
     stage: openbabel
     needs: ["unittests"]
     script:
-        - test_pyadf --keep --timings --jobrunnerconf $PYADFHOME/src/pyadf/test/test_pyadf.conf --molclass=openbabel --tests=dirac --nodoctests --nounittests
+        - test_pyadf --keep --timings --jobrunnerconf TESTDEFAULT --molclass=openbabel --tests=dirac --nodoctests --nounittests
 
 dalton:
     tags:
@@ -133,7 +143,7 @@ dalton:
     stage: openbabel
     needs: ["unittests"]
     script:
-        - test_pyadf --keep --timings --jobrunnerconf $PYADFHOME/src/pyadf/test/test_pyadf.conf --molclass=openbabel --tests=dalton --nodoctests --nounittests
+        - test_pyadf --keep --timings --jobrunnerconf TESTDEFAULT --molclass=openbabel --tests=dalton --nodoctests --nounittests
 
 adf:
     tags:
@@ -141,7 +151,7 @@ adf:
     stage: openbabel
     needs: ["unittests"]
     script:
-        - test_pyadf --keep --timings --jobrunnerconf $PYADFHOME/src/pyadf/test/test_pyadf.conf --molclass=openbabel --tests=adf --nodoctests --nounittests
+        - test_pyadf --keep --timings --jobrunnerconf TESTDEFAULT --molclass=openbabel --tests=adf --nodoctests --nounittests
 
 nwchem:
     tags:
@@ -149,7 +159,7 @@ nwchem:
     stage: openbabel
     needs: ["unittests"]
     script:
-        - test_pyadf --keep --timings --jobrunnerconf $PYADFHOME/src/pyadf/test/test_pyadf.conf --molclass=openbabel --tests=nwchem --nodoctests --nounittests
+        - test_pyadf --keep --timings --jobrunnerconf TESTDEFAULT --molclass=openbabel --tests=nwchem --nodoctests --nounittests
 
 espresso:
     tags:
@@ -157,7 +167,7 @@ espresso:
     stage: openbabel
     needs: ["unittests"]
     script:
-        - test_pyadf --keep --timings --jobrunnerconf $PYADFHOME/src/pyadf/test/test_pyadf.conf --molclass=openbabel --tests=espresso --nodoctests --nounittests
+        - test_pyadf --keep --timings --jobrunnerconf TESTDEFAULT --molclass=openbabel --tests=espresso --nodoctests --nounittests
 
 molcas:
     tags:
@@ -165,7 +175,7 @@ molcas:
     stage: openbabel
     needs: ["unittests"]
     script:
-        - test_pyadf --keep --timings --jobrunnerconf $PYADFHOME/src/pyadf/test/test_pyadf.conf --molclass=openbabel --tests=molcas --nodoctests --nounittests
+        - test_pyadf --keep --timings --jobrunnerconf TESTDEFAULT --molclass=openbabel --tests=molcas --nodoctests --nounittests
 
 misc_rd:
     tags:
@@ -173,7 +183,7 @@ misc_rd:
     stage: rdkit  
     needs: ["unittests"]
     script:
-        - test_pyadf --keep --timings --jobrunnerconf $PYADFHOME/src/pyadf/test/test_pyadf.conf --molclass=rdkit --noturbomole --noorca --nodirac --nodalton --noadf --nonwchem --noespresso --nomolcas --nodoctests --nounittests
+        - test_pyadf --keep --timings --jobrunnerconf TESTDEFAULT --molclass=rdkit --noturbomole --noorca --nodirac --nodalton --noadf --nonwchem --noespresso --nomolcas --nodoctests --nounittests
 
 turbomole_rd:
     tags:
@@ -181,7 +191,7 @@ turbomole_rd:
     stage: rdkit
     needs: ["unittests"]
     script:
-        - test_pyadf --keep --timings --jobrunnerconf $PYADFHOME/src/pyadf/test/test_pyadf.conf --molclass=rdkit --tests=turbomole --nodoctests --nounittests
+        - test_pyadf --keep --timings --jobrunnerconf TESTDEFAULT --molclass=rdkit --tests=turbomole --nodoctests --nounittests
 
 orca_rd:
     tags:
@@ -189,7 +199,7 @@ orca_rd:
     stage: rdkit
     needs: ["unittests"]
     script:
-        - test_pyadf --keep --timings --jobrunnerconf $PYADFHOME/src/pyadf/test/test_pyadf.conf --molclass=rdkit --test=orca --nodoctests --nounittests
+        - test_pyadf --keep --timings --jobrunnerconf TESTDEFAULT --molclass=rdkit --test=orca --nodoctests --nounittests
 
 dirac_rd:
     tags:
@@ -197,7 +207,7 @@ dirac_rd:
     stage: rdkit
     needs: ["unittests"]
     script:
-        - test_pyadf --keep --timings --jobrunnerconf $PYADFHOME/src/pyadf/test/test_pyadf.conf --molclass=rdkit --tests=dirac --nodoctests --nounittests
+        - test_pyadf --keep --timings --jobrunnerconf TESTDEFAULT --molclass=rdkit --tests=dirac --nodoctests --nounittests
 
 dalton_rd:
     tags:
@@ -205,7 +215,7 @@ dalton_rd:
     stage: rdkit
     needs: ["unittests"]
     script:
-        - test_pyadf --keep --timings --jobrunnerconf $PYADFHOME/src/pyadf/test/test_pyadf.conf --molclass=rdkit --tests=dalton --nodoctests --nounittests
+        - test_pyadf --keep --timings --jobrunnerconf TESTDEFAULT --molclass=rdkit --tests=dalton --nodoctests --nounittests
 
 adf_rd:
     tags:
@@ -213,7 +223,7 @@ adf_rd:
     stage: rdkit
     needs: ["unittests"]
     script:
-        - test_pyadf --keep --timings --jobrunnerconf $PYADFHOME/src/pyadf/test/test_pyadf.conf --molclass=rdkit --tests=adf --nodoctests --nounittests
+        - test_pyadf --keep --timings --jobrunnerconf TESTDEFAULT --molclass=rdkit --tests=adf --nodoctests --nounittests
 
 nwchem_rd:
     tags:
@@ -221,7 +231,7 @@ nwchem_rd:
     stage: rdkit  
     needs: ["unittests"]
     script:
-        - test_pyadf --keep --timings --jobrunnerconf $PYADFHOME/src/pyadf/test/test_pyadf.conf --molclass=rdkit --tests=nwchem --nodoctests --nounittests
+        - test_pyadf --keep --timings --jobrunnerconf TESTDEFAULT --molclass=rdkit --tests=nwchem --nodoctests --nounittests
 
 espresso_rd:
     tags:
@@ -229,7 +239,7 @@ espresso_rd:
     stage: rdkit
     needs: ["unittests"]
     script:
-        - test_pyadf --keep --timings --jobrunnerconf $PYADFHOME/src/pyadf/test/test_pyadf.conf --molclass=rdkit --tests=espresso --nodoctests --nounittests
+        - test_pyadf --keep --timings --jobrunnerconf TESTDEFAULT --molclass=rdkit --tests=espresso --nodoctests --nounittests
 
 molcas_rd:
     tags:
@@ -237,7 +247,7 @@ molcas_rd:
     stage: rdkit
     needs: ["unittests"]
     script:
-        - test_pyadf --keep --timings --jobrunnerconf $PYADFHOME/src/pyadf/test/test_pyadf.conf --molclass=rdkit --tests=molcas --nodoctests --nounittests
+        - test_pyadf --keep --timings --jobrunnerconf TESTDEFAULT --molclass=rdkit --tests=molcas --nodoctests --nounittests
 
 misc_obfree:
     tags:
@@ -245,7 +255,7 @@ misc_obfree:
     stage: obfree  
     needs: ["unittests"]
     script:
-        - test_pyadf --keep --timings --noopenbabel --jobrunnerconf $PYADFHOME/src/pyadf/test/test_pyadf.conf --molclass=obfree --noturbomole --noorca --noadf --nodirac --nodalton --nonwchem --noespresso --nomolcas --nodoctests --nounittests
+        - test_pyadf --keep --timings --noopenbabel --jobrunnerconf TESTDEFAULT --molclass=obfree --noturbomole --noorca --noadf --nodirac --nodalton --nonwchem --noespresso --nomolcas --nodoctests --nounittests
 
 turbomole_obfree:
     tags:
@@ -253,7 +263,7 @@ turbomole_obfree:
     stage: obfree
     needs: ["unittests"]
     script:
-        - test_pyadf --keep --timings --noopenbabel --jobrunnerconf $PYADFHOME/src/pyadf/test/test_pyadf.conf --molclass=obfree --tests=turbomole --nodoctests --nounittests
+        - test_pyadf --keep --timings --noopenbabel --jobrunnerconf TESTDEFAULT --molclass=obfree --tests=turbomole --nodoctests --nounittests
 
 orca_obfree:
     tags:
@@ -261,7 +271,7 @@ orca_obfree:
     stage: obfree
     needs: ["unittests"]
     script:
-        - test_pyadf --keep --timings --noopenbabel --jobrunnerconf $PYADFHOME/src/pyadf/test/test_pyadf.conf --molclass=obfree --test=orca --nodoctests --nounittests
+        - test_pyadf --keep --timings --noopenbabel --jobrunnerconf TESTDEFAULT --molclass=obfree --test=orca --nodoctests --nounittests
 
 dirac_obfree:
     tags:
@@ -269,7 +279,7 @@ dirac_obfree:
     stage: obfree
     needs: ["unittests"]
     script:
-        - test_pyadf --keep --timings --noopenbabel --jobrunnerconf $PYADFHOME/src/pyadf/test/test_pyadf.conf --molclass=obfree --tests=dirac --nodoctests --nounittests
+        - test_pyadf --keep --timings --noopenbabel --jobrunnerconf TESTDEFAULT --molclass=obfree --tests=dirac --nodoctests --nounittests
 
 dalton_obfree:
     tags:
@@ -277,7 +287,7 @@ dalton_obfree:
     stage: obfree
     needs: ["unittests"]
     script:
-        - test_pyadf --keep --timings --noopenbabel --jobrunnerconf $PYADFHOME/src/pyadf/test/test_pyadf.conf --molclass=obfree --tests=dalton --nodoctests --nounittests
+        - test_pyadf --keep --timings --noopenbabel --jobrunnerconf TESTDEFAULT --molclass=obfree --tests=dalton --nodoctests --nounittests
 
 adf_obfree:
     tags:
@@ -285,7 +295,7 @@ adf_obfree:
     stage: obfree
     needs: ["unittests"]
     script:
-        - test_pyadf --keep --timings --noopenbabel --jobrunnerconf $PYADFHOME/src/pyadf/test/test_pyadf.conf --molclass=obfree --tests=adf --nodoctests --nounittests
+        - test_pyadf --keep --timings --noopenbabel --jobrunnerconf TESTDEFAULT --molclass=obfree --tests=adf --nodoctests --nounittests
 
 nwchem_obfree:
     tags:
@@ -293,7 +303,7 @@ nwchem_obfree:
     stage: obfree  
     needs: ["unittests"]
     script:
-        - test_pyadf --keep --timings --noopenbabel --jobrunnerconf $PYADFHOME/src/pyadf/test/test_pyadf.conf --molclass=obfree --tests=nwchem --nodoctests --nounittests
+        - test_pyadf --keep --timings --noopenbabel --jobrunnerconf TESTDEFAULT --molclass=obfree --tests=nwchem --nodoctests --nounittests
 
 espresso_obfree:
     tags:
@@ -301,7 +311,7 @@ espresso_obfree:
     stage: obfree
     needs: ["unittests"]
     script:
-        - test_pyadf --keep --timings --noopenbabel --jobrunnerconf $PYADFHOME/src/pyadf/test/test_pyadf.conf --molclass=obfree --tests=espresso --nodoctests --nounittests
+        - test_pyadf --keep --timings --noopenbabel --jobrunnerconf TESTDEFAULT --molclass=obfree --tests=espresso --nodoctests --nounittests
 
 molcas_obfree:
     tags:
@@ -309,7 +319,7 @@ molcas_obfree:
     stage: obfree
     needs: ["unittests"]
     script:
-        - test_pyadf --keep --timings --noopenbabel --jobrunnerconf $PYADFHOME/src/pyadf/test/test_pyadf.conf --molclass=obfree --tests=molcas --nodoctests --nounittests
+        - test_pyadf --keep --timings --noopenbabel --jobrunnerconf TESTDEFAULT --molclass=obfree --tests=molcas --nodoctests --nounittests
 
 cleanup_conda:
     before_script:

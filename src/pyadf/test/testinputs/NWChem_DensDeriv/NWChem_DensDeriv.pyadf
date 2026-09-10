@@ -37,7 +37,7 @@ int_dens = dens[0].integral()
 print("Integral of density (pyscf grid): ", int_dens)
 
 if 'unittesting' in pyadfenv.options:
-    testobj.assertAlmostEqual(int_dens, 9.841335, 4)
+    testobj.assertAlmostEqual(int_dens, 9.841387, 4)
 
 # test sqrgradient vs. density derivatives
 sqrgrad = r_h2o.get_sqrgradient(grid=cgrid)

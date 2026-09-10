@@ -61,4 +61,4 @@ print("Solvent Shift : ", shift)
 ###################################################################
 
 if 'unittesting' in pyadfenv.options:
-    testobj.assertAlmostEqual(shift, 36.44 - 20.59, 2)
+    testobj.assertAlmostEqual(shift, 35.966 - 20.949, 2)

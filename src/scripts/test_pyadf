@@ -27,12 +27,10 @@ import os
 
 import unittest
 
-from pyadf.test import pyadf_unittests
 from pyadf.test.pyadf_doctests import make_doctest_suite
 from pyadf.test.pyadf_testinputs import make_testinputs_suite
 from pyadf.test.pyadf_unittests.PyAdfTestCase import PyAdfTextTestRunner
-
-
+from importlib.resources import files as resourcefiles
 
 def get_options():
     from optparse import OptionParser
@@ -71,8 +69,10 @@ def get_options():
                       dest="singletest", help="name of one specific test to run")
     parser.add_option("--molclass", choices=["openbabel", "obfree", "rdkit"], default=None,
                       help="select molecule class to use [available: openbabel, rdkit, obfree]")
-    parser.add_option("--jobrunnerconf", "-c", action="store", type='string', metavar='FILE', default=None,
-                      dest="jobrunnerconf", help="set job runner configuration file [default: $HOME/.pyadfconfig]")
+    parser.add_option("--jobrunnerconf", "-c", action="store", type='string',
+                      metavar='FILE or LABEL', default=None, dest="jobrunnerconf",
+                      help="set job runner configuration file [default: $HOME/.pyadfconfig, " +
+                      "possible LABELS: TESTDEFAULT, EXAMPLE]")
     parser.add_option("--keep", "-k", action="store_true", default=False,
                       dest="keep", help="keep temporary test directories")
     parser.add_option("--save", "-s", action="store_true", default=False,
@@ -88,7 +88,18 @@ def get_options():
         options.keep = True
 
     if options.jobrunnerconf is not None:
-        options.jobrunnerconf = os.path.abspath(options.jobrunnerconf)
+        opt = options.jobrunnerconf
+
+        # Shortcuts for other files can be set here in the form of label-string-pairs. The labels are
+        # all capitalized, but the user input is accepted in lower-case as well
+        labels = {
+                 'TESTDEFAULT': str(resourcefiles('pyadf.test').joinpath('test_pyadf.conf')),
+                 'EXAMPLE': str(resourcefiles('pyadf.config').joinpath('jobrunner_config_example.py')),
+                 }
+
+        if opt.upper() in list(labels.keys()):
+            opt = labels[opt.upper()]
+        options.jobrunnerconf = os.path.abspath(opt)
 
     return options
 

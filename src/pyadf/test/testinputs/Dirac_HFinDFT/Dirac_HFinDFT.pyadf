@@ -28,7 +28,7 @@ dipole_vect = r_mol.get_dipole_vector()
 print("Dipole moment for isolated water molecule (ADF): ", dipole_vect)
 
 if 'unittesting' in pyadfenv.options:
-    testobj.assertAlmostEqual(dipole_vect, [0.0, 0.0, 0.731050], 4)
+    testobj.assertAlmostEqual(dipole_vect, [0.0, 0.0, 0.7299369], 4)
 
 fdesettings = adfsettings()
 # save TAPE10 is needed for exporting the FDE potential
@@ -47,7 +47,7 @@ dipole_vect = fderes.get_dipole_vector()
 print("Dipole moment for FDE water molecule (ADF): ", dipole_vect)
 
 if 'unittesting' in pyadfenv.options:
-    testobj.assertAlmostEqual(dipole_vect, [0.0, 0.0, 0.775334], 4)
+    testobj.assertAlmostEqual(dipole_vect, [0.0, 0.0, 0.7763562], 4)
 
 # Dirac without embedding
 settings = diracsettings(method='HF', hamiltonian='Levy', nucmod='point', properties=['dipole'])
@@ -73,5 +73,5 @@ dipole_vect = dirac_res.get_dipole_vector()
 print("Dipole moment for FDE water molecule (Dirac): ", dipole_vect)
 
 if 'unittesting' in pyadfenv.options:
-    testobj.assertAlmostEqual(energy, -76.0241550479, 6)
-    testobj.assertAlmostEqual(dipole_vect, [0.0, 0.0, 0.881206], 4)
+    testobj.assertAlmostEqual(energy, -76.02411203, 6)
+    testobj.assertAlmostEqual(dipole_vect, [0.0, 0.0, 0.8834157], 4)

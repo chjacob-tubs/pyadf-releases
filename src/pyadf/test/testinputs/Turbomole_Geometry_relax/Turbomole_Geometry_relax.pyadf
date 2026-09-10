@@ -1,0 +1,112 @@
+import os
+from pyadf import *
+if 'pyadfenv' not in globals():
+    from pyadf.Initialization import *
+
+import numpy as np
+
+_verbose_level = 2
+
+
+def test_geoopt(name, molec, ref_energy, ref_mol, relax=True, relax_options=None):
+
+    settings = TurbomoleGeometryOptimizationSettings(verbose_level=_verbose_level)
+
+    # default settings: RI-DFT/BP
+    settings.set_basis_set('def2-SVP')
+
+    en_acc = 5
+    mol_acc = 3
+
+    settings.set_relax(relax)
+
+    if relax_options:
+        settings.set_relax_cartesian(relax_options['cartesian'])
+        settings.set_dqmax(relax_options['dqmax'])
+        settings.set_energy_convergence_criterion(relax_options['econv'])
+
+    res = TurbomoleGeometryOptimizationJob(molec, method='dft', settings=settings).run()
+
+    opt_mol = res.get_molecule()
+    opt_mol.write(os.path.join(pyadfenv.outdir, name + '_opt.xyz'), 'xyz')
+
+    if 'unittesting' in pyadfenv.options:
+        if opt_mol.get_number_of_atoms() == 2:
+            pass  # diatomic molecules do not change position or orientation
+        else:
+            with testobj.assertRaises(AssertionError):
+                testobj.do_not_catch_errors = True
+                testobj.assertAlmostEqualMolecules(opt_mol, ref_mol, mol_acc)
+                testobj.do_not_catch_errors = False
+
+    opt_mol.align(ref_mol,list(range(1, opt_mol.get_number_of_atoms() + 1)))
+    print('aligned\n', opt_mol.print_coordinates())
+    opt_mol.write(os.path.join(pyadfenv.outdir, name + '_opt_aligned.xyz'), 'xyz')
+
+    opt_energy = res.get_energy()
+    print("Final Total Energy: ", opt_energy)
+
+    opt_grad = res.get_gradient_vector()
+    print("Final Max Gradient: ", np.max(opt_grad))
+
+    if 'unittesting' in pyadfenv.options:
+        testobj.assertTrue(np.max(opt_grad) < 1e-4) # all optimizations should work here
+        testobj.assertAlmostEqual(opt_energy, ref_energy, en_acc)
+        testobj.assertAlmostEqualMolecules(opt_mol, ref_mol, mol_acc)
+        output_list = res.get_output()
+        output_string = ''.join(output_list)
+        testobj.assertTrue(('r i d f t' in output_string))
+        testobj.assertTrue(('r d g r a d' in output_string))
+        testobj.assertTrue(('this is  R E L A X' in output_string))
+        testobj.assertTrue(('B-P86 functional' in output_string))
+        # check that the correct type of coordinates is used
+        if relax_options:
+            if relax_options['cartesian'] or mol.get_number_of_atoms() <= 3:
+                testobj.assertTrue(' - CARTESIAN coordinates' in output_string)
+            else:
+                testobj.assertTrue(' - INTERNAL coordinates' in output_string)
+        else:
+            if mol.get_number_of_atoms() <= 3:
+                testobj.assertTrue(' - CARTESIAN coordinates' in output_string)
+            else:
+                testobj.assertTrue(' - INTERNAL coordinates' in output_string)
+
+        for line in output_list:
+            if 'gridsize' in line:
+                testobj.assertTrue('3' in line)
+            # test -gcart option to jobex?
+            # test -energy option to jobex?
+            # both in the command and in *** Convergence criteria ***
+
+
+testmols = [
+            ['water', 0, -76.363581],
+            ['bad_water', 0, -76.363581],
+            ['hydrogen', 0, -1.1723315],
+            ['trimethyl_oxonium', 1, -194.503759],
+            ['hydroxyl', -1, -75.666711],
+]
+
+for testmol in testmols:
+    mol = molecule(os.path.join(pyadfenv.outdir, testmol[0] + '.xyz'))
+    mol.set_charge(testmol[1])
+
+    mol_ref = molecule(os.path.join(pyadfenv.outdir, testmol[0] + '_ref.xyz'))
+    mol_ref.set_charge(testmol[1])
+
+    test_geoopt(testmol[0]+'_relax', mol, testmol[2], mol_ref, relax=True)
+
+# The minimum for the methyl groups is sensitive to the optimization algorithm and its settings
+# The reference is the only one that is different from the reference used for the statpt test
+testmols = [testmol if testmol[0] != 'trimethyl_oxonium' else ['trimethyl_oxonium2', 1, -194.503738]
+            for testmol in testmols]
+
+for testmol in testmols:
+    mol = molecule(os.path.join(pyadfenv.outdir, testmol[0] + '.xyz'))
+    mol.set_charge(testmol[1])
+
+    mol_ref = molecule(os.path.join(pyadfenv.outdir, testmol[0] + '_ref.xyz'))
+    mol_ref.set_charge(testmol[1])
+
+    test_geoopt(testmol[0]+'_relax_cart', mol, testmol[2], mol_ref, relax=True,
+                relax_options={'cartesian': True, 'dqmax': 0.1, 'econv': 7})

@@ -144,8 +144,8 @@ inten_tot = inten_elstat + inten_xc + inten_kin
 print("Total interaction energy (PyEmbed): ", inten_tot * au_in_eV)
 
 if 'unittesting' in pyadfenv.options:
-    testobj.assertAlmostEqual(inten_elstat * au_in_eV, -0.46258769075449185, 4)
+    testobj.assertAlmostEqual(inten_elstat * au_in_eV, -0.4625171576579853, 4)
     testobj.assertAlmostEqual(inten_xc * au_in_eV, -0.2318183354695573, 4)
     testobj.assertAlmostEqual(inten_kin * au_in_eV, 0.5064002682438619, 4)
 
-    testobj.assertAlmostEqual(inten_tot * au_in_eV, -0.1880057579797906, 4)
+    testobj.assertAlmostEqual(inten_tot * au_in_eV, -0.187931853454396, 4)

@@ -219,9 +219,8 @@ class DensityEvaluatorInterface(results, metaclass=ABCMeta):
         else:
             raise NotImplementedError('Potential ' + pot + 'not implemented')
 
-    @abstractmethod
     @use_default_grid
-    def _get_nuclear_potential(self, grid=None):
+    def _get_nuclear_potential(self, grid=None, atoms=None):
         """
         Returns the nuclear potential.
 
@@ -230,7 +229,8 @@ class DensityEvaluatorInterface(results, metaclass=ABCMeta):
 
         @rtype: L{GridFunctionPotential}
         """
-        raise NotImplementedError
+        pot_gf = self.get_molecule().get_nuclear_potential(grid, atoms=atoms)
+        return pot_gf
 
     @abstractmethod
     @use_default_grid
@@ -428,33 +428,6 @@ class GTODensityEvaluatorMixin(DensityEvaluatorInterface):
         lapl_gf = GridFunctionFactory.newGridFunction(grid, lapl_values)
 
         return lapl_gf
-
-    @use_default_grid
-    def _get_nuclear_potential(self, grid=None):
-        """
-        Returns the nuclear potential.
-
-        @param grid: The grid to use. For details, see L{Plot.Grids}.
-        @type  grid: subclass of L{grid}
-
-        @rtype: L{GridFunctionPotential}
-        """
-        from .Plot.GridFunctions import GridFunctionFactory
-
-        gridpoints = grid.get_coordinates(bohr=True)
-        pot_values = self.pyscf_interface.nuclear_potential(gridpoints)
-
-        import hashlib
-        m = hashlib.md5()
-        m.update(b"Nuclear potential calculated for job: \n")
-        m.update(self.checksum.encode('utf-8'))
-        m.update(b"and grid: \n")
-        m.update(grid.checksum.encode('utf-8'))
-
-        pot_gf = GridFunctionFactory.newGridFunction(grid, pot_values, gf_type='potential',
-                                                     checksum=m.hexdigest())
-
-        return pot_gf
 
     @use_default_grid
     def _get_coulomb_potential(self, grid=None):

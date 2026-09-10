@@ -22,6 +22,6 @@ print(f"Dipole moment magnitude: {dipole_magn:12.6f}")
 print(f"Dipole monent vector: [{dipole_vect[0]:12.6f}, {dipole_vect[1]:12.6f}, {dipole_vect[2]:12.6f}]")
 
 if 'unittesting' in pyadfenv.options:
-    testobj.assertAlmostEqual(dipole_magn, 0.6676590261, 6)
-    testobj.assertAlmostEqual(dipole_vect, [0.0, 0.0, 0.6676590261], 6)
+    testobj.assertAlmostEqual(dipole_magn, 0.667633999, 6)
+    testobj.assertAlmostEqual(dipole_vect, [0.0, 0.0, 0.667633999], 6)
 

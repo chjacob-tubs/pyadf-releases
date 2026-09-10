@@ -25,8 +25,16 @@ import time
 import math
 import numpy as np
 
+from .CollectExceptions import decorate_asserts
 
+
+@decorate_asserts
 class PyAdfTestCase(unittest.TestCase):
+
+    def __init__(self, methodName='runTest'):
+        super().__init__(methodName)
+        self.do_not_catch_errors = False
+        self._errors = []
 
     @staticmethod
     def testDuration():
@@ -38,16 +46,48 @@ class PyAdfTestCase(unittest.TestCase):
             name = str(self)
         return name
 
-    def assertAlmostEqualVectors(self, first, second, places=7, msg=None):
+    def tearDown(self):
+        self.checkAndClearExceptions()  # usually does nothing, but fails
+        # if assertionErrors have been collected up to this point
+        super().tearDown()  # keeps the old behavior in other cases
+
+    def append_error(self, error):
+        self._errors.append(error)
+
+    @property
+    def errors(self):
+        return self._errors
+
+    def checkAndClearExceptions(self):
+        """
+        This function does nothing when no errors were collected.
+        Errors are only caught and collected if the environment variable
+        PyADF_COLLECT_ASSERTS is set in some way.
+        The errors are re-raised with a combination of all error messages
+        as generated in the CollectExceptions.py file.
+
+        For the case when this error is expected, as in the TestTesting
+        test, the testobj._errors attribute is re-set to avoid re-raising
+        an expected and caught error.
+        """
+        if self._errors:
+            errors = [str(err) for err in self._errors]
+            emsg = 'Encountered following assertion errors:\n'
+            emsg += "\n".join(errors)
+            self._errors = []  # Clear exceptions
+            self.fail(emsg)
+        self._errors = []  # Clear exceptions
+
+    def assertAlmostEqualVectors(self, first, second, places=7, msg=''):
         for i, j in zip(first, second):
             self.assertAlmostEqual(i, j, places, msg)
 
     # noinspection PyMethodMayBeStatic
-    def assertAlmostEqualNumpy(self, first, second, places=7, msg=None):
+    def assertAlmostEqualNumpy(self, first, second, places=7, msg=''):
         np.testing.assert_allclose(first, second, rtol=0.5 * 10**(-places),
-                                      atol=0.5 * 10**(-places), err_msg=msg)
+                                   atol=0.5 * 10**(-places), err_msg=msg)
 
-    def assertAlmostEqual(self, first, second, places=7, msg=None, delta=None):
+    def assertAlmostEqual(self, first, second, places=7, msg='', delta=None):
         if isinstance(first, np.ndarray):
             self.assertAlmostEqualNumpy(first, second, places, msg)
         elif isinstance(first, list):
@@ -55,7 +95,7 @@ class PyAdfTestCase(unittest.TestCase):
         else:
             super().assertAlmostEqual(first, second, places, msg, delta)
 
-    def assertAlmostEqualMolecules(self, first, second, places=3, msg=None):
+    def assertAlmostEqualMolecules(self, first, second, places=3, msg=''):
 
         def build_atsyms_dict(mol):
             atsyms_dict = {}
@@ -94,7 +134,23 @@ class PyAdfTestCase(unittest.TestCase):
                     # noinspection PyBroadException
                     try:
                         for k in range(3):
-                            self.assertAlmostEqual(coords_first[i][k], coords_second[j][k], places)
+                            """
+                            If we would use self.assertAlmostEqual here, we would not know
+                            where this was caught as we would use wrapped versions of the
+                            different assert functions. The exception on the lower level
+                            is caught and recorded, but the upper level never fails.
+
+                            Since the exception would be recorded, the test would correctly
+                            be marked as failed. Therefore this does not constitute an example
+                            where the wrapped version leads to "tests passing wrongly" which
+                            should be impossible.
+                            It would simply make it much harder to find the site of the
+                            assertion that raised the exception.
+
+                            This issue was caught through the TestTesting test.
+                            """
+                            unittest.TestCase().assertAlmostEqual(
+                                coords_first[i][k], coords_second[j][k], places)
                     except self.failureException:
                         almost_equal = False
 
@@ -103,7 +159,8 @@ class PyAdfTestCase(unittest.TestCase):
                         break
 
                 if found_index > -1:
-                    indices_second = [j for j in indices_second if not (j == found_index)]
+                    indices_second = [
+                        j for j in indices_second if not (j == found_index)]
                 else:
                     raise self.failureException(msg or
                                                 f"Coordinates not equal for {at} atoms within "

@@ -23,3 +23,4 @@
 pyadfenv = {}
 testobj = None
 myfiles = None
+arrayvault = None

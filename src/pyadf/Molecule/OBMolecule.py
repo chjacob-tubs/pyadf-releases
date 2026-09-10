@@ -36,7 +36,7 @@
 from openbabel import openbabel
 
 from ..Errors import PyAdfError
-from ..Utils import pse, Bohr_in_Angstrom
+from ..Utils import pse, Bohr_in_Angstrom, Units
 from .BaseMolecule import BaseMolecule
 from .ProteinMolecule import ProteinMoleculeMixin
 
@@ -194,7 +194,7 @@ class OBMolecule(ProteinMoleculeMixin, BaseMolecule):
             3)     H       -0.43479        4.75018        3.07278
 
         """
-        return "  Cartesian coordinates: \n" + self.print_coordinates(index=True)
+        return "  Cartesian coordinates: \n" + self.print_coordinates(index=True, f_format=(14, 5))
 
     def __add__(self, other):
         """
@@ -209,6 +209,8 @@ class OBMolecule(ProteinMoleculeMixin, BaseMolecule):
 
         @returns: The 'sum' of the two molecules.
         @rtype:    L{molecule}
+        @Note:
+            Residue information (chain, name, number, atom IDs) is preserved when combining molecules.
 
         @exampleuse:
 
@@ -251,13 +253,14 @@ class OBMolecule(ProteinMoleculeMixin, BaseMolecule):
 
         # if residue information is present, copy it to the new molecule
         for i in range(self.get_number_of_atoms()):
-            chainid, resname, resnum = self.get_atom_resinfo(i + 1)
+            chainid, resname, resnum, atomid = self.get_atom_resinfo(i + 1)
             if (resname is not None) and (resnum is not None):
-                m.set_residue(resname, resnum, chainid, [i + 1])
+                # Pass original atom IDs to preserve identifiers during molecule combination
+                m.set_residue(resname, resnum, chainid, [i + 1], [atomid])
         for i in range(other.get_number_of_atoms()):
-            chainid, resname, resnum = other.get_atom_resinfo(i + 1)
+            chainid, resname, resnum, atomid = other.get_atom_resinfo(i + 1)
             if (resname is not None) and (resnum is not None):
-                m.set_residue(resname, resnum, chainid, [self.get_number_of_atoms() + i + 1])
+                m.set_residue(resname, resnum, chainid, [self.get_number_of_atoms() + i + 1], [atomid])
 
         return m
 
@@ -409,7 +412,6 @@ class OBMolecule(ProteinMoleculeMixin, BaseMolecule):
                 6)        H        3.47247000        0.85113000       -0.42037000
             <BLANKLINE>
         """
-
         conv = openbabel.OBConversion()
         conv.SetInAndOutFormats(inputformat, 'xyz')
 
@@ -418,8 +420,20 @@ class OBMolecule(ProteinMoleculeMixin, BaseMolecule):
             raise PyAdfError("Error reading molecule")
         openbabel.obErrorLog.SetOutputLevel(1)
 
-        numread = self.mol.NumAtoms() - len(self.is_ghost)
+        numread = self.get_number_of_atoms() - len(self.is_ghost)
         self.is_ghost = [ghosts] * numread
+
+        if inputformat == 'tmol':
+            # reread coordinates from Turbomole to ensure consistent
+            # conversion from Bohr to Angstrom
+            f = open(filename)
+            lines = f.readlines()
+            f.close()
+            natoms = self.get_number_of_atoms()
+            for i, l in enumerate(lines[1:natoms + 1]):
+                coord = [float(a) * Bohr_in_Angstrom for a in l.split()[:3]]
+                a = self.mol.GetAtom(i+1)
+                a.SetVector(coord[0], coord[1], coord[2])
 
         if inputformat == 'pdb':
             # fix atom and bond assignment in histidines
@@ -467,11 +481,14 @@ class OBMolecule(ProteinMoleculeMixin, BaseMolecule):
             to file
 
         """
-        conv = openbabel.OBConversion()
-        conv.SetInAndOutFormats('xyz', outputformat)
+        if outputformat in ['xyz', 'tmol']:
+            super().write(filename, outputformat)
+        else:
+            conv = openbabel.OBConversion()
+            conv.SetInAndOutFormats('xyz', outputformat)
 
-        if not conv.WriteFile(self.mol, filename):
-            raise PyAdfError("Error writing molecule")
+            if not conv.WriteFile(self.mol, filename):
+                raise PyAdfError("Error writing molecule")
 
     def set_symmetry(self, symmetry):
         """
@@ -658,7 +675,7 @@ class OBMolecule(ProteinMoleculeMixin, BaseMolecule):
         self.set_spin(saved_spin)
         self.mol.SetChainsPerceived(chains_perceived)
 
-    def get_coordinates(self, atoms=None, ghosts=True):
+    def get_coordinates(self, atoms=None, ghosts=True, unit='angstrom'):
         """
         Give back an array with the coordinates.
 
@@ -684,16 +701,13 @@ class OBMolecule(ProteinMoleculeMixin, BaseMolecule):
              [-0.43479, 4.75018, 3.07278]]
 
         """
-
-        if atoms is None:
-            atoms = list(range(1, self.mol.NumAtoms() + 1))
-            if not ghosts:
-                atoms = [i for i in atoms if not self.is_ghost[i - 1]]
+        atoms = self.get_atoms(atoms, ghosts=ghosts)
+        ratio = Units.conversion('angstrom', unit)
 
         coords = []
         for i in atoms:
             a = self.mol.GetAtom(i)
-            coords.append([a.GetX(), a.GetY(), a.GetZ()])
+            coords.append([a.GetX()*ratio, a.GetY()*ratio, a.GetZ()*ratio])
 
         return coords
 
@@ -772,10 +786,7 @@ class OBMolecule(ProteinMoleculeMixin, BaseMolecule):
 
         """
 
-        if atoms is None:
-            atoms = list(range(1, self.mol.NumAtoms() + 1))
-            if not ghosts:
-                atoms = [i for i in atoms if not self.is_ghost[i - 1]]
+        atoms = self.get_atoms(atoms, ghosts=ghosts)
 
         symbols = []
         for i in atoms:
@@ -818,7 +829,7 @@ class OBMolecule(ProteinMoleculeMixin, BaseMolecule):
         """
 
         if atoms is None:
-            atoms = list(range(1, self.mol.NumAtoms() + 1))
+            atoms = list(range(1, self.get_number_of_atoms() + 1))
             if not ghosts:
                 atoms = [i for i in atoms if not self.is_ghost[i - 1]]
 
@@ -862,8 +873,8 @@ class OBMolecule(ProteinMoleculeMixin, BaseMolecule):
         printsum = False
 
         if atoms is None:
-            atoms = list(range(1, self.mol.NumAtoms() + 1))
             printsum = True
+        atoms = self.get_atoms(atoms)
 
         for coord, atomNum in zip(self.get_coordinates(atoms=atoms),
                                   self.get_atomic_numbers(atoms=atoms)):
@@ -904,20 +915,6 @@ class OBMolecule(ProteinMoleculeMixin, BaseMolecule):
             e_z += atomNum * (coord[2] - pointcoord[2]) / dist**3
 
         return np.array([e_x, e_y, e_z]) * (Bohr_in_Angstrom * Bohr_in_Angstrom)
-
-    def get_nuclear_interaction_energy(self, other):
-        """
-        Return the electrostatic interaction energy between the nuclei of this and another molecule.
-        """
-        import numpy as np
-
-        inten = 0.0
-        for coord1, atomNum1 in zip(self.get_coordinates(), self.get_atomic_numbers()):
-            for coord2, atomNum2 in zip(other.get_coordinates(), other.get_atomic_numbers()):
-                dist = np.sqrt((coord1[0] - coord2[0])**2 + (coord1[1] - coord2[1])**2 + (coord1[2] - coord2[2])**2)
-                dist = dist / Bohr_in_Angstrom
-                inten = inten + atomNum1 * atomNum2 / dist
-        return inten
 
     def get_fragment(self, atoms, ghosts=True):
         """
@@ -1005,7 +1002,9 @@ class OBMolecule(ProteinMoleculeMixin, BaseMolecule):
         @param resnum: Optionally only include residues with a certain number.
         @type  resnum: int
 
-        @returns: A list of the matching residues (each as a new L{molecule})
+        @returns: A list of molecules, each representing a matching residue with
+                  preserved chain, residue number, and atom IDs (each as a new
+                  L{molecule})
         @rtype:   list of molecules
 
         @param idx: Optionally only include residues with a certain (internal) number.
@@ -1051,7 +1050,9 @@ class OBMolecule(ProteinMoleculeMixin, BaseMolecule):
             if ((chain is None) or (chain_id == chain)) and ((restype is None) or (res_name == restype)) \
                     and ((resnum is None) or (res_num == resnum)) and ((idx is None) or (idx == ridx)):
                 f = self.get_fragment([i + 1 for i, j in enumerate(res_index) if j == ridx])
-                f.set_residue(res_name, res_num, chain_id)
+                # Retrieve explicit atom IDs from the residue to maintain correctness
+                atomids = [self.mol.GetAtom(n).GetResidue().GetAtomID(self.mol.GetAtom(n)) for n in [i + 1 for i, j in enumerate(res_index) if j == ridx]]
+                f.set_residue(res_name, res_num, chain_id, None, atomids)
                 res_list.append(f)
 
         return res_list
@@ -1069,13 +1070,15 @@ class OBMolecule(ProteinMoleculeMixin, BaseMolecule):
 
             >>> an = OBMolecule('an.pdb', 'pdb')
             >>> print(an.get_atom_resinfo(10))
-            ('B', 'TIP', 2)
+            ('B', 'TIP', 2, ' OH2')
         """
-        res = self.mol.GetAtom(atom).GetResidue()
+        obatom = self.mol.GetAtom(atom)
+        res = obatom.GetResidue()
         if res is not None:
-            return res.GetChain(), res.GetName(), res.GetNum()
+            return res.GetChain(), res.GetName(), res.GetNum(), res.GetAtomID(obatom)
+
         else:
-            return None, None, None
+            return None, None, None, None
 
     def get_chain_info(self):
         """
@@ -1147,7 +1150,7 @@ class OBMolecule(ProteinMoleculeMixin, BaseMolecule):
 
         res_list = []
         for at in atoms:
-            chain_id, res_name, res_num = self.get_atom_resinfo(at)
+            chain_id, res_name, res_num, atomid = self.get_atom_resinfo(at)
             if (chain_id is None) or (res_name is None) or (res_num is None):
                 residx = -1
             else:
@@ -1180,7 +1183,7 @@ class OBMolecule(ProteinMoleculeMixin, BaseMolecule):
 
         res_list = []
         for at in atoms:
-            chain_id, res_name, res_num = self.get_atom_resinfo(at)
+            _, _, res_num, _ = self.get_atom_resinfo(at)
             res_list.append(res_num)
         return res_list
 
@@ -1307,7 +1310,7 @@ class OBMolecule(ProteinMoleculeMixin, BaseMolecule):
 
             self.mol.DeleteResidue(res)
 
-        self.is_ghost = [False] * self.mol.NumAtoms()
+        self.is_ghost = [False] * self.get_number_of_atoms()
 
         self.mol.SetChainsPerceived(chains_perceived)
 
@@ -1598,7 +1601,7 @@ class OBMolecule(ProteinMoleculeMixin, BaseMolecule):
         self.mol.AddHydrogens(False, correctForPH, pH)
         self.set_spin(spin_saved)
 
-        self.is_ghost += [False] * (self.mol.NumAtoms() - len(self.is_ghost))
+        self.is_ghost += [False] * (self.get_number_of_atoms() - len(self.is_ghost))
 
     def get_smarts_matches(self, smartspattern):
         sp = openbabel.OBSmartsPattern()
@@ -1607,7 +1610,7 @@ class OBMolecule(ProteinMoleculeMixin, BaseMolecule):
         maplist = [list(mp) for mp in sp.GetUMapList()]
         return maplist
 
-    def set_residue(self, restype, resnum, chain=None, atoms=None):
+    def set_residue(self, restype, resnum, chain=None, atoms=None, atomids=None):
         """
         Set the residue information for the given atoms (or all, if not given).
 
@@ -1620,6 +1623,9 @@ class OBMolecule(ProteinMoleculeMixin, BaseMolecule):
         @param atoms: the numbers of the atoms belonging to this residue
                       (atom numbering starts at 1)
         @type  atoms: list on ints
+        @param atomids:
+            Optional list of atom IDs for the residue. If None, element symbols are used.
+        @type  atomids: list of str or None
 
         @exampleuse:
 
@@ -1635,8 +1641,7 @@ class OBMolecule(ProteinMoleculeMixin, BaseMolecule):
         """
         self.mol.SetChainsPerceived(True)
 
-        if not atoms:
-            atoms = list(range(1, self.mol.NumAtoms() + 1))
+        atoms = self.get_atoms(atoms, ghosts=True)
 
         res = None
         for r in openbabel.OBResidueIter(self.mol):
@@ -1651,7 +1656,7 @@ class OBMolecule(ProteinMoleculeMixin, BaseMolecule):
             if chain:
                 res.SetChain(chain)
 
-        for i in atoms:
+        for j, i in enumerate(atoms):
             a = self.mol.GetAtom(i)
 
             old_res = a.GetResidue()
@@ -1659,7 +1664,11 @@ class OBMolecule(ProteinMoleculeMixin, BaseMolecule):
                 if old_res is not None:
                     old_res.RemoveAtom(a)
                 res.AddAtom(a)
-                res.SetAtomID(a, pse.get_symbol(a.GetAtomicNum()))
+                # Use provided atomids if available; otherwise, fall back to element symbols
+                if atomids is not None:
+                    res.SetAtomID(a, atomids[j])
+                else:
+                    res.SetAtomID(a, pse.get_symbol(a.GetAtomicNum()))
 
         self.mol.SetChainsPerceived(True)
 
@@ -1833,109 +1842,6 @@ class OBMolecule(ProteinMoleculeMixin, BaseMolecule):
 
         return rotmat, transvec
 
-    def print_coordinates(self, atoms=None, index=True, suffix=""):
-        """
-        Returns a string for printing the atomic coordinates.
-
-        This method returns a string representation of the
-        atomic coordinates.
-        This string can be used for printing, the method
-        does not print anything itself.
-
-        The (optional) arguments make it possible to select
-        specific atoms for printing and to modify the output
-        format.
-
-        @param atoms:
-            A list with the numbers of atoms that should be
-            included. (The numbering of the atoms starts at 1).
-            If C{None}, all atoms are included (default)
-        @type atoms: list of int's
-
-        @param index:
-            If C{True}, the number of the atom is included
-            (see example below)
-        @type index: bool
-
-        @param suffix:
-            A suffix that is appended to each line
-            (see example below)
-        @type suffix: str
-
-        @returns:
-            String representation of atomic coordinates
-        @rtype: str
-
-        @exampleuse:
-            Simple printing of the coordinates:
-
-            >>> mol = OBMolecule('h2o.xyz')
-            >>> print(mol.print_coordinates())
-            1)     H       -0.21489        3.43542        2.17104
-            2)     O       -0.89430        3.96159        2.68087
-            3)     H       -0.43479        4.75018        3.07278
-
-        @exampleuse:
-            Printing of selected atoms:
-
-            >>> mol = OBMolecule('h2o.xyz')
-            >>> print(mol.print_coordinates(atoms=[2]))
-            2)     O       -0.89430        3.96159        2.68087
-
-        @exampleuse:
-            Printing without atom numbering:
-
-            >>> mol = OBMolecule('h2o.xyz')
-            >>> print(mol.print_coordinates(index=False))
-            H       -0.21489        3.43542        2.17104
-            O       -0.89430        3.96159        2.68087
-            H       -0.43479        4.75018        3.07278
-
-        @exampleuse:
-            Printing with a suffix:
-
-            >>> mol = OBMolecule('h2o.xyz')
-            >>> print(mol.print_coordinates(index=False, suffix='f=frag1'))
-            H       -0.21489        3.43542        2.17104    f=frag1
-            O       -0.89430        3.96159        2.68087    f=frag1
-            H       -0.43479        4.75018        3.07278    f=frag1
-
-        @note:
-            Coordinates are always printed in Angstrom units.
-
-        """
-
-        lines = ""
-        if atoms is None:
-            atoms = list(range(1, self.mol.NumAtoms() + 1))
-
-        coords = self.get_coordinates(atoms)
-        symbs = self.get_atom_symbols(atoms, prefix_ghosts=True)
-
-        for i in range(len(atoms)):
-            symb = symbs[i]
-            c = coords[i]
-
-            if index:
-                line = f"  {atoms[i]:3d}) {symb:>8} {c[0]:14.5f} {c[1]:14.5f} {c[2]:14.5f}"
-            else:
-                line = f"  {symb:>8} {c[0]:14.5f} {c[1]:14.5f} {c[2]:14.5f}"
-
-            line += "    " + suffix + "\n"
-            lines += line
-
-        return lines
-
-    def get_xyz_file(self):
-        """
-        Return an xyz file of the molecule.
-
-        @rtype: str
-        """
-        conv = openbabel.OBConversion()
-        conv.SetInAndOutFormats('xyz', 'xyz')
-        return conv.WriteString(self.mol)
-
     def get_dalton_molfile(self, basis):
         """
         Returns the content of a Dalton-style molecule file.
@@ -1959,31 +1865,7 @@ class OBMolecule(ProteinMoleculeMixin, BaseMolecule):
             Charge=8.00000000 Atoms=1
             O1         -0.89430000        3.96159000        2.68087000
         """
-
-        molfile = 'BASIS\n'
-        molfile += basis + '\n'
-        molfile += 'This Dalton molecule file was generated by PyADF\n'
-        molfile += ' Homepage: https://www.pyadf.org\n'
-
-        # determine number of atomtypes
-        atsyms = self.get_atom_symbols()
-        atyps = list(dict.fromkeys(atsyms))
-        num_atomtypes = len(atyps)
-
-        # FIXME: hardcoding NO SYMMETRY here
-        molfile += f'Angstrom Nosymmetry Atomtypes={num_atomtypes:d}\n'
-
-        for atyp in atyps:
-
-            atoms = [i + 1 for i, at in enumerate(atsyms) if at == atyp]
-            coords = self.get_coordinates(atoms)
-
-            molfile += f"Charge={pse.get_atomic_number(atyp):.1f} Atoms={len(coords):d}\n"
-            for i, a in enumerate(coords):
-                line = f"{atyp + str(i + 1):<4} {a[0]:14.5f} {a[1]:14.5f} {a[2]:14.5f} \n"
-                molfile += line
-
-        return molfile
+        return super().get_dalton_molfile(basis)
 
     def distance(self, other):
         """
@@ -2016,21 +1898,7 @@ class OBMolecule(ProteinMoleculeMixin, BaseMolecule):
             dists.append(d)
         return math.sqrt(min(dists))
 
-    def write_dalton_molfile(self, filename, basis):
-        """
-        Write the molecule to a Dalton-style molecule file.
-
-        @param filename: The name of the file to be written.
-        @type  filename: str
-        @param basis: The basis set to use (for all atoms).
-        @type  basis: str
-        """
-
-        f = open(filename, 'w')
-        f.write(self.get_dalton_molfile(basis))
-        f.close()
-
-    def get_cube_header(self):
+    def get_cube_header(self, atoms=None):
         """
         Return a cub-file header for the molecule.
 
@@ -2046,8 +1914,7 @@ class OBMolecule(ProteinMoleculeMixin, BaseMolecule):
         """
         header = ""
 
-        atoms = list(range(1, self.mol.NumAtoms() + 1))
-        atoms = [i for i in atoms if not self.is_ghost[i - 1]]
+        atoms = self.get_atoms(atoms, ghosts=False)
 
         for i in atoms:
             at = self.mol.GetAtom(i)
@@ -2104,6 +1971,22 @@ class OBMolecule(ProteinMoleculeMixin, BaseMolecule):
                              "Hash equals empty-string hash.")
 
         return molhash
+
+    def get_atoms(self, atomlist, ghosts=True):
+        """get_atoms.
+
+        :param atomlist: either a list of atom numbers or None
+        :returns atoms: a list of atom numbers
+        """
+        if atomlist is None:
+            atoms = list(range(1, self.get_number_of_atoms() + 1))
+        else:
+            atoms = atomlist
+
+        if not ghosts:
+            atoms = [i for i in atoms if not self.is_ghost[i - 1]]
+
+        return atoms
 
 
 # noinspection PyUnusedLocal

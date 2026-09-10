@@ -32,6 +32,7 @@
      grid, cubegrid, adfgrid, pyscfgrid, customgrid
 """
 
+from pyadf.Errors import PyAdfError
 from pyadf.Utils import Units
 from .FileWriters import GridWriter
 
@@ -365,6 +366,7 @@ class cubegrid(grid):
         """
 
         molout = ''
+        # Job Mol Interface (sort of)
         molout += f'{self._mol.get_number_of_atoms():d} 1 \n'
         molout += self._mol.print_coordinates(index=False)
 
@@ -665,7 +667,7 @@ class pyscfgrid(grid):
             grids and 110 angular grids for H atom.
     """
 
-    def __init__(self, mol, level=None):
+    def __init__(self, mol, level=None, attr_dic={}):
         """
         Constructor for pyscfgrid.
 
@@ -677,16 +679,13 @@ class pyscfgrid(grid):
             default set by PySCF is 3
         """
         super().__init__()
-        from pyscf import dft
         self._mol = mol
-        self._pyscf_obj = mol.get_pyscf_obj()
-        self._pyscf_grid_obj = dft.gen_grid.Grids(self._pyscf_obj)
-        if level:
-            self._level = level
-            self._pyscf_grid_obj.level = level
-        else:
-            self._level = None
-        self._pyscf_grid_obj = self._pyscf_grid_obj.run()
+        pyscf_obj = mol.get_pyscf_obj()
+        self._pyscf_obj = pyscf_obj
+        self._level = level
+        self._attr_dic = attr_dic
+        self._pyscf_grid_obj = self.gen_grid_obj(pyscf_obj,
+                                                 level, attr_dic)
         self._coords = self._pyscf_grid_obj.coords
 
         self._npoints = self.get_number_of_points()
@@ -704,6 +703,131 @@ class pyscfgrid(grid):
             self._checksum = m.hexdigest()
 
         return self._checksum
+
+    def gen_grid_obj(self, pyscf_obj, level, attr_dic):
+        from pyscf.dft import gen_grid
+        pgrid_obj = gen_grid.Grids(pyscf_obj)
+        if not attr_dic:
+            if not level:
+                # only default settings
+                return pgrid_obj.run()
+            else:
+                # only level settings, otherwise default
+                pgrid_obj.level = level
+                return pgrid_obj.run()
+        # has an attr_dic that is not empty
+        if level: # defaults to 3 in pyscf
+            pgrid_obj.level = level
+        if ((level) and ('level' in attr_dic)):
+            if int(level) != int(attr_dic['level']):
+                err_msg = 'level settings inconsistent,'
+                err_msg += f' choose either {level} '
+                err_msg += f'or {attr_dic["level"]}'
+                raise PyAdfError(err_msg)
+        pgrid_obj = self._handle_options(pgrid_obj, attr_dic)
+
+        return pgrid_obj.run()
+
+    def _handle_options(self, pgrid_obj, attr_dic):
+        from pyscf.dft import gen_grid, radi
+        option_counter = len(attr_dic) # handled options from the dic
+
+        attr_list = ['atomic_radii', 'radii_adjust', 'radi_method',
+            'becke_scheme', 'prune', 'level', 'alignment',
+            'cutoff', 'mol', 'symmetry', 'atom_grid',
+            'non0tab', 'screen_index', 'coords', 'weights']
+        for key in attr_dic:
+            if key not in attr_list:
+                raise PyAdfError(f'{key} is not a known' +
+                ' option for the grid')
+
+        if 'level' in attr_dic:
+            pgrid_obj.level = attr_dic['level']
+            option_counter -= 1
+
+        if 'atomic_radii' in attr_dic:
+            option_counter -= 1
+            option = attr_dic['atomic_radii']
+            if 'none' == str(option).lower():
+                pgrid_obj.atomic_radii = None
+            elif 'bragg_radii' in option.lower(): # default
+                pgrid_obj.atomic_radii = radi.BRAGG_RADII
+            elif 'covalent_radii' in option.lower():
+                pgrid_obj.atomic_radii = radi.COVALENT_RADII
+            else:
+                raise PyAdfError(f'unrecognized option: {option}')
+
+        if 'radii_adjust' in attr_dic:
+            # default not documented in PySCF
+            option_counter -= 1
+            option = attr_dic['radii_adjust']
+            if 'none' == str(option).lower():
+                pgrid_obj.radii_adjust = None
+            elif 'treutler_atomic_radii_adjust' in option: # default
+                pgrid_obj.radii_adjust = radi.treutler_atomic_radii_adjust
+            elif 'becke_atomic_radii_adjust' in option:
+                pgrid_obj.radii_adjust = radi.becke_atomic_radii_adjust
+            else:
+                raise PyAdfError(f'unrecognized option: {option}')
+
+        if 'radi_method' in attr_dic:
+            option_counter -= 1
+            option = attr_dic['radi_method']
+            if 'treutler' in option: # default
+                pgrid_obj.radi_method = radi.treutler
+            elif 'delley' in option:
+                pgrid_obj.radi_method = radi.delley
+            elif 'mura_knowles' in option:
+                pgrid_obj.radi_method = radi.mura_knowles
+            elif 'gauss_chebyshev' in option:
+                pgrid_obj.radi_method = radi.gauss_chebyshev
+            else:
+                raise PyAdfError(f'unrecognized option: {option}')
+
+        if 'becke_scheme' in attr_dic:
+            option_counter -= 1
+            option = attr_dic['radi_method']
+            if 'original_becke' in option: # default
+                pgrid_obj.becke_scheme = gen_grid.original_becke
+            elif 'stratmann' in option:
+                pgrid_obj.becke_scheme = gen_grid.stratmann
+            else:
+                raise PyAdfError(f'unrecognized option: {option}')
+
+        if 'prune' in attr_dic:
+            option_counter -= 1
+            option = attr_dic['prune']
+            if 'none' == str(option).lower():
+                pgrid_obj.prune = None
+            elif 'nwchem_prune' in option: # default
+                pgrid_obj.prune = gen_grid.nwchem_prune
+            elif 'sg1_prune' in option:
+                pgrid_obj.prune = gen_grid.sg1_prune
+            elif 'treutler_prune' in option:
+                pgrid_obj.prune = gen_grid.treutler_prune
+            else:
+                raise PyAdfError(f'unrecognized option: {option}')
+
+        if 'symmetry' in attr_dic:
+            option_counter -= 1
+            option = attr_dic['symmetry']
+            if isinstance(option, bool):
+                pgrid_obj.symmetry = option
+            else:
+                raise PyAdfError(f'unrecognized option: {option}')
+
+        if 'atom_grid' in attr_dic:
+            option_counter -= 1
+            option = attr_dic['atom_grid']
+            if isinstance(option, dict):
+                pgrid_obj.atom_grid = option
+            else:
+                raise PyAdfError(f'unrecognized option: {option}')
+
+        if option_counter != 0:
+            raise PyAdfError(f'unhandled option in {attr_dic}')
+
+        return pgrid_obj
 
     def get_number_of_points(self):
         return self._coords.shape[0]

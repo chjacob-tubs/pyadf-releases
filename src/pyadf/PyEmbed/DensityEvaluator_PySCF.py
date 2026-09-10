@@ -26,6 +26,7 @@
  @author: Kevin Focke
 """
 import numpy as np
+import hashlib
 
 try:
     # noinspection PyPackageRequirements
@@ -35,6 +36,7 @@ except ImportError:
     tools = dft = df = lib = gto = None
 
 from pyadf.Errors import PyAdfError
+from pyadf.ArraySaver import cacheresults
 
 
 class PyScfInterface:
@@ -66,10 +68,10 @@ class PyScfInterface:
 
         self.mol.verbose = 0
         self.mol.max_memory = 10000  # MB
-
         self._ao_cache = None
         self._densval_cache = None
         self._cache_deriv = -1
+        self.checksum = hashlib.md5(molden_file.encode('utf-8')).hexdigest()
 
     def calc_ao_values(self, coordinates, deriv=0, cache=False):
         """
@@ -102,10 +104,7 @@ class PyScfInterface:
     def calc_density_values(self, coordinates, deriv=0, cache=False):
         if (self._densval_cache is not None) and (deriv <= self._cache_deriv):
             if deriv == 0:
-                if self._cache_deriv > 0:
-                    return self._densval_cache[0]
-                else:
-                    return self._densval_cache
+                return self._densval_cache[0] if self._cache_deriv > 0 else self._densval_cache
             elif deriv == 1:
                 return self._densval_cache[0:4]
             else:
@@ -113,16 +112,34 @@ class PyScfInterface:
 
         ao_values = self.calc_ao_values(coordinates, deriv=deriv, cache=cache)
 
-        if deriv == 0:
-            densvals = dft.numint.eval_rho2(self.mol, ao_values, self.mo_coeff, self.mo_occ)
-        elif deriv == 1:
-            densvals = dft.numint.eval_rho2(self.mol, ao_values, self.mo_coeff, self.mo_occ,
-                                            xctype='GGA')
-        elif deriv == 2:
-            densvals = dft.numint.eval_rho2(self.mol, ao_values, self.mo_coeff, self.mo_occ,
-                                            xctype='mGGA')
+        if isinstance(self.mo_occ, tuple):
+            # Handle UHF (unrestricted) case
+            occ_alpha, occ_beta = self.mo_occ
+            coeff_alpha, coeff_beta = self.mo_coeff
+
+            if deriv == 0:
+                dens_alpha = dft.numint.eval_rho2(self.mol, ao_values, coeff_alpha, occ_alpha)
+                dens_beta = dft.numint.eval_rho2(self.mol, ao_values, coeff_beta, occ_beta)
+            elif deriv == 1:
+                dens_alpha = dft.numint.eval_rho2(self.mol, ao_values, coeff_alpha, occ_alpha, xctype='GGA')
+                dens_beta = dft.numint.eval_rho2(self.mol, ao_values, coeff_beta, occ_beta, xctype='GGA')
+            elif deriv == 2:
+                dens_alpha = dft.numint.eval_rho2(self.mol, ao_values, coeff_alpha, occ_alpha, xctype='mGGA')
+                dens_beta = dft.numint.eval_rho2(self.mol, ao_values, coeff_beta, occ_beta, xctype='mGGA')
+            else:
+                raise NotImplementedError('Density derivatives only implemented up to 2nd deriv.')
+
+            densvals = dens_alpha + dens_beta
         else:
-            raise NotImplementedError('Density derivatives only implemented up to 2nd deriv.')
+            # Handle RHF/ROHF (restricted) case
+            if deriv == 0:
+                densvals = dft.numint.eval_rho2(self.mol, ao_values, self.mo_coeff, self.mo_occ)
+            elif deriv == 1:
+                densvals = dft.numint.eval_rho2(self.mol, ao_values, self.mo_coeff, self.mo_occ, xctype='GGA')
+            elif deriv == 2:
+                densvals = dft.numint.eval_rho2(self.mol, ao_values, self.mo_coeff, self.mo_occ, xctype='mGGA')
+            else:
+                raise NotImplementedError('Density derivatives only implemented up to 2nd deriv.')
 
         if cache:
             self._densval_cache = densvals
@@ -199,21 +216,38 @@ class PyScfInterface:
         density_values = self.calc_density_values(coordinates, deriv=2)
         return density_values[4]
 
-    def nuclear_potential(self, coordinates):
-        Vnuc = np.zeros(coordinates.shape[0])
-        for i in range(self.mol.natm):
-            r = self.mol.atom_coord(i)
-            Z = self.mol.atom_charge(i)
-            rp = r - coordinates
-            Vnuc += -Z / np.sqrt(np.einsum('xi,xi->x', rp, rp))
-        return Vnuc
-
+    @cacheresults
     def coulomb_potential(self, coordinates):
         Vele = np.empty(coordinates.shape[0])
-        mocc = self.mo_coeff[:, self.mo_occ > 0]
-        dm = np.dot(mocc * self.mo_occ[self.mo_occ > 0], mocc.conj().T)
+
+        if isinstance(self.mo_occ, tuple):
+            # Handle UHF (unrestricted) case
+            occ_alpha, occ_beta = self.mo_occ
+            coeff_alpha, coeff_beta = self.mo_coeff
+
+            # Alpha spin contribution
+            mask_alpha = occ_alpha > 0
+            mocc_alpha = coeff_alpha[:, mask_alpha]
+            dm_alpha = np.dot(mocc_alpha * occ_alpha[mask_alpha], mocc_alpha.conj().T)
+
+            # Beta spin contribution
+            mask_beta = occ_beta > 0
+            mocc_beta = coeff_beta[:, mask_beta]
+            dm_beta = np.dot(mocc_beta * occ_beta[mask_beta], mocc_beta.conj().T)
+
+            # Total density matrix
+            dm = dm_alpha + dm_beta
+        else:
+            # Handle RHF/ROHF (restricted) case
+            mask = self.mo_occ > 0
+            mocc = self.mo_coeff[:, mask]
+            dm = np.dot(mocc * self.mo_occ[mask], mocc.conj().T)
+
+        # Compute Coulomb potential using the total density matrix
         for p0, p1 in lib.prange(0, Vele.size, 600):
             fakemol = gto.fakemol_for_charges(coordinates[p0:p1])
+            fakemol.cart = self.mol.cart
             ints = df.incore.aux_e2(self.mol, fakemol)
             Vele[p0:p1] = np.einsum('ijp,ij->p', ints, dm)
+
         return Vele

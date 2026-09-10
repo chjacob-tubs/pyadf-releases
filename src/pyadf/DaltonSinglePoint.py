@@ -602,6 +602,7 @@ class daltonsinglepointjob(daltonjob):
         return daltonfile
 
     def get_moleculefile(self):
+        # Job Mol Interface
         return self.mol.get_dalton_molfile(self.basis)
 
     def print_jobtype(self):

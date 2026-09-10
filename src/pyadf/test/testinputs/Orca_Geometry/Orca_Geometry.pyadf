@@ -1,5 +1,6 @@
 import os
 from pyadf import *
+import numpy as np
 
 if 'pyadfenv' not in globals():
     from pyadf.Initialization import *
@@ -16,12 +17,16 @@ def test_geoopt(name, molec, ref_energy, ref_mol):
     opt_energy = res.get_energy()
     print("Final Total Energy: ", opt_energy)
 
+    opt_gradient = res.get_gradient()
+    ref_gradient = np.zeros_like(opt_gradient)
+
     if 'unittesting' in pyadfenv.options:
         print(opt_mol.print_coordinates())
         print(ref_mol.print_coordinates())
 
         testobj.assertAlmostEqualMolecules(opt_mol, ref_mol)
         testobj.assertAlmostEqual(opt_energy, ref_energy, 5)
+        testobj.assertAlmostEqual(opt_gradient, ref_gradient, 2.5)
 
 
 testmols = [

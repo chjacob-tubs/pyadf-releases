@@ -32,10 +32,10 @@ import numpy as np
 h2o = molecule(os.path.join(pyadfenv.outdir, 'H2O.xyz'))
 h2o.set_symmetry('NOSYM')
 
-settings = adfsettings()
+settings = adfsettings(zlmfit=False)
 settings.set_save_tapes([21, 10])
 settings.set_functional('BP86')
-settings.set_integration(3.0)
+settings.set_integration(accint=3.0, becke=False)
 
 basis = 'TZ2P'
 
@@ -48,9 +48,8 @@ dipole_vect = refresults.get_dipole_vector()
 dipole_magn = refresults.get_dipole_magnitude()
 
 if 'unittesting' in pyadfenv.options:
-    testobj.assertAlmostEqual(dipole_magn, 0.71293219, 6)
-    testobj.assertAlmostEqual(dipole_vect, [-0.59194682, -0.39733017, 0.0], 6)
-
+    testobj.assertAlmostEqual(dipole_magn, 0.71293029, 6)
+    testobj.assertAlmostEqual(dipole_vect, [-0.5919459, -0.3973281, 0.0], 6)
 # get reference density
 
 agrid = adfgrid(refresults)

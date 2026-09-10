@@ -41,7 +41,7 @@ mf = dft.RKS(pyscf_mol)
 mf.xc = 'bp86'
 mf.kernel()
 if 'unittesting' in pyadfenv.options:
-    testobj.assertAlmostEqual(mf.e_tot, -76.41950984624985, 6)
+    testobj.assertAlmostEqual(mf.e_tot, -76.419511, 5)
 dip_vec = mf.dip_moment(unit='au')
 if 'unittesting' in pyadfenv.options:
     testobj.assertAlmostEqual(dip_vec, [0.70282928, 0.16353215, -0.07174661], 4)

@@ -1,0 +1,4 @@
+h5py~=3.16.0
+pyscf~=2.14.0
+xcfun~=2.1.1
+fortranformat~=2.0.3

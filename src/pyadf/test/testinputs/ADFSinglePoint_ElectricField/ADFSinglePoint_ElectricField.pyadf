@@ -5,9 +5,9 @@ if 'pyadfenv' not in globals():
 
 
 def check_results(etot, dip_vect, dip_magn):
-    testobj.assertAlmostEqual(etot, -76.353716815, 6)
-    testobj.assertAlmostEqual(dip_magn, 0.788568473, 6)
-    testobj.assertAlmostEqual(dip_vect, [0.0, 0.0, 0.788568473], 6)
+    testobj.assertAlmostEqual(etot, -76.353070929, 6)
+    testobj.assertAlmostEqual(dip_magn, 0.78755858, 6)
+    testobj.assertAlmostEqual(dip_vect, [0.0, 0.0, 0.78755858], 6)
 
 
 h2o = molecule(os.path.join(pyadfenv.outdir, 'H2O.xyz'))

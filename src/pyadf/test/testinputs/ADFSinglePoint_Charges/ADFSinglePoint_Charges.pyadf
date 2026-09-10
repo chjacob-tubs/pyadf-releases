@@ -15,7 +15,7 @@ results = adfsinglepointjob(h2o, 'DZP', settings=settings).run()
 mulliken = results.get_mulliken_charges()
 print("Mulliken Charges: ", mulliken)
 
-testobj.assertAlmostEqualVectors(mulliken, [-0.40154916, 0.20077469, 0.20077447], 3)
+testobj.assertAlmostEqualVectors(mulliken, [-0.402269259, 0.20077469, 0.20077447], 3)
 
 # Voronoi charges
 
@@ -25,15 +25,15 @@ print("Voronoi Charges: ", voronoi)
 vdd = results.get_voronoi_charges(vdd=True)
 print("VDD Charges: ", vdd)
 
-testobj.assertAlmostEqualVectors(voronoi, [0.69373044, -0.34685375, -0.34685377], 3)
-testobj.assertAlmostEqualVectors(vdd, [-0.2626871, 0.13135323, 0.13135321], 3)
+testobj.assertAlmostEqualVectors(voronoi, [0.689442256, -0.355940207, -0.333491467], 3)
+testobj.assertAlmostEqualVectors(vdd, [-0.26412107, 0.13404487, 0.1300793], 3)
 
 # Hirshfeld charges
 
 hirsh = results.get_hirshfeld_charges()
 print("Hirshfeld Charges: ", hirsh)
 
-testobj.assertAlmostEqualVectors(hirsh, [-0.28723012, 0.14362652, 0.14362651], 3)
+testobj.assertAlmostEqualVectors(hirsh, [-0.28618526, 0.14309792, 0.14309792], 3)
 
 # multipole derived charges
 
@@ -44,6 +44,6 @@ print("MDC-d Charges: ", mdc_d)
 mdc_q = results.get_multipolederiv_charges('MDC-q')
 print("MDC-q Charges: ", mdc_q)
 
-testobj.assertAlmostEqualVectors(mdc_m, [0.28695648, -0.14347825, -0.14347823], 3)
-testobj.assertAlmostEqualVectors(mdc_d, [-0.62881444, 0.31440723, 0.31440721], 3)
-testobj.assertAlmostEqualVectors(mdc_q, [-0.29866763, 0.14933381, 0.14933382], 3)
+testobj.assertAlmostEqualVectors(mdc_m, [-0.18200745, 0.09100373, 0.09100373], 3)
+testobj.assertAlmostEqualVectors(mdc_d, [-0.61879018, 0.30939509, 0.30939509], 3)
+testobj.assertAlmostEqualVectors(mdc_q, [-0.69552768, 0.34776384, 0.34776384], 3)

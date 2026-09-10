@@ -67,3 +67,22 @@ m.write(os.path.join(pyadfenv.outdir, 'bla.xyz'), 'xyz')
 m_mod = molecule(os.path.join(pyadfenv.outdir, '1X3O_mod.xyz'))
 
 testobj.assertAlmostEqualMolecules(m, m_mod)
+
+# 3) Test that residue and atomtype information is preserved
+
+testobj.assertEqual(solvent[0].get_atom_resinfo(1), (' ', 'TIP', 1, ' OH2'))
+testobj.assertEqual(solvent[0].get_atom_resinfo(2), (' ', 'TIP', 1, ' H1 '))
+testobj.assertEqual(solvent[0].get_atom_resinfo(3), (' ', 'TIP', 1, ' H2 '))
+
+testobj.assertEqual(solvent[1].get_atom_resinfo(1), (' ', 'TIP', 2, ' OH2'))
+testobj.assertEqual(solvent[1].get_atom_resinfo(2), (' ', 'TIP', 2, ' H1 '))
+testobj.assertEqual(solvent[1].get_atom_resinfo(3), (' ', 'TIP', 2, ' H2 '))
+
+dimer = solvent[0] + solvent[1]
+
+testobj.assertEqual(dimer.get_atom_resinfo(1), (' ', 'TIP', 1, ' OH2'))
+testobj.assertEqual(dimer.get_atom_resinfo(2), (' ', 'TIP', 1, ' H1 '))
+testobj.assertEqual(dimer.get_atom_resinfo(3), (' ', 'TIP', 1, ' H2 '))
+testobj.assertEqual(dimer.get_atom_resinfo(4), (' ', 'TIP', 2, ' OH2'))
+testobj.assertEqual(dimer.get_atom_resinfo(5), (' ', 'TIP', 2, ' H1 '))
+testobj.assertEqual(dimer.get_atom_resinfo(6), (' ', 'TIP', 2, ' H2 '))

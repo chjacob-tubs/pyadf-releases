@@ -56,18 +56,18 @@ print('\n')
 
 ##############################################################################
 if 'unittesting' in pyadfenv.options:
-    testobj.assertAlmostEqual(j12, 164.86, 2)
+    testobj.assertAlmostEqual(j12, 164.8659569, 2)
 
     testobj.assertEqual(all_j[0][0], 2)
     testobj.assertEqual(all_j[0][1], 1)
-    testobj.assertAlmostEqual(all_j[0][2], 164.86, 2)
+    testobj.assertAlmostEqual(all_j[0][2], 164.8659569, 2)
     testobj.assertEqual(all_j[1][0], 3)
     testobj.assertEqual(all_j[1][1], 1)
-    testobj.assertAlmostEqual(all_j[1][2], 342.04, 2)
+    testobj.assertAlmostEqual(all_j[1][2], 341.323147, 2)
 
     testobj.assertEqual(all_k[0][0], 2)
     testobj.assertEqual(all_k[0][1], 1)
-    testobj.assertAlmostEqual(all_k[0][2], 216.98, 2)
+    testobj.assertAlmostEqual(all_k[0][2], 216.98217, 2)
     testobj.assertEqual(all_k[1][0], 3)
     testobj.assertEqual(all_k[1][1], 1)
-    testobj.assertAlmostEqual(all_k[1][2], 113.22, 2)
+    testobj.assertAlmostEqual(all_k[1][2], 112.982069, 2)

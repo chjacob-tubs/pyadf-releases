@@ -3,9 +3,18 @@ from pyadf import *
 if 'pyadfenv' not in globals():
     from pyadf.Initialization import *
 
+import numpy as np
+
 h2o = molecule(os.path.join(pyadfenv.outdir, 'H2O.xyz'))
 
 results = adfgradientsjob(h2o, 'TZP').run()
-grads = results.get_gradients()
+grads = results.get_gradient()
 
 print(grads)
+
+np.savetxt(os.path.join(pyadfenv.outdir, 'gradient.txt'), grads)
+
+grads_orig = np.loadtxt(os.path.join(pyadfenv.outdir, 'gradient_orig.txt'))
+
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(grads, grads_orig, 6)

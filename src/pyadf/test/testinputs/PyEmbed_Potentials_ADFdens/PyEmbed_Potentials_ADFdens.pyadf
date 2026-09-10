@@ -88,5 +88,5 @@ if 'unittesting' in pyadfenv.options:
     testobj.assertAlmostEqual(embpot_nh3_step_one.values, embpot_nh3_step_two.values, places=6)
 
     # test integral of embedding potential and density
-    testobj.assertAlmostEqual(int_h2o, 0.2890264021080792, places=6)
-    testobj.assertAlmostEqual(int_nh3, -0.240604780687607, places=6)
+    testobj.assertAlmostEqual(int_h2o, 0.2767646403362167, places=6)
+    testobj.assertAlmostEqual(int_nh3, -0.23078593988707397, places=6)

@@ -72,7 +72,7 @@ results = job.run()
 print("Error in density: ", results.dens_error)
 
 if 'unittesting' in pyadfenv.options:
-    testobj.assertAlmostEqual(results.dens_error, 0.0239946396, 6)
+    testobj.assertAlmostEqual(results.dens_error, 0.024062988, 6)
 
 ######################################################
 # Now setup the grid on which we want the potentials

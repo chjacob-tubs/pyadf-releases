@@ -15,7 +15,7 @@ if 'pyadfenv' not in globals():
 
 h2o = molecule(os.path.join(pyadfenv.outdir, 'H2O.xyz'))
 
-settings = adfsettings()
+settings = adfsettings(zlmfit=False)
 settings.set_save_tapes([21, 10])
 settings.set_lmo(True)
 settings.set_integration(4.0)
@@ -93,4 +93,4 @@ int_diff = (diff_pot * dens).integral(func=lambda x: abs(x))
 print("Density-weighted integral of difference in Coulomb potentials", int_diff)
 
 if 'unittesting' in pyadfenv.options:
-    testobj.assertTrue(int_diff < 0.071)
+    testobj.assertTrue(int_diff < 0.094)

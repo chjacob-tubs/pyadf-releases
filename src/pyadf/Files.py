@@ -342,7 +342,7 @@ class adf_filemanager(filemanager):
         self._resultfiles.append([])
         self._ispacked.append(True)
 
-        fnlist = [('INPUT.gbw', 21), ('INPUT_property.txt', 67), ('INPUT.engrad', 68),
+        fnlist = [('INPUT.gbw', 21), ('INPUT.property.json', 67), ('INPUT.engrad', 68),
                   ('INPUT.xyz', 69), ('INPUT_trj.xyz', 13), ('INPUT.molden.input', 41),
                   ('INPUT.mdci.optorb', 47), ('INPUT.scfp', 47), ('INPUT.hess', 42)]
         self.add_resultfiles_as_tapes(fnlist, results.fileid)

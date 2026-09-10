@@ -113,7 +113,9 @@ class results:
             return self.files.get_output(self.fileid)
 
     def get_molecule(self):
-        return None
+        # if nothing else is defined, just return the molecule of
+        # the original job
+        return self.job.mol
 
     def get_dipole_vector(self):
         """
@@ -141,6 +143,29 @@ class results:
             return math.sqrt(dipole[0]**2 + dipole[1]**2 + dipole[2]**2)
         else:
             return None
+
+    def get_nuclear_repulsion_energy(self):
+        """
+        Return the nuclear repulsion energy.
+
+        @returns: the nuclear repulsion energy
+        @rtype:   float
+        """
+        mol = self.get_molecule()
+        return mol.get_nuclear_repulsion_energy()
+
+    def get_gradient(self):
+        """
+        Retrieves the gradient data by reading the energy gradient file and returns it as a 2D NumPy array.
+
+        Returns
+        -------
+        numpy.ndarray
+            A 2D NumPy array of shape `(num_atoms, 3)` containing the gradient values. Each row represents
+            the x, y, and z components of the gradient for a single atom.
+
+        """
+        raise NotImplementedError
 
 
 class job:

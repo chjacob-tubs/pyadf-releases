@@ -1,0 +1,61 @@
+import os
+from pyadf import *
+if 'pyadfenv' not in globals():
+    from pyadf.Initialization import *
+
+import numpy as np
+
+pyadfenv.options['save_results'] = True
+
+mol = molecule(os.path.join(pyadfenv.outdir, 'no2.xyz'))
+mol.set_spin(1)
+
+# first, we do a Turbomole geometry optimization
+
+settings = TurbomoleGeometryOptimizationSettings(verbose_level=2)
+settings.set_dft_grid('m4')
+settings.set_scfconv(9)
+settings.set_convergence_criterion(5)
+
+# default settings: RI-DFT/BP
+settings.set_basis_set('def2-SVP')
+
+res = TurbomoleGeometryOptimizationJob(mol, method='dft', settings=settings).run()
+
+opt_mol = res.get_molecule()
+print(opt_mol)
+
+opt_energy = res.get_energy()
+print("Final Total Energy: ", opt_energy)
+
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(opt_energy, -204.9583304065, 5)
+
+    ref_mol = molecule(os.path.join(pyadfenv.outdir, 'no2_ref.xyz'))
+    testobj.assertAlmostEqualMolecules(opt_mol, ref_mol)
+
+# now for the SNF part
+
+snf_res = SNFJob(res).run()
+freqs = snf_res.get_wave_numbers()
+ints = snf_res.get_ir_ints()
+
+modes_mw = snf_res.get_vibs().modes.modes_mw
+
+print("Vibrational frequencies [cm-1]: ", freqs)
+print("IR intensities: ", ints)
+print("Normal Modes: ", modes_mw)
+
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(freqs, [746.87128, 1371.84449, 1728.15303], 2)
+    testobj.assertAlmostEqual(ints, [8.0412703,  0.46966978, 276.17046007], 2)
+
+    modes_mw_orig = np.array([[0.618791635, -0.0, 0.0, -0.289490765, 0.474071253, 0.0,
+                               -0.289490765, -0.474071253, 0.0],
+                              [-0.559138264, -0.0000199999379, 0.0, 0.261589188,
+                               0.524658371,  0.0, 0.261579188, -0.524638371, 0.0],
+                              [0.00000999997461, -0.812167938, 0.0, 0.160689592,
+                               0.379949035, 0.0, -0.160699592, 0.379969035, 0.0]])
+    overlap = np.dot(modes_mw, modes_mw_orig.T)
+
+    testobj.assertAlmostEqual(np.abs(overlap.diagonal()), np.ones(3), 4)

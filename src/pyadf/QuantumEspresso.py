@@ -608,6 +608,7 @@ class QESinglePointJob(QEJob):
         """
 
         block = "\nATOMIC_POSITIONS (angstrom)\n"
+        # Job Mol Interface
         block += self.mol.print_coordinates(index=False)
         block += "\n"
         return block

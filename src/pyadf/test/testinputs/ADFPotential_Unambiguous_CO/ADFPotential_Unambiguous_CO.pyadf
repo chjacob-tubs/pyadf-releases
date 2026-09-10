@@ -36,8 +36,9 @@ def run_potjob(refresults, potproj, projchange):
 
     startpot1 = get_startpot(refresults, agrid)
 
-    settings = adfsettings(functional='BP86', accint=6.0, converge=1e-04,
+    settings = adfsettings(functional='BP86', converge=1e-04, zlmfit=False,
                            basispath=os.path.join(pyadfenv.outdir, 'basis-extfit'))
+    settings.set_integration(accint=6.0, becke=False)
     settings.set_save_tapes([21, 10])
     settings.set_ncycles(1000)
 
@@ -81,8 +82,9 @@ def main():
     # A) reference calculation (BP86 for CO molecule)
     ###################################################################
 
-    settings = adfsettings(functional='BP86', accint=6.0, converge=1e-04,
+    settings = adfsettings(functional='BP86', converge=1e-04, zlmfit=False,
                            basispath=os.path.join(pyadfenv.outdir, 'basis-extfit'))
+    settings.set_integration(accint=6.0, becke=False)
     settings.set_save_tapes([21, 10])
     settings.set_ncycles(100)
 

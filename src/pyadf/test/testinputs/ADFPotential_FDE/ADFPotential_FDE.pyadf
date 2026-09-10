@@ -39,10 +39,10 @@ h2o2.set_symmetry('NOSYM')
 h2o_dimer = h2o1 + h2o2
 h2o_dimer.set_symmetry('NOSYM')
 
-settings = adfsettings()
+settings = adfsettings(zlmfit=False)
 settings.set_save_tapes([21, 10])
 settings.set_functional('BP86')
-settings.set_integration(3.0)
+settings.set_integration(accint=3.0, becke=False)
 
 supermol_res = adfsinglepointjob(h2o_dimer, 'DZ', settings=settings).run()
 grid = adfgrid(supermol_res)

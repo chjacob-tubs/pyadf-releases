@@ -1,0 +1,262 @@
+# This test looks at differences between the direct results of an Orca
+# calculation and the calculations in PyEmbed based on the molden file
+# from the Orca calculation.
+#
+# Additionally, the functioning of the ArraySaver is observed, tested
+# and documented in this test.
+
+import os
+import numpy as np
+import re
+import h5py
+import time
+
+from pyadf import *
+if 'pyadfenv' not in globals():
+    from pyadf.Initialization import *
+
+
+def find_in_orca_output(orca_output, what):
+    last_match = 'no match yet'
+    matcher = re.compile(r"(" + what + r") *(:) *(?P<match>-?\d+\.\d+)")
+    for line in orca_output:
+        m = matcher.match(line)
+        if m:
+            last_match = float(m.group('match'))
+    return last_match
+
+
+# for the test to work, the results from the other tests have to be
+# cleant up. this is just to document the situation before the test starts
+print(arrayvault._files)
+if os.path.exists(arrayvault.filepath):
+    size_kb = os.path.getsize(arrayvault.filepath) / 1024
+    print(size_kb, ' KiB of stored arrays found')
+    with h5py.File(arrayvault.filepath, 'r') as f:
+        for key in f.keys():
+            print(f[key])
+arrayvault.cleanup()
+
+# check that arrayvault is empty
+if 'unittesting' in pyadfenv.options:
+    testobj.assertFalse(os.path.exists(arrayvault.filepath))
+
+h2o = molecule(os.path.join(pyadfenv.outdir, 'H2O.xyz'))
+
+#########################################
+# BP86 single point calculation in Orca #
+#########################################
+settings = OrcaSettings(method='DFT', functional='BP86', basis='def2-SV(P)',
+                        ri=False, converge='TightSCF')
+results = OrcaSinglePointJob(h2o, settings=settings).run()
+orca_output = results.get_output()
+
+# Generate grid and density
+pgrid = pyscfgrid(h2o)
+dens = results.get_density(grid=pgrid, order=1)
+
+# Total number of electrons
+#
+# Orca
+int_dens_orca = find_in_orca_output(orca_output, r'N\(Total\)')
+print("Integral of density via Orca: ", int_dens_orca)
+
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(int_dens_orca, 10.0, 5)
+
+# PyEmbed
+
+int_dens_pyembed = dens[0].integral()
+print("Integral of density via PyEmbed: ", int_dens_pyembed)
+
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(int_dens_pyembed, 10.0, 5)
+    testobj.assertAlmostEqual(int_dens_pyembed, int_dens_orca, 5)
+
+# X energy
+#
+# Orca
+x_energy_b86_orca = find_in_orca_output(orca_output, r'E\(X\)')
+print("X energy (BP86, via Orca/libxc): ", x_energy_b86_orca)
+
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(x_energy_b86_orca, -8.956032975454, 6)
+
+# PyEmbed
+
+b86_func = xcfun.Functional({"BeckeX": 1.0})
+endens = b86_func.eval_energy_n(density=dens[0].values, densgrad=dens[1].values)
+x_energy_b86_pyembed = np.dot(pgrid.weights, endens)
+
+print("X energy (BP86, via PyEmbed/xcfun): ", x_energy_b86_pyembed)
+
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(x_energy_b86_pyembed, -8.956031872668271, 6)
+    testobj.assertAlmostEqual(x_energy_b86_pyembed, x_energy_b86_orca, 5)
+
+# C energy
+#
+# Orca
+
+c_energy_p86_orca = float(find_in_orca_output(orca_output, r'E\(C\)'))
+print("C energy (BP86, via Orca/libxc): ", c_energy_p86_orca)
+
+# PyEmbed
+
+p86_func = xcfun.Functional({"P86C": 1.0})
+endens = p86_func.eval_energy_n(density=dens[0].values, densgrad=dens[1].values)
+c_energy_p86_pyembed = np.dot(pgrid.weights, endens)
+
+print("C energy (BP86, via PyEmbed/xcfun): ", c_energy_p86_pyembed)
+
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(c_energy_p86_orca, -0.362072169421, 6)
+    testobj.assertAlmostEqual(c_energy_p86_pyembed, -0.3606740017358217, 6)
+
+xc_energy_bp86_orca = x_energy_b86_orca + c_energy_p86_orca
+xc_energy_bp86_pyembed = x_energy_b86_pyembed + c_energy_p86_pyembed
+
+# Kinetic energy
+#
+# Orca
+
+kin_energy_orca = results.get_kinetic_energy()
+
+print("Kinetic energy via Orca: ", kin_energy_orca)
+
+# PyEmbed
+
+# this relies on relatively inaccurate kinetic energy functionals
+pw91k_func = xcfun.Functional({"pw91k": 1.0})
+endens_kin = pw91k_func.eval_energy_n(density=dens[0].values, densgrad=dens[1].values)
+kin_energy_pw91k = np.dot(pgrid.weights, endens_kin)
+
+print("Kinetic energy via PyEmbed/xcfun with PW91k: ", kin_energy_pw91k)
+
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(kin_energy_orca, 75.80062821662055, 6)
+    testobj.assertAlmostEqual(kin_energy_pw91k, 75.49353125025827, 6)
+
+# Coulomb energy
+#
+# Orca
+
+two_elec_en_orca = find_in_orca_output(orca_output, 'Two Electron Energy')
+# orca does not print this directly
+coulomb_energy_orca = two_elec_en_orca - x_energy_b86_orca - c_energy_p86_orca
+print("Coulomb Energy via Orca: ", coulomb_energy_orca)
+
+# PyEmbed
+
+first_start_time = time.time()
+coulpot = results.get_potential(grid=pgrid, pot='coul')
+first_end_time = time.time()
+coulomb_energy_pyembed = 0.5*(coulpot * dens[0]).integral()
+
+print("Coulomb energy via PyEmbed: ", coulomb_energy_pyembed)
+
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(coulomb_energy_orca, 46.53441287865859, 6)
+    testobj.assertAlmostEqual(coulomb_energy_pyembed, 46.534415322201255, 6)
+    testobj.assertAlmostEqual(coulomb_energy_pyembed, coulomb_energy_orca, 5)
+
+# Electron-nuclear attraction energy
+#
+# Orca
+
+one_elec_en_orca = find_in_orca_output(orca_output, 'One Electron Energy')
+# orca does not print this directly
+elnuc_energy_orca = one_elec_en_orca - kin_energy_orca
+print("Electron-nuclear energy via Orca: ", elnuc_energy_orca)
+
+# PyEmbed
+
+nucpot = results.get_potential(grid=pgrid, pot='nuc')
+elnuc_energy_pyembed = (nucpot * dens[0]).integral()
+
+print("Electron-nuclear energy via PyEmbed: ", elnuc_energy_pyembed)
+
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(elnuc_energy_orca, -198.18585714361802, 6)
+    testobj.assertAlmostEqual(elnuc_energy_pyembed, -198.18586162550102, 6)
+    testobj.assertAlmostEqual(elnuc_energy_pyembed, elnuc_energy_orca, 5)
+
+# Nuclear repulsion energy
+#
+# Orca
+
+nuc_energy_orca = results.get_nuclear_repulsion_energy()
+
+print("Nuclear repulsion energy (BP86, pyscf grid): ", nuc_energy_orca)
+
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(nuc_energy_orca, 8.827668719648175, 6)
+
+# Total energy
+#
+# Orca
+
+energy_orca = results.get_energy()
+
+print("Total energy via Orca: ", energy_orca)
+
+# PyEmbed
+
+# (with and without kinfunc)
+energy_pyembed = (coulomb_energy_pyembed + xc_energy_bp86_pyembed
+                  + elnuc_energy_pyembed + kin_energy_orca
+                  + nuc_energy_orca)
+print("Total energy via PyEmbed, kinetic energy from Orca: ", energy_pyembed)
+energy_pyembed_pw91k = (coulomb_energy_pyembed + xc_energy_bp86_pyembed
+                  + elnuc_energy_pyembed + kin_energy_pw91k
+                  + nuc_energy_orca)
+print("Total energy via PyEmbed, kinetic energy from functional: ", energy_pyembed_pw91k)
+
+
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(energy_orca, -76.34125244, 6)
+    testobj.assertAlmostEqual(energy_pyembed, -76.33985524143515, 6)
+    testobj.assertAlmostEqual(energy_pyembed_pw91k, -76.64695220779743, 6)
+    testobj.assertAlmostEqual(energy_pyembed_pw91k, energy_pyembed, 0)
+    testobj.assertAlmostEqual(energy_pyembed_pw91k, energy_orca, 0)
+    testobj.assertAlmostEqual(energy_pyembed, energy_orca, 1)
+
+# For the last one, the difference is 0.0014 a.u. or 0.88 kcal/mol,
+# so barely within the margins of chemical accuracy. This is mostly
+# due to a difference in the correlation energy, the other values
+# look fine given that we are using different grids and get some
+# additional numerical errors.
+
+##############
+# ArraySaver #
+##############
+
+# now the file should exist
+if 'unittesting' in pyadfenv.options:
+    testobj.assertTrue(os.path.exists(arrayvault.filepath))
+
+# check that it is not too big
+size_kb = os.path.getsize(arrayvault.filepath) / 1024
+if 'unittesting' in pyadfenv.options:
+    testobj.assertAlmostEqual(size_kb, 255.4, -3)
+
+with h5py.File(arrayvault.filepath, 'r') as f:
+    # only one potential should be saved in there
+    if 'unittesting' in pyadfenv.options:
+        testobj.assertEqual(len(f.keys()),1)
+    key = list(f.keys())[0]
+    # the number of potential values should be equal to the number of
+    # grid points
+    if 'unittesting' in pyadfenv.options:
+        testobj.assertEqual(len(f[key]), len(pgrid._coords))
+# we should get the potential a lot faster now that it has been cached
+second_start_time = time.time()
+coulpot = results.get_potential(grid=pgrid, pot='coul')
+second_end_time = time.time()
+dt_first = first_end_time-first_start_time
+dt_second = second_end_time-second_start_time
+print(f'{dt_first} vs {dt_second}')
+if 'unittesting' in pyadfenv.options:
+    testobj.assertTrue(dt_first>(5*dt_second))
+    # this could hypothetically fail for some edge cases, but 5 times
+    # should be pretty save - my test resulted in a factor around 100

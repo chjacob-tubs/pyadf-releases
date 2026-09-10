@@ -5,7 +5,7 @@ if 'pyadfenv' not in globals():
 
 
 def check_results_bp86(energ, dip_vect, dip_magn):
-    testobj.assertAlmostEqual(energ, -75.96912460252, 6)
+    testobj.assertAlmostEqual(energ, -75.96957504897, 6)
     testobj.assertAlmostEqual(dip_magn, 0.316063, 5)
     testobj.assertAlmostEqual(dip_vect[0], 0.0, 4)
     testobj.assertAlmostEqual(dip_vect[1], 0.0, 4)

@@ -926,6 +926,10 @@ class _TurbomoleAbInitioSettings(TurbomoleSettings):
         @raises PyAdfError:    If DFT was not selected.
         """
 
+        if dft_functional.lower() == 'bp86':
+            dft_functional = 'b-p'
+        elif dft_functional.lower() == 'b3lyp':
+            dft_functional = 'b3-lyp'
         self.dft_functional = dft_functional
 
     def set_dft_grid(self, dft_grid):
@@ -984,7 +988,7 @@ class _TurbomoleAbInitioSettings(TurbomoleSettings):
 
         """
 
-        if correction not in ['dft-d1', 'dft-d2', 'dft-d3']:
+        if correction not in ['dft-d1', 'dft-d2', 'dft-d3', 'dft-d3bj']:
             raise PyAdfError("""Sorry, I don't know the dispersion correction
             `{}'""".format(correction))
 
@@ -1155,38 +1159,86 @@ class TurbomoleGeometryOptimizationSettings(_TurbomoleAbInitioSettings):
         super().__init__(verbose_level=verbose_level)
 
         self.gcart = None
+        self.econv = None
         self.max_iterations = None
         self.frozen_atoms = None
         self.job_verbosity = None
+
+        self.relax = None
+        self.dqmax = None
+        self.relax_internal = None
+        self.relax_redundant = None
+        self.relax_cartesian = None
 
     def generate_summary(self):
         # See mother's docstring.
         super().generate_summary()
         self.summary.append(["Max. cart. grad. norm", f"10^-{self.gcart} a.u."])
         self.summary.append(["Max. iteration cycles", self.max_iterations])
+        if self.relax:
+            self.summary.append(["Uses optimizer", "relax"])
+        else:
+            self.summary.append(["Uses optimizer", "statpt"])
 
-    def set_convergence_criterion(self, gcart):
+    def set_convergence_criterion(self, gcart=4):
         """
-        Set the convergence cretirion for an iteration job.
+        Sets the convergence criterion for an iteration job.
 
-        Here is the I{Turbomole} description of that value::
+        The convergence criterion determines the maximum norm of the Cartesian gradient
+        that must be reached. The value `gcart` sets the convergence threshold as
+        `10^(-gcart)` atomic units.
 
-            -gcart integer:
-            converge maximum norm of carthesian gradient up tp 10^(- integer)
-            atomic units
+        The default Turbomole value is `gcart=3`, while the recommended and PyADF default is `gcart=4`.
 
-        @param  gcart: Convergence criterion (recommended: C{gcart=4})
-        @type   gcart: L{int}
-        @raises PyAdfError: For invalid choices
+        Parameters
+        ----------
+        gcart : int, optional
+            Convergence criterion, defining the maximum norm of the Cartesian gradient
+            up to `10^(-gcart)` atomic units. The default is `4`.
+
+        Raises
+        ------
+        PyAdfError
+            If `gcart` is not an integer or if it is less than `1`.
         """
 
         if int(gcart) != gcart:
-            raise PyAdfError(f"""So you think {gcart} is an integer?""")
+            raise PyAdfError(f"So you think {gcart} is an integer?")
 
         if gcart < 1:
-            raise PyAdfError(f"""Rejecting 10^-({gcart}) a.u. as a convergence criterion.""")
+            raise PyAdfError(f"Rejecting 10^-({gcart}) a.u. as a convergence criterion.")
 
         self.gcart = gcart
+
+    def set_energy_convergence_criterion(self, econv=6):
+        """
+        Sets the energy convergence criterion for an iteration job.
+
+        The convergence criterion determines the accuracy of the total energy.
+        The value `econv` sets the threshold such that the total energy must
+        converge up to `10^(-econv)` atomic units.
+
+        The default Turbomole value is `econv=6`.
+
+        Parameters
+        ----------
+        econv : int, optional
+            Convergence criterion, defining the precision of the total energy
+            up to `10^(-econv)` atomic units. The default is `6`.
+
+        Raises
+        ------
+        PyAdfError
+            If `econv` is not an integer or if it is less than `1`.
+        """
+
+        if int(econv) != econv:
+            raise PyAdfError(f"So you think {econv} is an integer?")
+
+        if econv < 1:
+            raise PyAdfError(f"Rejecting 10^-({econv}) a.u. as a convergence criterion.")
+
+        self.econv = econv
 
     def set_max_iterations(self, number):
         """
@@ -1226,6 +1278,110 @@ class TurbomoleGeometryOptimizationSettings(_TurbomoleAbInitioSettings):
         """
 
         self.job_verbosity = verbosity
+
+    def set_relax(self, relax=False):
+        """
+        Enables or disables the `relax` optimizer.
+
+        The `relax` optimizer is a legacy optimization method. If disabled,
+        `statpt` will be used instead.
+
+        Parameters
+        ----------
+        relax : bool, optional
+            If `True`, enables `relax`. If `False`, disables it. Default is `False`.
+        """
+
+        if not relax:
+            self.relax_internal = None
+            self.relax_redundant = None
+            self.relax_cartesian = None
+        self.relax = relax
+
+    def set_relax_internal(self, relax_internal=True):
+        """
+        Sets whether `relax` should use internal coordinates.
+
+        If enabled, `relax` will be turned on, and `relax_cartesian` will be disabled.
+        If `relax_redundant` is not already set, it will be enabled by default.
+
+        Parameters
+        ----------
+        relax_internal : bool, optional
+            If `True`, enables internal coordinates. If `False`, disables them.
+            Default is `True`.
+        """
+
+        if relax_internal:
+            self.set_relax(True)
+            if self.relax_redundant is None:
+                self.set_relax_redundant(True)  # Default behavior
+            self.set_relax_cartesian(False)
+        else:
+            self.set_redundant_internal_coordinates(False)
+        self.relax_internal = relax_internal
+
+    def set_relax_redundant(self, relax_redundant=True):
+        """
+        Sets whether `relax` should use redundant internal coordinates.
+
+        If enabled, `relax` and `relax_internal` will be turned on, and
+        `relax_cartesian` will be disabled.
+
+        Parameters
+        ----------
+        relax_redundant : bool, optional
+            If `True`, enables redundant internal coordinates. If `False`, disables them.
+            Default is `True`.
+        """
+
+        if relax_redundant:
+            self.set_relax(True)
+            self.set_relax_internal(True)
+            self.set_relax_cartesian(False)
+            self.set_redundant_internal_coordinates(True)
+        self.relax_redundant = relax_redundant
+
+    def set_relax_cartesian(self, relax_cartesian=False):
+        """
+        Sets whether `relax` should use Cartesian coordinates.
+
+        If enabled, `relax` will be turned on, and both `relax_internal`
+        and `relax_redundant` will be disabled.
+
+        Parameters
+        ----------
+        relax_cartesian : bool, optional
+            If `True`, enables Cartesian coordinates. If `False`, disables them.
+            Default is `False`.
+        """
+
+        if relax_cartesian:
+            self.set_relax(True)
+            self.set_relax_internal(False)
+            self.set_relax_redundant(False)
+            self.set_redundant_internal_coordinates(False)
+        self.relax_cartesian = relax_cartesian
+
+    def set_dqmax(self, dqmax=0.3):
+        """
+        Sets the maximum allowed total change for coordinate updates during relaxation.
+
+        The maximum change of an individual coordinate will be limited to `dqmax / 2`,
+        and the collective change `dq` will be damped by `dqmax / ⟨dq | dq⟩` if
+        `⟨dq | dq⟩ > dqmax`.
+
+        The default value from Turbomole is `0.3`. Lower values are recommended
+        for purely Cartesian optimizations.
+
+        Parameters
+        ----------
+        dqmax : float, optional
+            Maximum allowed total change for coordinate updates. Default is `0.3`.
+
+        """
+        dqmax = float(dqmax)
+        self.dqmax = dqmax
 
 
 class TurbomoleGradientSettings(_TurbomoleAbInitioSettings):
@@ -1390,6 +1546,8 @@ class TurbomoleJob(job):
                 `define' and now it turned out that I can't copy the old `mos'
                 file from the previous job you told me to restart from... Sorry
                 for that.""")
+
+        self.check_manual_control_changes()
 
     def get_runscript(self, nproc=1):
         """
@@ -1700,6 +1858,9 @@ class TurbomoleJob(job):
 
         return self._checksum
 
+    def check_manual_control_changes(self):
+        pass
+
 
 class TurbomoleSinglePointJob(TurbomoleJob):
     """
@@ -1846,7 +2007,7 @@ class TurbomoleGeometryOptimizationJob(TurbomoleJob):
             # anyway.
             #
             # *) O=C=C=O would be one and you can insert an arbitrary number of
-            #    carbons but let's hope nobody wants to copute THAT or if she
+            #    carbons but let's hope nobody wants to compute THAT or if she
             #    does, takes care of the `ired' settings herself.
 
             self.settings.set_redundant_internal_coordinates(self.mol.get_number_of_atoms() > 3)
@@ -1867,6 +2028,8 @@ class TurbomoleGeometryOptimizationJob(TurbomoleJob):
             self.execute.append('mp2prep -g')
 
         shellstring = 'jobex'
+        if self.settings.relax:
+            shellstring += ' -relax'
         if self.settings.mp2:
             shellstring += ' -level=cc2'
         elif self.settings.ri:
@@ -1874,6 +2037,8 @@ class TurbomoleGeometryOptimizationJob(TurbomoleJob):
         if self.settings.job_verbosity:
             shellstring += ' -outfile /dev/stdout'
         shellstring += ' -gcart ' + str(self.settings.gcart)
+        if self.settings.econv:
+            shellstring += ' -energy ' + str(self.settings.econv)
         shellstring += ' -c ' + str(self.settings.max_iterations)
         self.execute.append(shellstring)
 
@@ -1898,6 +2063,30 @@ class TurbomoleGeometryOptimizationJob(TurbomoleJob):
         @rtype:  L{TurbomoleGeometryOptimizationResults}
         """
         return TurbomoleGeometryOptimizationResults(self)
+
+    def check_manual_control_changes(self):
+        """
+        Verifies that the `dqmax` setting is correctly written to the control file.
+
+        This method checks if the value of `dqmax` from `self.settings` is present
+        in the 'control' file. If the expected value is not found, an error is raised.
+
+        Raises
+        ------
+        PyAdfError
+            If the `dqmax` value from `self.settings` is not present in the control file.
+        """
+        super().check_manual_control_changes()
+
+        if self.settings.dqmax:
+            dqmax = self.settings.dqmax
+            with open('control', 'r') as infile:
+                controlfile = infile.read()
+            if f'dqmax={dqmax}' not in controlfile:
+                raise PyAdfError(
+                    f"The dqmax value of {dqmax} did not end up in "
+                    "the control file as expected."
+                )
 
 
 class TurbomoleGradientJob(TurbomoleJob):
