@@ -16,12 +16,32 @@ description = "PyADF - A Scripting Framework for Multiscale Quantum Chemistry"
 requires-python = ">=3.8"
 license = {text = "GPLv3"}
 authors = [
-    {name = "Christoph Jacob and others", email = "c.jacob@tu-braunschweig.de"}
+    {name = "Christoph R. Jacob", email = "c.jacob@tu-braunschweig.de"},
+    {name = "Tobias Bergmann"},
+    {name = "S. Maya Beyhan"},
+    {name = "Julia Brüggemann"},
+    {name = "Rosa E. Bulo"},
+    {name = "Maria Chekmeneva"},
+    {name = "Thomas Dresselhaus"},
+    {name = "Kevin Focke"},
+    {name = "Andre S. P. Gomes"},
+    {name = "Andreas Goetz"},
+    {name = "Michal Handzlik"},
+    {name = "Karin Kiewisch"},
+    {name = "Moritz Klammler"},
+    {name = "Toni M. Maier"},
+    {name = "Malgorzata Olejniczak"},
+    {name = "Lars Ridder"},
+    {name = "Jetze Sikkema"},
+    {name = "Erik Tsvetaev"},
+    {name = "Lucas Visscher"},
+    {name = "Johannes Vornweg"},
+    {name = "Michael Welzel"},
+    {name = "Mario Wolter"},
 ]
 readme = {file = "README.md", content-type = "text/markdown"}
 keywords = [
-    "quantum",
-    "chemistry",
+    "quantum chemistry",
     "scripting",
     "multiscale",
 ]
@@ -32,6 +52,7 @@ classifiers = [
 dependencies = [
     "numpy",
     "scipy",
+    "h5py",
 ]
 
 [project.urls]
@@ -39,7 +60,6 @@ homepage = "https://github.com/chjacob-tubs/pyadf-releases"
 
 [project.optional-dependencies]
 quantum = [
-    "h5py",
     "pyscf",
     "xcfun",
     "fortranformat",

@@ -1,0 +1,99 @@
+cff-version: 1.2.0
+title: PyADF
+message: A scripting framework for multiscale quantum chemistry
+type: software
+authors:
+  - given-names: Christoph R.
+    family-names: Jacob
+    email: c.jacob@tu-braunschweig.de
+    affiliation: Technische Universität Braunschweig
+    orcid: 'https://orcid.org/0000-0002-6227-8476'
+  - given-names: Tobias
+    family-names: Bergmann
+    affiliation: Technische Universität Braunschweig
+  - given-names: S. Maya
+    family-names: Beyhan
+    affiliation: Vrije Universiteit Amsterdam
+  - given-names: Julia
+    family-names: Brüggemann
+    affiliation: Technische Universität Braunschweig
+    orcid: 'https://orcid.org/0000-0003-4252-4980'
+  - given-names: Rosa E.
+    family-names: Bulo
+    affiliation: Vrije Universiteit Amsterdam
+  - given-names: Maria
+    family-names: Chekmeneva
+    affiliation: Technische Universität Braunschweig
+    orcid: 'https://orcid.org/0009-0008-6520-8407'
+  - given-names: Thomas
+    family-names: Dresselhaus
+    affiliation: ETH Zurich
+  - given-names: Kevin
+    family-names: Focke
+    affiliation: Technische Universität Braunschweig
+    orcid: 'https://orcid.org/0009-0009-9079-1769'
+  - given-names: Andre S. P.
+    family-names: Gomes
+    affiliation: CNRS, Université de Lille
+    orcid: 'https://orcid.org/0000-0002-5437-2251'
+  - given-names: Andreas
+    family-names: Goetz
+    affiliation: Vrije Universiteit Amsterdam
+  - given-names: Michal
+    family-names: Handzlik
+    affiliation: Vrije Universiteit Amsterdam
+  - given-names: Karin
+    family-names: Kiewisch
+    affiliation: Vrije Universiteit Amsterdam
+  - given-names: Moritz
+    family-names: Klammler
+    affiliation: Karlsruhe Institute of Technology
+  - given-names: Toni M.
+    family-names: Maier
+    affiliation: Technische Universität Braunschweig
+    orcid: 'http://orcid.org/0000-0001-5571-7576'
+  - given-names: Małgorzata
+    family-names: Olejniczak
+    affiliation: University of Warsaw
+    orcid: 'https://orcid.org/0000-0002-8370-9570'
+  - given-names: Lars
+    family-names: Ridder
+    affiliation: Netherlands eScience Center
+  - given-names: Jetze
+    family-names: Sikkema
+    affiliation: Vrije Universiteit Amsterdam
+  - given-names: Erik
+    family-names: Tsvetaev
+    affiliation: Technische Universität Braunschweig
+    orcid: 'https://orcid.org/0009-0006-0495-3177'
+  - given-names: Lucas
+    family-names: Visscher
+    affiliation: Vrije Universiteit Amsterdam
+    orcid: 'http://orcid.org/0000-0002-7748-6243'
+  - given-names: Johannes
+    family-names: Vornweg
+    affiliation: Technische Universität Braunschweig
+    orcid: 'https://orcid.org/0000-0002-1457-0173'
+  - given-names: Michael
+    family-names: Welzel
+    affiliation: Technische Universität Braunschweig
+    orcid: 'http://orcid.org/0000-0002-9996-9254'
+  - given-names: Mario
+    family-names: Wolter
+    affiliation: Technische Universität Braunschweig
+    orcid: 'https://orcid.org/0000-0001-6948-6801'
+identifiers:
+  - type: doi
+    value: 10.5281/zenodo.3834282
+repository-code: 'https://github.com/chjacob-tubs/pyadf-releases'
+url: 'http://www.pyadf.org'
+repository: 'https://gitlab.pyadf.org/workflows/pyadf'
+abstract: >-
+  PyADF - A Scripting Framework for Multiscale Quantum
+  Chemistry
+keywords:
+  - quantum chemistry
+  - multiscale
+  - scripting
+license: GPL-3.0
+version: 1.6.1
